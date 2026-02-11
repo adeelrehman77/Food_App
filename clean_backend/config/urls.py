@@ -37,9 +37,9 @@ urlpatterns = [
     path('api/v1/users/', include('apps.users.urls_api')),
     path('api/v1/driver/', include('apps.driver.urls_api')),
     
-    # Authentication (temporarily commented out)
-    # path('api/v1/auth/', include('dj_rest_auth.urls')),
-    # path('api/v1/auth/registration/', include('dj_rest_auth.registration.urls')),
+    # Authentication
+    path('api/v1/auth/', include('dj_rest_auth.urls')),
+    path('api/v1/auth/registration/', include('dj_rest_auth.registration.urls')),
     
     # Main app URLs
     path('', include('apps.main.urls')),

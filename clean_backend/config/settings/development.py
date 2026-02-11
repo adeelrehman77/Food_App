@@ -9,6 +9,18 @@ ALLOWED_HOSTS = ['*']
 # Development CORS settings
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_ALLOW_ALL = True # Deprecated but sometimes needed
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+CORS_ORIGIN_REGEX_WHITELIST = [
+    r"^https://\w+\.funadventure\.ae$",
+    r"^http://localhost:[0-9]+$",
+    r"^http://127\.0\.0\.1:[0-9]+$",
+]
 
 # Development database (SQLite for simplicity)
 DATABASES = {
