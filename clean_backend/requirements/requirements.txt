@@ -1,0 +1,73 @@
+# Django and REST framework
+Django>=4.2.0,<5.0.0
+djangorestframework>=3.14.0,<4.0.0
+djangorestframework-simplejwt>=5.2.2,<6.0.0
+django-cors-headers==4.3.1
+django-filter>=23.2,<24.0
+django-import-export>=3.3.1,<4.0.0
+dj-rest-auth>=4.0.1,<5.0.0
+
+# Database
+psycopg2-binary>=2.9.6,<3.0.0
+django-tenants>=3.6.1,<4.0.0
+dj-database-url>=2.0.0,<3.0.0
+
+# Caching
+django-redis>=5.2.0,<6.0.0
+redis>=4.5.5,<5.0.0
+
+# WebSockets
+channels>=4.0.0,<5.0.0
+channels-redis>=4.1.0,<5.0.0
+
+# Image processing
+Pillow>=10.0.0,<11.0.0
+
+# API Documentation
+drf-yasg>=1.21.5,<2.0.0
+swagger-spec-validator>=3.0.3,<4.0.0
+
+# Environment variables
+python-dotenv>=1.0.0,<2.0.0
+
+# Monitoring and performance
+django-prometheus>=2.2.0,<3.0.0
+psutil>=5.9.5,<6.0.0
+
+# Task scheduling
+django-apscheduler>=0.6.2,<1.0.0
+APScheduler>=3.10.4,<4.0.0
+
+# Production servers
+gunicorn>=20.1.0,<21.0.0
+whitenoise>=6.4.0,<7.0.0
+
+# Security
+argon2-cffi>=21.3.0,<22.0.0
+django-secure>=1.0.1,<2.0.0
+pyotp>=2.8.0,<3.0.0
+django-axes>=5.40.1,<6.0.0
+django-csp>=3.7,<4.0.0
+django-session-timeout>=0.1.0,<1.0.0
+django-user-agents>=0.4.0,<1.0.0
+bleach>=5.0.1,<6.0.0
+pyjwt>=2.6.0,<3.0.0
+
+# Authentication
+djoser>=2.2.0,<3.0.0
+django-allauth>=0.54.0,<1.0.0
+
+# Development
+pytest>=7.3.1,<8.0.0
+pytest-django>=4.5.2,<5.0.0
+django-debug-toolbar>=4.1.0,<5.0.0
+black>=23.3.0,<24.0.0
+flake8>=6.0.0,<7.0.0
+isort>=5.12.0,<6.0.0
+
+# Utilities
+celery>=5.2.7,<6.0.0
+django-celery-beat>=2.5.0,<3.0.0
+django-storages>=1.13.2,<2.0.0
+pytz>=2023.3
+requests>=2.30.0,<3.0.0 
