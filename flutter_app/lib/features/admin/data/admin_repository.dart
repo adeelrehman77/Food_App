@@ -278,6 +278,24 @@ class AdminRepository {
     return DeliveryDriver.fromJson(response.data);
   }
 
+  Future<DeliveryDriver> assignDriverZones(int driverId, List<int> zoneIds) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}driver/drivers/$driverId/assign_zones/',
+      data: {'zone_ids': zoneIds},
+    );
+    return DeliveryDriver.fromJson(response.data);
+  }
+
+  Future<DeliveryDriver> assignDriverRoutes(int driverId, List<int> routeIds) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}driver/drivers/$driverId/assign_routes/',
+      data: {'route_ids': routeIds},
+    );
+    return DeliveryDriver.fromJson(response.data);
+  }
+
   // ─── Delivery Zones ─────────────────────────────────────────────────────
 
   Future<List<DeliveryZone>> getZones() async {

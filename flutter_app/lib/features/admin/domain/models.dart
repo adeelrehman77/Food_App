@@ -569,6 +569,43 @@ class DeliveryItem {
 
 // ─── Delivery Driver ────────────────────────────────────────────────────────
 
+class DriverZoneBrief {
+  final int id;
+  final String name;
+
+  DriverZoneBrief({required this.id, required this.name});
+
+  factory DriverZoneBrief.fromJson(Map<String, dynamic> json) {
+    return DriverZoneBrief(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+    );
+  }
+}
+
+class DriverRouteBrief {
+  final int id;
+  final String name;
+  final int zoneId;
+  final String? zoneName;
+
+  DriverRouteBrief({
+    required this.id,
+    required this.name,
+    required this.zoneId,
+    this.zoneName,
+  });
+
+  factory DriverRouteBrief.fromJson(Map<String, dynamic> json) {
+    return DriverRouteBrief(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      zoneId: json['zone'] ?? 0,
+      zoneName: json['zone_name'],
+    );
+  }
+}
+
 class DeliveryDriver {
   final int id;
   final String name;
@@ -577,6 +614,8 @@ class DeliveryDriver {
   final String? vehicleNumber;
   final String? vehicleType;
   final bool isActive;
+  final List<DriverZoneBrief> assignedZones;
+  final List<DriverRouteBrief> assignedRoutes;
   final String? createdAt;
 
   DeliveryDriver({
@@ -587,6 +626,8 @@ class DeliveryDriver {
     this.vehicleNumber,
     this.vehicleType,
     this.isActive = true,
+    this.assignedZones = const [],
+    this.assignedRoutes = const [],
     this.createdAt,
   });
 
@@ -599,6 +640,12 @@ class DeliveryDriver {
       vehicleNumber: json['vehicle_number'],
       vehicleType: json['vehicle_type'],
       isActive: json['is_active'] ?? true,
+      assignedZones: (json['assigned_zones'] as List? ?? [])
+          .map((e) => DriverZoneBrief.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      assignedRoutes: (json['assigned_routes'] as List? ?? [])
+          .map((e) => DriverRouteBrief.fromJson(e as Map<String, dynamic>))
+          .toList(),
       createdAt: json['created_at'],
     );
   }
@@ -625,6 +672,7 @@ class DeliveryZone {
   final int estimatedDeliveryTime;
   final bool isActive;
   final int routeCount;
+  final int assignedDriverCount;
   final String? createdAt;
 
   DeliveryZone({
@@ -635,6 +683,7 @@ class DeliveryZone {
     this.estimatedDeliveryTime = 30,
     this.isActive = true,
     this.routeCount = 0,
+    this.assignedDriverCount = 0,
     this.createdAt,
   });
 
@@ -647,6 +696,7 @@ class DeliveryZone {
       estimatedDeliveryTime: json['estimated_delivery_time'] ?? 30,
       isActive: json['is_active'] ?? true,
       routeCount: json['route_count'] ?? 0,
+      assignedDriverCount: json['assigned_driver_count'] ?? 0,
       createdAt: json['created_at'],
     );
   }
@@ -671,6 +721,7 @@ class DeliveryRoute {
   final String? zoneName;
   final String? description;
   final bool isActive;
+  final int assignedDriverCount;
   final String? createdAt;
 
   DeliveryRoute({
@@ -680,6 +731,7 @@ class DeliveryRoute {
     this.zoneName,
     this.description,
     this.isActive = true,
+    this.assignedDriverCount = 0,
     this.createdAt,
   });
 
@@ -691,6 +743,7 @@ class DeliveryRoute {
       zoneName: json['zone_name'],
       description: json['description'],
       isActive: json['is_active'] ?? true,
+      assignedDriverCount: json['assigned_driver_count'] ?? 0,
       createdAt: json['created_at'],
     );
   }

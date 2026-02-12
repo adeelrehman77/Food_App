@@ -10,34 +10,95 @@ from apps.driver.models import (
 
 class ZoneSerializer(serializers.ModelSerializer):
     route_count = serializers.IntegerField(read_only=True, default=0)
+    assigned_driver_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Zone
         fields = [
             'id', 'name', 'description', 'delivery_fee',
             'estimated_delivery_time', 'is_active', 'route_count',
-            'created_at',
+            'assigned_driver_count', 'created_at',
         ]
         read_only_fields = ['created_at']
+
+    def get_assigned_driver_count(self, obj):
+        return obj.assigned_drivers.count()
 
 
 class RouteSerializer(serializers.ModelSerializer):
     zone_name = serializers.CharField(source='zone.name', read_only=True)
+    assigned_driver_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Route
-        fields = ['id', 'name', 'zone', 'zone_name', 'description', 'is_active', 'created_at']
+        fields = [
+            'id', 'name', 'zone', 'zone_name', 'description',
+            'is_active', 'assigned_driver_count', 'created_at',
+        ]
         read_only_fields = ['created_at']
+
+    def get_assigned_driver_count(self, obj):
+        return obj.assigned_drivers.count()
+
+
+class _DriverZoneBrief(serializers.ModelSerializer):
+    """Minimal zone info nested inside a driver response."""
+    class Meta:
+        model = Zone
+        fields = ['id', 'name']
+
+
+class _DriverRouteBrief(serializers.ModelSerializer):
+    """Minimal route info nested inside a driver response."""
+    zone_name = serializers.CharField(source='zone.name', read_only=True)
+
+    class Meta:
+        model = Route
+        fields = ['id', 'name', 'zone', 'zone_name']
 
 
 class DeliveryDriverSerializer(serializers.ModelSerializer):
+    zone_ids = serializers.PrimaryKeyRelatedField(
+        source='zones', queryset=Zone.objects.all(),
+        many=True, required=False,
+    )
+    route_ids = serializers.PrimaryKeyRelatedField(
+        source='routes', queryset=Route.objects.all(),
+        many=True, required=False,
+    )
+    assigned_zones = _DriverZoneBrief(source='zones', many=True, read_only=True)
+    assigned_routes = _DriverRouteBrief(source='routes', many=True, read_only=True)
+
     class Meta:
         model = DeliveryDriver
         fields = [
             'id', 'name', 'phone', 'email', 'vehicle_number',
-            'vehicle_type', 'is_active', 'created_at',
+            'vehicle_type', 'is_active',
+            'zone_ids', 'route_ids',
+            'assigned_zones', 'assigned_routes',
+            'created_at',
         ]
         read_only_fields = ['created_at']
+
+    def create(self, validated_data):
+        zones = validated_data.pop('zones', [])
+        routes = validated_data.pop('routes', [])
+        driver = super().create(validated_data)
+        if zones:
+            driver.zones.set(zones)
+        if routes:
+            driver.routes.set(routes)
+        return driver
+
+    def update(self, instance, validated_data):
+        zones = validated_data.pop('zones', None)
+        routes = validated_data.pop('routes', None)
+        driver = super().update(instance, validated_data)
+        if zones is not None:
+            driver.zones.set(zones)
+        if routes is not None:
+            driver.routes.set(routes)
+        return driver
 
 
 class DeliveryScheduleSerializer(serializers.ModelSerializer):

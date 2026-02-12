@@ -148,6 +148,18 @@ class DeliveryDriver(models.Model):
     vehicle_number = models.CharField(max_length=20, blank=True, null=True)
     vehicle_type = models.CharField(max_length=50, blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    zones = models.ManyToManyField(
+        Zone,
+        blank=True,
+        related_name='assigned_drivers',
+        help_text="Zones this driver is assigned to cover",
+    )
+    routes = models.ManyToManyField(
+        Route,
+        blank=True,
+        related_name='assigned_drivers',
+        help_text="Specific routes this driver is assigned to",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):

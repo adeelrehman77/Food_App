@@ -532,6 +532,8 @@ class _DriversTab extends StatefulWidget {
 class _DriversTabState extends State<_DriversTab> {
   final _repo = AdminRepository();
   List<DeliveryDriver> _drivers = [];
+  List<DeliveryZone> _zones = [];
+  List<DeliveryRoute> _routes = [];
   bool _loading = true;
   String? _error;
 
@@ -547,8 +549,18 @@ class _DriversTabState extends State<_DriversTab> {
       _error = null;
     });
     try {
-      final items = await _repo.getDrivers();
-      if (mounted) setState(() => _drivers = items);
+      final results = await Future.wait([
+        _repo.getDrivers(),
+        _repo.getZones(),
+        _repo.getRoutes(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _drivers = results[0] as List<DeliveryDriver>;
+          _zones = results[1] as List<DeliveryZone>;
+          _routes = results[2] as List<DeliveryRoute>;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -604,8 +616,12 @@ class _DriversTabState extends State<_DriversTab> {
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
                             itemCount: _drivers.length,
-                            itemBuilder: (_, i) =>
-                                _DriverCard(driver: _drivers[i], onRefresh: _load),
+                            itemBuilder: (_, i) => _DriverCard(
+                              driver: _drivers[i],
+                              zones: _zones,
+                              routes: _routes,
+                              onRefresh: _load,
+                            ),
                           ),
                         ),
         ),
@@ -616,18 +632,33 @@ class _DriversTabState extends State<_DriversTab> {
   void _showDriverDialog(BuildContext context, {DeliveryDriver? driver}) {
     showDialog(
       context: context,
-      builder: (_) => _DriverFormDialog(driver: driver, onSaved: _load),
+      builder: (_) => _DriverFormDialog(
+        driver: driver,
+        zones: _zones,
+        routes: _routes,
+        onSaved: _load,
+      ),
     );
   }
 }
 
 class _DriverCard extends StatelessWidget {
   final DeliveryDriver driver;
+  final List<DeliveryZone> zones;
+  final List<DeliveryRoute> routes;
   final VoidCallback onRefresh;
-  const _DriverCard({required this.driver, required this.onRefresh});
+  const _DriverCard({
+    required this.driver,
+    required this.zones,
+    required this.routes,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final hasZones = driver.assignedZones.isNotEmpty;
+    final hasRoutes = driver.assignedRoutes.isNotEmpty;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 0,
@@ -637,95 +668,139 @@ class _DriverCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: driver.isActive
-                  ? Colors.teal.withValues(alpha: 0.1)
-                  : Colors.grey.withValues(alpha: 0.1),
-              child: Icon(
-                Icons.directions_car,
-                color: driver.isActive ? Colors.teal : Colors.grey,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        driver.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: driver.isActive
-                              ? Colors.green.shade50
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          driver.isActive ? 'Active' : 'Inactive',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: driver.isActive
-                                ? Colors.green.shade700
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                    ],
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: driver.isActive
+                      ? Colors.teal.withValues(alpha: 0.1)
+                      : Colors.grey.withValues(alpha: 0.1),
+                  child: Icon(
+                    Icons.directions_car,
+                    color: driver.isActive ? Colors.teal : Colors.grey,
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.phone, size: 14, color: Colors.grey[500]),
-                      const SizedBox(width: 4),
-                      Text(driver.phone,
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                      if (driver.vehicleNumber != null &&
-                          driver.vehicleNumber!.isNotEmpty) ...[
-                        const SizedBox(width: 16),
-                        Icon(Icons.directions_car,
-                            size: 14, color: Colors.grey[500]),
-                        const SizedBox(width: 4),
-                        Text(driver.vehicleNumber!,
-                            style:
-                                TextStyle(fontSize: 13, color: Colors.grey[600])),
-                      ],
-                    ],
-                  ),
-                  if (driver.vehicleType != null &&
-                      driver.vehicleType!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(driver.vehicleType!,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                  ],
-                ],
-              ),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (v) => _onAction(context, v),
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                PopupMenuItem(
-                  value: 'toggle',
-                  child: Text(driver.isActive ? 'Deactivate' : 'Activate'),
                 ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Text('Delete', style: TextStyle(color: Colors.red)),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              driver.name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: driver.isActive
+                                  ? Colors.green.shade50
+                                  : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              driver.isActive ? 'Active' : 'Inactive',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: driver.isActive
+                                    ? Colors.green.shade700
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.phone, size: 14, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Text(driver.phone,
+                              style: TextStyle(
+                                  fontSize: 13, color: Colors.grey[600])),
+                          if (driver.vehicleNumber != null &&
+                              driver.vehicleNumber!.isNotEmpty) ...[
+                            const SizedBox(width: 16),
+                            Icon(Icons.directions_car,
+                                size: 14, color: Colors.grey[500]),
+                            const SizedBox(width: 4),
+                            Text(driver.vehicleNumber!,
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.grey[600])),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (v) => _onAction(context, v),
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    const PopupMenuItem(
+                        value: 'assign', child: Text('Assign Zones/Routes')),
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child:
+                          Text(driver.isActive ? 'Deactivate' : 'Activate'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child:
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
                 ),
               ],
             ),
+            // Zone / Route assignment badges
+            if (hasZones || hasRoutes) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ...driver.assignedZones.map((z) => _AssignmentChip(
+                        icon: Icons.map,
+                        label: z.name,
+                        color: Colors.deepOrange,
+                      )),
+                  ...driver.assignedRoutes.map((r) => _AssignmentChip(
+                        icon: Icons.route,
+                        label: r.name,
+                        color: Colors.blue,
+                        subtitle: r.zoneName,
+                      )),
+                ],
+              ),
+            ] else ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const SizedBox(width: 64),
+                  Icon(Icons.info_outline, size: 14, color: Colors.orange[400]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'No zones/routes assigned',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange[600],
+                        fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -738,7 +813,22 @@ class _DriverCard extends StatelessWidget {
       case 'edit':
         showDialog(
           context: context,
-          builder: (_) => _DriverFormDialog(driver: driver, onSaved: onRefresh),
+          builder: (_) => _DriverFormDialog(
+            driver: driver,
+            zones: zones,
+            routes: routes,
+            onSaved: onRefresh,
+          ),
+        );
+      case 'assign':
+        showDialog(
+          context: context,
+          builder: (_) => _AssignZonesRoutesDialog(
+            driver: driver,
+            zones: zones,
+            routes: routes,
+            onSaved: onRefresh,
+          ),
         );
       case 'toggle':
         try {
@@ -747,7 +837,8 @@ class _DriverCard extends StatelessWidget {
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+              SnackBar(
+                  content: Text('Error: $e'), backgroundColor: Colors.red),
             );
           }
         }
@@ -756,7 +847,8 @@ class _DriverCard extends StatelessWidget {
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Delete Driver'),
-            content: Text('Delete driver "${driver.name}"? This cannot be undone.'),
+            content:
+                Text('Delete driver "${driver.name}"? This cannot be undone.'),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(context, false),
@@ -776,7 +868,8 @@ class _DriverCard extends StatelessWidget {
           } catch (e) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                SnackBar(
+                    content: Text('Error: $e'), backgroundColor: Colors.red),
               );
             }
           }
@@ -785,10 +878,54 @@ class _DriverCard extends StatelessWidget {
   }
 }
 
+class _AssignmentChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final String? subtitle;
+  const _AssignmentChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            subtitle != null ? '$label ($subtitle)' : label,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DriverFormDialog extends StatefulWidget {
   final DeliveryDriver? driver;
+  final List<DeliveryZone> zones;
+  final List<DeliveryRoute> routes;
   final VoidCallback onSaved;
-  const _DriverFormDialog({this.driver, required this.onSaved});
+  const _DriverFormDialog({
+    this.driver,
+    required this.zones,
+    required this.routes,
+    required this.onSaved,
+  });
 
   @override
   State<_DriverFormDialog> createState() => _DriverFormDialogState();
@@ -802,6 +939,8 @@ class _DriverFormDialogState extends State<_DriverFormDialog> {
   late final TextEditingController _emailCtrl;
   late final TextEditingController _vehicleNumCtrl;
   late final TextEditingController _vehicleTypeCtrl;
+  late Set<int> _selectedZoneIds;
+  late Set<int> _selectedRouteIds;
   bool _saving = false;
 
   bool get _isEdit => widget.driver != null;
@@ -815,6 +954,8 @@ class _DriverFormDialogState extends State<_DriverFormDialog> {
     _emailCtrl = TextEditingController(text: d?.email ?? '');
     _vehicleNumCtrl = TextEditingController(text: d?.vehicleNumber ?? '');
     _vehicleTypeCtrl = TextEditingController(text: d?.vehicleType ?? '');
+    _selectedZoneIds = d?.assignedZones.map((z) => z.id).toSet() ?? {};
+    _selectedRouteIds = d?.assignedRoutes.map((r) => r.id).toSet() ?? {};
   }
 
   @override
@@ -837,6 +978,8 @@ class _DriverFormDialogState extends State<_DriverFormDialog> {
       'vehicle_number': _vehicleNumCtrl.text.trim(),
       'vehicle_type': _vehicleTypeCtrl.text.trim(),
       'is_active': true,
+      'zone_ids': _selectedZoneIds.toList(),
+      'route_ids': _selectedRouteIds.toList(),
     };
     try {
       if (_isEdit) {
@@ -864,69 +1007,148 @@ class _DriverFormDialogState extends State<_DriverFormDialog> {
     return AlertDialog(
       title: Text(_isEdit ? 'Edit Driver' : 'Add Driver'),
       content: SizedBox(
-        width: 420,
-        child: Form(
-          key: _form,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Name is required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _phoneCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone),
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Phone is required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _emailCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _vehicleNumCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Vehicle Number',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.directions_car),
-                      ),
-                    ),
+        width: 480,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name *',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _vehicleTypeCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Vehicle Type',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.category),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Name is required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _phoneCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number *',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone),
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Phone is required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _emailCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _vehicleNumCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Vehicle Number',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.directions_car),
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _vehicleTypeCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Vehicle Type',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.category),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.zones.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Text('Assigned Zones',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.grey[700])),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: widget.zones.map((z) {
+                      final selected = _selectedZoneIds.contains(z.id);
+                      return FilterChip(
+                        label: Text(z.name),
+                        selected: selected,
+                        avatar: Icon(Icons.map,
+                            size: 16,
+                            color: selected
+                                ? Colors.deepOrange
+                                : Colors.grey[400]),
+                        selectedColor:
+                            Colors.deepOrange.withValues(alpha: 0.12),
+                        checkmarkColor: Colors.deepOrange,
+                        onSelected: (v) {
+                          setState(() {
+                            if (v) {
+                              _selectedZoneIds.add(z.id);
+                            } else {
+                              _selectedZoneIds.remove(z.id);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
                   ),
                 ],
-              ),
-            ],
+                if (widget.routes.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text('Assigned Routes',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.grey[700])),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: widget.routes.map((r) {
+                      final selected = _selectedRouteIds.contains(r.id);
+                      return FilterChip(
+                        label: Text(
+                          r.zoneName != null
+                              ? '${r.name} (${r.zoneName})'
+                              : r.name,
+                        ),
+                        selected: selected,
+                        avatar: Icon(Icons.route,
+                            size: 16,
+                            color:
+                                selected ? Colors.blue : Colors.grey[400]),
+                        selectedColor: Colors.blue.withValues(alpha: 0.12),
+                        checkmarkColor: Colors.blue,
+                        onSelected: (v) {
+                          setState(() {
+                            if (v) {
+                              _selectedRouteIds.add(r.id);
+                            } else {
+                              _selectedRouteIds.remove(r.id);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -944,6 +1166,251 @@ class _DriverFormDialogState extends State<_DriverFormDialog> {
                 )
               : Text(_isEdit ? 'Update' : 'Add Driver'),
         ),
+      ],
+    );
+  }
+}
+
+// ─── Assign Zones / Routes Dialog ───────────────────────────────────────────
+
+class _AssignZonesRoutesDialog extends StatefulWidget {
+  final DeliveryDriver driver;
+  final List<DeliveryZone> zones;
+  final List<DeliveryRoute> routes;
+  final VoidCallback onSaved;
+  const _AssignZonesRoutesDialog({
+    required this.driver,
+    required this.zones,
+    required this.routes,
+    required this.onSaved,
+  });
+
+  @override
+  State<_AssignZonesRoutesDialog> createState() =>
+      _AssignZonesRoutesDialogState();
+}
+
+class _AssignZonesRoutesDialogState extends State<_AssignZonesRoutesDialog> {
+  final _repo = AdminRepository();
+  late Set<int> _selectedZoneIds;
+  late Set<int> _selectedRouteIds;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedZoneIds = widget.driver.assignedZones.map((z) => z.id).toSet();
+    _selectedRouteIds = widget.driver.assignedRoutes.map((r) => r.id).toSet();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await Future.wait([
+        _repo.assignDriverZones(
+            widget.driver.id, _selectedZoneIds.toList()),
+        _repo.assignDriverRoutes(
+            widget.driver.id, _selectedRouteIds.toList()),
+      ]);
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSaved();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Assignments updated for ${widget.driver.name}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasData = widget.zones.isNotEmpty || widget.routes.isNotEmpty;
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Icon(Icons.assignment_ind, size: 24),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Assign ${widget.driver.name}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 480,
+        child: !hasData
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.info_outline, size: 48, color: Colors.grey[300]),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No zones or routes available yet.\nCreate zones/routes first in the "Zones & Routes" tab.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.zones.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.map,
+                              size: 18, color: Colors.deepOrange[400]),
+                          const SizedBox(width: 6),
+                          const Text('Zones',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Select zones this driver should cover',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
+                      const SizedBox(height: 10),
+                      ...widget.zones.map((z) {
+                        final selected = _selectedZoneIds.contains(z.id);
+                        return CheckboxListTile(
+                          value: selected,
+                          title: Text(z.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w500)),
+                          subtitle: Text(
+                            'AED ${z.deliveryFee.toStringAsFixed(0)} fee, ~${z.estimatedDeliveryTime} min, ${z.routeCount} routes',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey[500]),
+                          ),
+                          secondary: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.deepOrange
+                                  .withValues(alpha: selected ? 0.15 : 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.map,
+                                size: 18,
+                                color: selected
+                                    ? Colors.deepOrange
+                                    : Colors.grey[400]),
+                          ),
+                          activeColor: Colors.deepOrange,
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (v) {
+                            setState(() {
+                              if (v == true) {
+                                _selectedZoneIds.add(z.id);
+                              } else {
+                                _selectedZoneIds.remove(z.id);
+                              }
+                            });
+                          },
+                        );
+                      }),
+                    ],
+                    if (widget.zones.isNotEmpty &&
+                        widget.routes.isNotEmpty)
+                      const Divider(height: 24),
+                    if (widget.routes.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.route, size: 18, color: Colors.blue[400]),
+                          const SizedBox(width: 6),
+                          const Text('Routes',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Select specific routes within zones',
+                        style:
+                            TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
+                      const SizedBox(height: 10),
+                      ...widget.routes.map((r) {
+                        final selected = _selectedRouteIds.contains(r.id);
+                        return CheckboxListTile(
+                          value: selected,
+                          title: Text(r.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w500)),
+                          subtitle: r.zoneName != null
+                              ? Text('Zone: ${r.zoneName}',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey[500]))
+                              : null,
+                          secondary: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Colors.blue
+                                  .withValues(alpha: selected ? 0.15 : 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.route,
+                                size: 18,
+                                color: selected
+                                    ? Colors.blue
+                                    : Colors.grey[400]),
+                          ),
+                          activeColor: Colors.blue,
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (v) {
+                            setState(() {
+                              if (v == true) {
+                                _selectedRouteIds.add(r.id);
+                              } else {
+                                _selectedRouteIds.remove(r.id);
+                              }
+                            });
+                          },
+                        );
+                      }),
+                    ],
+                  ],
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        if (hasData)
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save Assignments'),
+          ),
       ],
     );
   }
@@ -1315,21 +1782,25 @@ class _ZoneCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
                       children: [
                         _InfoBadge(
                           icon: Icons.attach_money,
                           label: 'AED ${zone.deliveryFee.toStringAsFixed(0)}',
                         ),
-                        const SizedBox(width: 12),
                         _InfoBadge(
                           icon: Icons.timer,
                           label: '${zone.estimatedDeliveryTime} min',
                         ),
-                        const SizedBox(width: 12),
                         _InfoBadge(
                           icon: Icons.route,
                           label: '${zone.routeCount} routes',
+                        ),
+                        _InfoBadge(
+                          icon: Icons.person,
+                          label: '${zone.assignedDriverCount} drivers',
                         ),
                       ],
                     ),
@@ -1416,18 +1887,24 @@ class _RouteCard extends StatelessWidget {
                       ],
                     ],
                   ),
-                  if (route.zoneName != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (route.zoneName != null) ...[
                         Icon(Icons.map, size: 14, color: Colors.grey[500]),
                         const SizedBox(width: 4),
                         Text(route.zoneName!,
-                            style:
-                                TextStyle(fontSize: 12, color: Colors.grey[600])),
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey[600])),
+                        const SizedBox(width: 12),
                       ],
-                    ),
-                  ],
+                      Icon(Icons.person, size: 14, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Text('${route.assignedDriverCount} drivers',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey[600])),
+                    ],
+                  ),
                   if (route.description != null &&
                       route.description!.isNotEmpty) ...[
                     const SizedBox(height: 2),

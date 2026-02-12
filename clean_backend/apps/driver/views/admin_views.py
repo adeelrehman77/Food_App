@@ -26,6 +26,13 @@ class ZoneViewSet(viewsets.ModelViewSet):
     search_fields = ['name']
     ordering = ['name']
 
+    @action(detail=True, methods=['get'])
+    def drivers(self, request, pk=None):
+        """List drivers assigned to this zone."""
+        zone = self.get_object()
+        drivers = zone.assigned_drivers.all()
+        return Response(DeliveryDriverSerializer(drivers, many=True).data)
+
 
 class RouteViewSet(viewsets.ModelViewSet):
     """CRUD for delivery routes within zones."""
@@ -35,10 +42,17 @@ class RouteViewSet(viewsets.ModelViewSet):
     filterset_fields = ['zone', 'is_active']
     search_fields = ['name']
 
+    @action(detail=True, methods=['get'])
+    def drivers(self, request, pk=None):
+        """List drivers assigned to this route."""
+        route = self.get_object()
+        drivers = route.assigned_drivers.all()
+        return Response(DeliveryDriverSerializer(drivers, many=True).data)
+
 
 class DeliveryDriverViewSet(viewsets.ModelViewSet):
-    """CRUD for delivery drivers."""
-    queryset = DeliveryDriver.objects.all()
+    """CRUD for delivery drivers with zone/route assignment support."""
+    queryset = DeliveryDriver.objects.prefetch_related('zones', 'routes').all()
     serializer_class = DeliveryDriverSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['is_active']
@@ -50,6 +64,24 @@ class DeliveryDriverViewSet(viewsets.ModelViewSet):
         driver = self.get_object()
         driver.is_active = not driver.is_active
         driver.save(update_fields=['is_active'])
+        return Response(DeliveryDriverSerializer(driver).data)
+
+    @action(detail=True, methods=['post'])
+    def assign_zones(self, request, pk=None):
+        """Set the zones for this driver. Send {"zone_ids": [1,2,3]}."""
+        driver = self.get_object()
+        zone_ids = request.data.get('zone_ids', [])
+        zones = Zone.objects.filter(pk__in=zone_ids)
+        driver.zones.set(zones)
+        return Response(DeliveryDriverSerializer(driver).data)
+
+    @action(detail=True, methods=['post'])
+    def assign_routes(self, request, pk=None):
+        """Set the routes for this driver. Send {"route_ids": [1,2,3]}."""
+        driver = self.get_object()
+        route_ids = request.data.get('route_ids', [])
+        routes = Route.objects.filter(pk__in=route_ids)
+        driver.routes.set(routes)
         return Response(DeliveryDriverSerializer(driver).data)
 
     @action(detail=False, methods=['get'])
