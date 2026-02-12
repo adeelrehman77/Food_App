@@ -657,6 +657,34 @@ All configuration is managed through environment variables. See `clean_backend/.
 
 ---
 
+## Production readiness
+
+The stack is **suitable for production deployment** for the current scope (tenant admin + SaaS owner dashboards, multi-tenant APIs, subscription/order/invoice flows), with the caveats below.
+
+### What is production-ready
+
+| Area | Status |
+|------|--------|
+| **Backend config** | Separate dev/test/production settings; production requires `DJANGO_SECRET_KEY`, `DATABASE_URL`, `REDIS_URL`, `SYNC_TOKEN`; `DEBUG=False`, SSL/HSTS/CSP, secure cookies, axes, rate limiting |
+| **Deployment** | Docker Compose (PostgreSQL, Redis, Gunicorn, Celery, Celery Beat, Nginx), health checks, `.env.example` for required variables |
+| **Multi-tenancy** | Per-tenant DB isolation, provisioning and migration commands, no cross-tenant data leakage |
+| **Auth & security** | JWT (SimpleJWT), plan-based limits, CORS/CSRF configured for production origins |
+| **Flutter** | Dev/prod config switch, secure token storage, release builds (`flutter build web --release` / `flutter build macos --release`) |
+| **Operations** | Management commands for orders/subscriptions and daily automation (`auto_advance_today_orders`); health endpoint at `/api/v1/health/` |
+
+### Gaps to address before “full” production hardening (see PLAN.md Phase 9)
+
+- **Tests** — No automated test suite yet; add API and unit tests for critical paths (auth, orders, subscriptions, invoicing).
+- **Celery tasks** — Worker/beat are in Docker but no application tasks are defined; usage collection and scheduled jobs are planned, not implemented.
+- **Payments** — No Stripe/PayTabs (or other) integration; payments are recorded as cash/card/wallet only.
+- **Notifications** — Email/WhatsApp sending not wired; placeholders exist.
+- **Backups & monitoring** — Database backup strategy and alerting (e.g. Prometheus is enabled in production) need to be defined for your hosting environment.
+- **Cron** — Schedule `auto_advance_today_orders` (e.g. daily) on the host or via a scheduler; document in runbooks.
+
+**Bottom line:** You can run this in production for real tenants and daily use. For higher risk or compliance-heavy use, add tests, backup/monitoring runbooks, and (if needed) payment and notification integrations.
+
+---
+
 ## Contributing
 
 1. Fork the repository
