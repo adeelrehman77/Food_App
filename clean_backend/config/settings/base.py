@@ -25,7 +25,9 @@ DEBUG = DJANGO_ENV != 'production' or IS_TESTING
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 if not SECRET_KEY:
     if DEBUG:
-        SECRET_KEY = get_random_secret_key()
+        # Stable development key — avoids invalidating JWT tokens on every restart.
+        # NEVER use this in production. Set DJANGO_SECRET_KEY env var instead.
+        SECRET_KEY = 'django-insecure-dev-key-do-not-use-in-production-xk9!q2'
     else:
         raise ValueError("SECRET_KEY environment variable is required in production")
 
@@ -300,9 +302,10 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.cache.UpdateCacheMiddleware',
+    # NOTE: Per-site cache middleware removed — it caches ALL GET responses
+    # (including API JSON) for CACHE_MIDDLEWARE_SECONDS, which breaks SPA/API
+    # workflows. Use @cache_page on specific views when caching is needed.
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.cache.FetchFromCacheMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     # 'allauth.account.middleware.AccountMiddleware',  # Required from allauth >=0.56.0 (current: 0.54.0)
@@ -621,9 +624,9 @@ SWAGGER_SETTINGS = {
     ],
 }
 
-# Cache middleware settings
-CACHE_MIDDLEWARE_ALIAS = 'default'
-CACHE_MIDDLEWARE_KEY_PREFIX = 'kitchen'
+# Cache middleware settings (kept for reference if per-site cache is re-enabled)
+# CACHE_MIDDLEWARE_ALIAS = 'default'
+# CACHE_MIDDLEWARE_KEY_PREFIX = 'kitchen'
 
 # Email verification settings
 ACCOUNT_EMAIL_VERIFICATION = 'none'

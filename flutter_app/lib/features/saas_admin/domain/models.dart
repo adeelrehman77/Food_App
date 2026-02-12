@@ -17,6 +17,8 @@ class ServicePlan {
   final bool hasDeliveryTracking;
   final bool hasCustomerApp;
   final bool hasAnalytics;
+  final bool hasWhatsappNotifications;
+  final bool hasMultiBranch;
   final bool isActive;
   final int tenantCount;
 
@@ -28,14 +30,16 @@ class ServicePlan {
     this.priceMonthly = 0,
     this.priceYearly = 0,
     this.trialDays = 14,
-    this.maxMenuItems = 50,
-    this.maxStaffUsers = 5,
-    this.maxCustomers = 500,
-    this.maxOrdersPerMonth = 1000,
+    this.maxMenuItems = 100,
+    this.maxStaffUsers = 15,
+    this.maxCustomers = 1000,
+    this.maxOrdersPerMonth = 50000,
     this.hasInventoryManagement = false,
     this.hasDeliveryTracking = false,
     this.hasCustomerApp = false,
     this.hasAnalytics = false,
+    this.hasWhatsappNotifications = false,
+    this.hasMultiBranch = false,
     this.isActive = true,
     this.tenantCount = 0,
   });
@@ -49,14 +53,16 @@ class ServicePlan {
       priceMonthly: double.tryParse('${json['price_monthly']}') ?? 0,
       priceYearly: double.tryParse('${json['price_yearly']}') ?? 0,
       trialDays: json['trial_days'] ?? 14,
-      maxMenuItems: json['max_menu_items'] ?? 50,
-      maxStaffUsers: json['max_staff_users'] ?? 5,
-      maxCustomers: json['max_customers'] ?? 500,
-      maxOrdersPerMonth: json['max_orders_per_month'] ?? 1000,
+      maxMenuItems: json['max_menu_items'] ?? 100,
+      maxStaffUsers: json['max_staff_users'] ?? 15,
+      maxCustomers: json['max_customers'] ?? 1000,
+      maxOrdersPerMonth: json['max_orders_per_month'] ?? 50000,
       hasInventoryManagement: json['has_inventory_management'] ?? false,
       hasDeliveryTracking: json['has_delivery_tracking'] ?? false,
       hasCustomerApp: json['has_customer_app'] ?? false,
       hasAnalytics: json['has_analytics'] ?? false,
+      hasWhatsappNotifications: json['has_whatsapp_notifications'] ?? false,
+      hasMultiBranch: json['has_multi_branch'] ?? false,
       isActive: json['is_active'] ?? true,
       tenantCount: json['tenant_count'] ?? 0,
     );
@@ -77,6 +83,8 @@ class ServicePlan {
         'has_delivery_tracking': hasDeliveryTracking,
         'has_customer_app': hasCustomerApp,
         'has_analytics': hasAnalytics,
+        'has_whatsapp_notifications': hasWhatsappNotifications,
+        'has_multi_branch': hasMultiBranch,
         'is_active': isActive,
       };
 

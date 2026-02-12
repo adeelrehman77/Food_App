@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'core/router/app_router.dart';
 import 'core/providers/tenant_provider.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/network/api_client.dart';
 import 'core/theme/app_theme.dart';
 
 void main() async {
@@ -11,6 +12,11 @@ void main() async {
   // Initialize auth provider and restore persisted session
   final authProvider = AuthProvider();
   await authProvider.initialize();
+
+  // Wire the API client's auth failure callback to the auth provider.
+  // When token refresh fails, the interceptor calls this to force logout,
+  // which triggers the router redirect to /login.
+  ApiClient.onAuthFailure = () => authProvider.logout();
 
   // Restore tenant info
   final tenantProvider = TenantProvider();

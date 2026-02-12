@@ -197,6 +197,12 @@ class _TenantsScreenState extends State<TenantsScreen> {
                       onPressed: () =>
                           context.go('/saas/tenants/${t.id}'),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 18,
+                          color: Color(0xFF3F51B5)),
+                      tooltip: 'Edit tenant',
+                      onPressed: () => _showEditDialog(context, t),
+                    ),
                     if (t.isActive)
                       IconButton(
                         icon: const Icon(Icons.pause_circle_outline,
@@ -264,76 +270,443 @@ class _TenantsScreenState extends State<TenantsScreen> {
   }
 
   void _showCreateDialog(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
     final nameCtrl = TextEditingController();
     final subdomainCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
+    String? dialogError;
+    int? selectedPlanId;
+    List<ServicePlan> plans = [];
+    bool plansLoading = true;
+    bool showPassword = false;
+
+    // Load plans for the dropdown
+    _repo.getPlans().then((result) {
+      plans = result.where((p) => p.isActive).toList();
+      plansLoading = false;
+    }).catchError((_) {
+      plansLoading = false;
+    });
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Create New Tenant'),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Kitchen Name',
-                  hintText: 'e.g. Al Noor Kitchen',
+      builder: (_) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          // Trigger a rebuild once plans load
+          if (plansLoading) {
+            _repo.getPlans().then((result) {
+              if (dialogCtx.mounted) {
+                setDialogState(() {
+                  plans = result.where((p) => p.isActive).toList();
+                  plansLoading = false;
+                });
+              }
+            }).catchError((_) {
+              if (dialogCtx.mounted) {
+                setDialogState(() => plansLoading = false);
+              }
+            });
+          }
+
+          return AlertDialog(
+            title: const Text('Create New Tenant'),
+            content: SizedBox(
+              width: 450,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (dialogError != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(dialogError!,
+                              style: TextStyle(
+                                  color: Colors.red.shade700, fontSize: 13)),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // ── Kitchen Info ──
+                      Text('Kitchen Details',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Kitchen Name *',
+                          hintText: 'e.g. Al Noor Kitchen',
+                          prefixIcon: Icon(Icons.restaurant, size: 20),
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Name is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: subdomainCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Subdomain *',
+                          hintText: 'e.g. alnoor',
+                          prefixIcon: Icon(Icons.link, size: 20),
+                          helperText: 'Used for tenant URL and database isolation',
+                          helperMaxLines: 1,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Subdomain is required';
+                          }
+                          if (!RegExp(r'^[a-z0-9_]+$')
+                              .hasMatch(v.trim().toLowerCase())) {
+                            return 'Only lowercase letters, numbers, and underscores';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      // ── Service Plan ──
+                      const SizedBox(height: 20),
+                      Text('Subscription',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700)),
+                      const SizedBox(height: 8),
+                      plansLoading
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: LinearProgressIndicator(),
+                            )
+                          : DropdownButtonFormField<int?>(
+                              value: selectedPlanId,
+                              decoration: const InputDecoration(
+                                labelText: 'Service Plan',
+                                prefixIcon: Icon(Icons.card_membership, size: 20),
+                              ),
+                              items: [
+                                const DropdownMenuItem<int?>(
+                                  value: null,
+                                  child: Text('No Plan (assign later)',
+                                      style: TextStyle(color: Colors.grey)),
+                                ),
+                                ...plans.map((p) => DropdownMenuItem<int?>(
+                                      value: p.id,
+                                      child: Text(
+                                          '${p.name} (${p.tierLabel}) — AED ${p.priceMonthly.toStringAsFixed(0)}/mo'),
+                                    )),
+                              ],
+                              onChanged: (v) =>
+                                  setDialogState(() => selectedPlanId = v),
+                            ),
+
+                      // ── Admin Account ──
+                      const SizedBox(height: 20),
+                      Text('Tenant Admin Account',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: emailCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Admin Email *',
+                          hintText: 'admin@alnoor.com',
+                          prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Email is required';
+                          }
+                          if (!v.contains('@') || !v.contains('.')) {
+                            return 'Enter a valid email address';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: passwordCtrl,
+                        obscureText: !showPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Admin Password',
+                          hintText: 'Leave blank to auto-generate',
+                          prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              showPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              size: 20,
+                            ),
+                            onPressed: () => setDialogState(
+                                () => showPassword = !showPassword),
+                          ),
+                        ),
+                        validator: (v) {
+                          if (v != null && v.isNotEmpty && v.length < 8) {
+                            return 'Password must be at least 8 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: subdomainCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Subdomain',
-                  hintText: 'e.g. alnoor',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Admin Email',
-                  hintText: 'admin@alnoor.com',
-                ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+                  try {
+                    await _repo.createTenant(
+                      name: nameCtrl.text.trim(),
+                      subdomain: subdomainCtrl.text.trim().toLowerCase(),
+                      adminEmail: emailCtrl.text.trim(),
+                      adminPassword: passwordCtrl.text.isNotEmpty
+                          ? passwordCtrl.text
+                          : null,
+                      planId: selectedPlanId,
+                    );
+                    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                    _load();
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Tenant created successfully')),
+                      );
+                    }
+                  } catch (e) {
+                    setDialogState(() {
+                      dialogError =
+                          e.toString().replaceAll('Exception: ', '');
+                    });
+                  }
+                },
+                child: const Text('Create'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              if (nameCtrl.text.isEmpty || subdomainCtrl.text.isEmpty || emailCtrl.text.isEmpty) return;
-              Navigator.pop(context);
-              try {
-                await _repo.createTenant(
-                  name: nameCtrl.text,
-                  subdomain: subdomainCtrl.text,
-                  adminEmail: emailCtrl.text,
-                );
-                _load();
-                if (mounted) {
-                  ScaffoldMessenger.of(this.context).showSnackBar(
-                    const SnackBar(content: Text('Tenant created successfully')),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(this.context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                  );
-                }
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditDialog(BuildContext context, Tenant t) {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController(text: t.name);
+    int? selectedPlanId;
+    bool isActive = t.isActive;
+    String? dialogError;
+    List<ServicePlan> plans = [];
+    bool plansLoaded = false;
+
+    // Pre-load plans + tenant detail to get current plan ID
+    Future.wait([
+      _repo.getPlans(),
+      _repo.getTenantDetail(t.id),
+    ]).then((results) {
+      plans = results[0] as List<ServicePlan>;
+      final detail = results[1] as TenantDetail;
+      selectedPlanId = detail.servicePlan?.id;
+      plansLoaded = true;
+    }).catchError((_) {
+      plansLoaded = true;
+    });
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          if (!plansLoaded) {
+            Future.wait([
+              _repo.getPlans(),
+              _repo.getTenantDetail(t.id),
+            ]).then((results) {
+              if (dialogCtx.mounted) {
+                setDialogState(() {
+                  plans = results[0] as List<ServicePlan>;
+                  final detail = results[1] as TenantDetail;
+                  selectedPlanId = detail.servicePlan?.id;
+                  plansLoaded = true;
+                });
               }
-            },
-            child: const Text('Create'),
-          ),
-        ],
+            }).catchError((_) {
+              if (dialogCtx.mounted) {
+                setDialogState(() => plansLoaded = true);
+              }
+            });
+          }
+
+          return AlertDialog(
+            title: Text('Edit: ${t.name}'),
+            content: SizedBox(
+              width: 450,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (dialogError != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(dialogError!,
+                              style: TextStyle(
+                                  color: Colors.red.shade700, fontSize: 13)),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // Kitchen name
+                      TextFormField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Kitchen Name *',
+                          prefixIcon: Icon(Icons.restaurant, size: 20),
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Name is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Subdomain (read-only)
+                      TextFormField(
+                        initialValue: t.subdomain,
+                        decoration: const InputDecoration(
+                          labelText: 'Subdomain',
+                          prefixIcon: Icon(Icons.link, size: 20),
+                          helperText: 'Cannot be changed after creation',
+                        ),
+                        enabled: false,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Service Plan
+                      Text('Subscription',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700)),
+                      const SizedBox(height: 8),
+                      !plansLoaded
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: LinearProgressIndicator(),
+                            )
+                          : DropdownButtonFormField<int?>(
+                              value: selectedPlanId,
+                              decoration: const InputDecoration(
+                                labelText: 'Service Plan',
+                                prefixIcon:
+                                    Icon(Icons.card_membership, size: 20),
+                              ),
+                              items: [
+                                const DropdownMenuItem<int?>(
+                                  value: null,
+                                  child: Text('No Plan',
+                                      style: TextStyle(color: Colors.grey)),
+                                ),
+                                ...plans.map((p) => DropdownMenuItem<int?>(
+                                      value: p.id,
+                                      child: Text(
+                                          '${p.name} (${p.tierLabel}) — AED ${p.priceMonthly.toStringAsFixed(0)}/mo'),
+                                    )),
+                              ],
+                              onChanged: (v) =>
+                                  setDialogState(() => selectedPlanId = v),
+                            ),
+                      const SizedBox(height: 20),
+
+                      // Active toggle
+                      Text('Status',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700)),
+                      const SizedBox(height: 4),
+                      SwitchListTile(
+                        value: isActive,
+                        onChanged: (v) =>
+                            setDialogState(() => isActive = v),
+                        title: Text(isActive ? 'Active' : 'Inactive'),
+                        subtitle: Text(
+                          isActive
+                              ? 'Tenant can access their dashboard'
+                              : 'Tenant access is suspended',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        activeColor: Colors.green,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+
+                  final data = <String, dynamic>{
+                    'name': nameCtrl.text.trim(),
+                    'is_active': isActive,
+                  };
+                  if (selectedPlanId != null) {
+                    data['plan_id'] = selectedPlanId;
+                  }
+
+                  try {
+                    await _repo.updateTenant(t.id, data);
+                    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                    _load(); // Refresh the list
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Tenant updated successfully')),
+                      );
+                    }
+                  } catch (e) {
+                    setDialogState(() {
+                      dialogError =
+                          e.toString().replaceAll('Exception: ', '');
+                    });
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

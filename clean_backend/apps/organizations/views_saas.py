@@ -13,6 +13,7 @@ import secrets
 from decimal import Decimal
 from datetime import timedelta
 
+from django.contrib.auth.models import User
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status as drf_status
@@ -85,7 +86,7 @@ class TenantViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """
         Provision a new tenant.
-        Creates tenant record + subscription in trial.
+        Creates: tenant record, admin user, and subscription (if plan provided).
         Note: Actual database provisioning would be handled by a Celery task
         or management command in production.
         """
@@ -101,6 +102,32 @@ class TenantViewSet(viewsets.ModelViewSet):
             db_name=f"tenant_{data['subdomain']}",
             is_active=True,
         )
+
+        # ── Create tenant admin user ──
+        admin_email = data.get('admin_email', '')
+        admin_password = data.get('admin_password') or secrets.token_urlsafe(12)
+        # Use email prefix as username, ensuring uniqueness
+        base_username = admin_email.split('@')[0] if admin_email else data['subdomain']
+        username = base_username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        admin_user = User.objects.create_user(
+            username=username,
+            email=admin_email,
+            password=admin_password,
+            is_staff=True,   # Gives access to tenant admin dashboard
+            is_active=True,
+        )
+
+        # Store admin info in response for the SaaS owner to share
+        admin_info = {
+            'admin_username': username,
+            'admin_email': admin_email,
+            'admin_password_was_generated': 'admin_password' not in data or not data.get('admin_password'),
+        }
 
         # Assign plan and create subscription
         plan_id = data.get('plan_id')
@@ -124,8 +151,11 @@ class TenantViewSet(viewsets.ModelViewSet):
             except ServicePlan.DoesNotExist:
                 pass
 
+        response_data = TenantDetailSerializer(tenant).data
+        response_data['admin_info'] = admin_info
+
         return Response(
-            TenantDetailSerializer(tenant).data,
+            response_data,
             status=drf_status.HTTP_201_CREATED,
         )
 

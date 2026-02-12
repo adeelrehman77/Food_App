@@ -6,18 +6,39 @@ import '../config/app_config.dart';
 /// - Auth token injection
 /// - Tenant header injection
 /// - Token refresh on 401
-/// - Centralized error handling & logging
+/// - Automatic logout on auth failure
+/// - Cache-busting headers
 class ApiClient {
   static ApiClient? _instance;
   late final Dio dio;
   final FlutterSecureStorage _storage;
+
+  /// Called when token refresh fails — wire this to AuthProvider.logout()
+  /// so the router redirects to login.
+  static Future<void> Function()? onAuthFailure;
 
   ApiClient._internal({FlutterSecureStorage? storage})
       : _storage = storage ?? const FlutterSecureStorage() {
     dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    ));
+
+    // Cache-bust interceptor: appends a timestamp query param to every GET
+    // request so the browser never serves a stale cached API response.
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        if (options.method == 'GET') {
+          options.queryParameters = {
+            ...options.queryParameters,
+            '_t': DateTime.now().millisecondsSinceEpoch.toString(),
+          };
+        }
+        handler.next(options);
+      },
     ));
 
     dio.interceptors.add(_AuthInterceptor(_storage));
@@ -88,10 +109,12 @@ class _AuthInterceptor extends Interceptor {
           return handler.resolve(response);
         }
       } catch (_) {
-        // Refresh failed — clear session
-        await _storage.deleteAll();
+        // Refresh failed
       }
+      // Refresh failed or returned false — force logout
       _isRefreshing = false;
+      await _storage.deleteAll();
+      ApiClient.onAuthFailure?.call();
     }
     handler.next(err);
   }

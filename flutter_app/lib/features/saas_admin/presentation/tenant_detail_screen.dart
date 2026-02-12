@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../data/saas_repository.dart';
 import '../domain/models.dart';
 
@@ -42,6 +43,255 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
     }
   }
 
+  Future<void> _confirmSuspend(TenantDetail t) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Suspend Tenant'),
+        content:
+            Text('Suspend "${t.name}"? They will lose access to their dashboard.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Suspend'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        await _repo.suspendTenant(t.id);
+        _load();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tenant suspended')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _confirmActivate(TenantDetail t) async {
+    try {
+      await _repo.activateTenant(t.id);
+      _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tenant activated')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showEditDialog(TenantDetail t) {
+    final formKey = GlobalKey<FormState>();
+    final nameCtrl = TextEditingController(text: t.name);
+    int? selectedPlanId = t.servicePlan?.id;
+    bool isActive = t.isActive;
+    String? dialogError;
+    List<ServicePlan> plans = [];
+    bool plansLoaded = false;
+
+    // Pre-load plans
+    _repo.getPlans().then((result) {
+      plans = result;
+      plansLoaded = true;
+    }).catchError((_) {
+      plansLoaded = true;
+    });
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          // Trigger rebuild once plans finish loading
+          if (!plansLoaded) {
+            _repo.getPlans().then((result) {
+              if (dialogCtx.mounted) {
+                setDialogState(() {
+                  plans = result;
+                  plansLoaded = true;
+                });
+              }
+            }).catchError((_) {
+              if (dialogCtx.mounted) {
+                setDialogState(() => plansLoaded = true);
+              }
+            });
+          }
+
+          return AlertDialog(
+            title: const Text('Edit Tenant'),
+            content: SizedBox(
+              width: 450,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (dialogError != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(dialogError!,
+                              style: TextStyle(
+                                  color: Colors.red.shade700, fontSize: 13)),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+
+                      // Kitchen name
+                      TextFormField(
+                        controller: nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Kitchen Name *',
+                          prefixIcon: Icon(Icons.restaurant, size: 20),
+                        ),
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Name is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Subdomain (read-only)
+                      TextFormField(
+                        initialValue: t.subdomain,
+                        decoration: const InputDecoration(
+                          labelText: 'Subdomain',
+                          prefixIcon: Icon(Icons.link, size: 20),
+                          helperText: 'Cannot be changed after creation',
+                        ),
+                        enabled: false,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Service Plan
+                      Text('Subscription',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700)),
+                      const SizedBox(height: 8),
+                      !plansLoaded
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: LinearProgressIndicator(),
+                            )
+                          : DropdownButtonFormField<int?>(
+                              value: selectedPlanId,
+                              decoration: const InputDecoration(
+                                labelText: 'Service Plan',
+                                prefixIcon:
+                                    Icon(Icons.card_membership, size: 20),
+                              ),
+                              items: [
+                                const DropdownMenuItem<int?>(
+                                  value: null,
+                                  child: Text('No Plan',
+                                      style: TextStyle(color: Colors.grey)),
+                                ),
+                                ...plans.map((p) => DropdownMenuItem<int?>(
+                                      value: p.id,
+                                      child: Text(
+                                          '${p.name} (${p.tierLabel}) — AED ${p.priceMonthly.toStringAsFixed(0)}/mo'),
+                                    )),
+                              ],
+                              onChanged: (v) =>
+                                  setDialogState(() => selectedPlanId = v),
+                            ),
+                      const SizedBox(height: 20),
+
+                      // Active toggle
+                      Text('Status',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade700)),
+                      const SizedBox(height: 4),
+                      SwitchListTile(
+                        value: isActive,
+                        onChanged: (v) =>
+                            setDialogState(() => isActive = v),
+                        title: Text(isActive ? 'Active' : 'Inactive'),
+                        subtitle: Text(
+                          isActive
+                              ? 'Tenant can access their dashboard'
+                              : 'Tenant access is suspended',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        activeColor: Colors.green,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+
+                  final data = <String, dynamic>{
+                    'name': nameCtrl.text.trim(),
+                    'is_active': isActive,
+                  };
+                  if (selectedPlanId != null) {
+                    data['plan_id'] = selectedPlanId;
+                  }
+
+                  try {
+                    await _repo.updateTenant(t.id, data);
+                    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+                    _load(); // Refresh detail view
+                    if (mounted) {
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Tenant updated successfully')),
+                      );
+                    }
+                  } catch (e) {
+                    setDialogState(() {
+                      dialogError =
+                          e.toString().replaceAll('Exception: ', '');
+                    });
+                  }
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -64,12 +314,12 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Back + Title
+          // Back + Title + Actions
           Row(
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => context.go('/saas/tenants'),
               ),
               const SizedBox(width: 8),
               Text(t.name,
@@ -80,6 +330,42 @@ class _TenantDetailScreenState extends State<TenantDetailScreen> {
                 label: t.isActive ? 'Active' : 'Inactive',
                 color: t.isActive ? Colors.green : Colors.red,
               ),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: () => _showEditDialog(t),
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Edit Tenant'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF3F51B5),
+                  side: const BorderSide(color: Color(0xFF3F51B5)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (t.isActive)
+                OutlinedButton.icon(
+                  onPressed: () => _confirmSuspend(t),
+                  icon: const Icon(Icons.pause_circle_outline, size: 18),
+                  label: const Text('Suspend'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange,
+                    side: const BorderSide(color: Colors.orange),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                )
+              else
+                FilledButton.icon(
+                  onPressed: () => _confirmActivate(t),
+                  icon: const Icon(Icons.play_circle_outline, size: 18),
+                  label: const Text('Activate'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 24),

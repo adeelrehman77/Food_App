@@ -124,16 +124,33 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
               ),
             ],
           ),
-          child: SizedBox(
-            height: 420,
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildSlugStep(),
-                _buildLoginStep(),
-              ],
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 420,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildSlugStep(),
+                    _buildLoginStep(),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: () => context.go('/saas-login'),
+                icon: const Icon(Icons.admin_panel_settings,
+                    size: 18, color: Color(0xFF3F51B5)),
+                label: const Text(
+                  'Platform Admin Login',
+                  style: TextStyle(color: Color(0xFF3F51B5)),
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
           ),
         ),
       ),

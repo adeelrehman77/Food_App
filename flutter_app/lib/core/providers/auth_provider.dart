@@ -33,6 +33,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> onLoginSuccess({String? username}) async {
     _isLoggedIn = true;
     _username = username;
+    await _storage.write(key: 'isLoggedIn', value: 'true');
     if (username != null) {
       await _storage.write(key: 'username', value: username);
     }

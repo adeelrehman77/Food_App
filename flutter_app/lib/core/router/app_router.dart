@@ -9,6 +9,7 @@ import '../../features/auth/presentation/tenant_login_screen.dart';
 import '../../features/auth/presentation/user_login_screen.dart';
 
 // SaaS Owner screens
+import '../../features/saas_admin/presentation/saas_login_screen.dart';
 import '../../features/saas_admin/presentation/saas_shell.dart';
 import '../../features/saas_admin/presentation/saas_overview_screen.dart';
 import '../../features/saas_admin/presentation/tenants_screen.dart';
@@ -26,15 +27,18 @@ GoRouter buildRouter(AuthProvider authProvider) {
     refreshListenable: authProvider,
     redirect: (context, state) {
       final isLoggedIn = authProvider.isLoggedIn;
-      final isOnLogin = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/user-login';
+      final loc = state.matchedLocation;
+      final isOnLogin = loc == '/login' ||
+          loc == '/user-login' ||
+          loc == '/saas-login';
 
       // Not logged in and trying to access a protected route
       if (!isLoggedIn && !isOnLogin) {
         return '/login';
       }
 
-      // Already logged in but on login page — redirect to dashboard
+      // Already logged in but on a login page — redirect to dashboard
+      // (don't redirect SaaS login to tenant dashboard)
       if (isLoggedIn && isOnLogin) {
         return '/dashboard';
       }
@@ -50,6 +54,10 @@ GoRouter buildRouter(AuthProvider authProvider) {
       GoRoute(
         path: '/user-login',
         builder: (context, state) => const UserLoginScreen(),
+      ),
+      GoRoute(
+        path: '/saas-login',
+        builder: (context, state) => const SaasLoginScreen(),
       ),
 
       // ─── Tenant Admin Shell (Layer 2) ───────────────────────────────

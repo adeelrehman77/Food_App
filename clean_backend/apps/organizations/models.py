@@ -33,10 +33,24 @@ class ServicePlan(models.Model):
     )
 
     # Usage limits (0 = unlimited)
-    max_menu_items = models.PositiveIntegerField(default=50)
-    max_staff_users = models.PositiveIntegerField(default=5)
-    max_customers = models.PositiveIntegerField(default=500)
-    max_orders_per_month = models.PositiveIntegerField(default=1000)
+    # Context: Each kitchen serves 300-500 customers per meal (breakfast/lunch/dinner),
+    # so a single kitchen handles ~900-1,500 deliveries/day = 27,000-45,000/month.
+    max_menu_items = models.PositiveIntegerField(
+        default=100,
+        help_text="Max menu items the kitchen can create (0 = unlimited)",
+    )
+    max_staff_users = models.PositiveIntegerField(
+        default=15,
+        help_text="Max kitchen/admin staff accounts (0 = unlimited)",
+    )
+    max_customers = models.PositiveIntegerField(
+        default=1000,
+        help_text="Max registered B2C customers / subscribers (0 = unlimited)",
+    )
+    max_orders_per_month = models.PositiveIntegerField(
+        default=50000,
+        help_text="Max meal deliveries per month (0 = unlimited)",
+    )
 
     # Feature flags
     has_inventory_management = models.BooleanField(default=False)
