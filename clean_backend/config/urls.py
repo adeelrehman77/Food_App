@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
+from apps.users import views as users_views
 
 # Swagger schema view
 schema_view = get_schema_view(
@@ -45,6 +46,10 @@ urlpatterns = [
     path('', include('apps.main.urls')),
     path('kitchen/', include('apps.kitchen.urls')),
     path('driver/', include('apps.driver.urls')),
+    
+    # Public API
+    path('api/discover/', users_views.discover_tenant),
+    path('api/organizations/', include('apps.organizations.urls')),
 ]
 
 # Serve static and media files in development
@@ -53,7 +58,7 @@ if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     
     # Debug toolbar
-    import debug_toolbar
-    urlpatterns += [
-        path('__debug__/', include(debug_toolbar.urls)),
-    ] 
+    # import debug_toolbar
+    # urlpatterns += [
+    #     path('__debug__/', include(debug_toolbar.urls)),
+    # ] 

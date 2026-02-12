@@ -20,6 +20,13 @@ class AuthService {
       final cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
       final loginUrl = '${cleanBaseUrl}auth/login/';
 
+      final tenantSlug = await _storage.read(key: 'tenantSlug');
+      final Map<String, dynamic> headers = {'Content-Type': 'application/json'};
+      
+      if (tenantSlug != null) {
+        headers['X-Tenant-Slug'] = tenantSlug;
+      }
+
       final response = await _dio.post(
         loginUrl,
         data: {
@@ -27,7 +34,7 @@ class AuthService {
           'password': password,
         },
         options: Options(
-          headers: {'Content-Type': 'application/json'},
+          headers: headers,
           validateStatus: (status) => status! < 500,
         ),
       );

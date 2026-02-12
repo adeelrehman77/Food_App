@@ -5,7 +5,7 @@ class Tenant(models.Model):
     name = models.CharField(max_length=100)
     subdomain = models.CharField(max_length=100, unique=True, default='')
     schema_name = models.CharField(max_length=63, unique=True, default='') # Keep for compatibility with scripts
-    subscription_plan = models.ForeignKey('organizations.SubscriptionPlan', on_delete=models.SET_NULL, null=True, blank=True)
+    service_plan = models.ForeignKey('organizations.ServicePlan', on_delete=models.SET_NULL, null=True, blank=True)
     
     # Database connection settings
     db_name = models.CharField(max_length=100, default='')

@@ -18,9 +18,13 @@ class MultiDbTenantMiddleware:
         # Fallback to subdomain if header is missing
         if not tenant_id:
             host = request.get_host().split(':')[0]
-            domain_parts = host.split('.')
-            if len(domain_parts) >= 3:
-                tenant_id = domain_parts[0]
+            # Check if host is an IP address
+            is_ip = host.replace('.', '').isnumeric()
+            
+            if not is_ip and host != 'localhost':
+                domain_parts = host.split('.')
+                if len(domain_parts) >= 3:
+                    tenant_id = domain_parts[0]
 
         if tenant_id:
             try:

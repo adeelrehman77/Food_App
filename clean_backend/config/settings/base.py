@@ -32,14 +32,14 @@ if not SECRET_KEY:
         raise ValueError("SECRET_KEY environment variable is required in production")
 
 # Host configuration
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = ['*']
 PORT = int(os.environ.get('PORT', 8000))
 
 # CSRF settings
 CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://0.0.0.0:8000']
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGINS = [
     "https://kitchen.funadventure.ae",
     "https://staging.kitchen.funadventure.ae",
@@ -284,11 +284,11 @@ REST_AUTH = {
 
 # Middleware Configuration
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'core.middleware.multi_db_tenant.MultiDbTenantMiddleware', # Custom multi-db isolation
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.cache.UpdateCacheMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.cache.FetchFromCacheMiddleware',
@@ -313,7 +313,7 @@ MIDDLEWARE = [
     'core.middleware.ExceptionMiddleware',
     'core.middleware.RequestValidationMiddleware',
     'core.middleware.APIMetricsMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     'apps.kitchen.middleware.APIRequestValidationMiddleware',
 ]
 
