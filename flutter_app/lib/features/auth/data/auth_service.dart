@@ -30,7 +30,7 @@ class AuthService {
       final response = await _dio.post(
         loginUrl,
         data: {
-          'email': username, // Assuming 'email' or 'username' based on backend
+          'username': username,
           'password': password,
         },
         options: Options(

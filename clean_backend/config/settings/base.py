@@ -66,6 +66,7 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
     'x-api-key',
+    'x-tenant-slug',
 ]
 
 CORS_EXPOSE_HEADERS = [
@@ -628,11 +629,11 @@ CACHE_MIDDLEWARE_KEY_PREFIX = 'kitchen'
 
 # Email verification settings
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 
 # Encryption Settings

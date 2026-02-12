@@ -13,7 +13,7 @@ class MultiDbTenantMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        tenant_id = request.headers.get('X-Tenant-ID')
+        tenant_id = request.headers.get('X-Tenant-ID') or request.headers.get('X-Tenant-Slug')
         
         # Fallback to subdomain if header is missing
         if not tenant_id:
@@ -39,14 +39,18 @@ class MultiDbTenantMiddleware:
                 # Check if this database configuration exists in Django settings
                 # If not, we might need to add it dynamically (advanced)
                 if db_alias not in settings.DATABASES:
-                    settings.DATABASES[db_alias] = {
-                        'ENGINE': 'django.db.backends.postgresql',
+                    import copy
+                    db_config = copy.deepcopy(settings.DATABASES['default'])
+                    db_config.update({
                         'NAME': tenant.db_name,
                         'USER': tenant.db_user,
                         'PASSWORD': tenant.db_password,
                         'HOST': tenant.db_host,
                         'PORT': tenant.db_port,
-                    }
+                        'ATOMIC_REQUESTS': True,
+                        'CONN_MAX_AGE': 600,
+                    })
+                    settings.DATABASES[db_alias] = db_config
                 
                 set_current_db_alias(db_alias)
                 request.tenant = tenant
