@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_app/main.dart';
 import 'package:flutter_app/features/dashboard/presentation/dashboard_shell.dart';
 import 'package:flutter_app/features/menu/presentation/menu_screen.dart';
-import 'package:flutter_app/features/menu/presentation/widgets/food_item_card.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_app/core/providers/auth_provider.dart';
+import 'package:flutter_app/core/providers/tenant_provider.dart';
 import 'dart:io';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,7 +22,21 @@ void main() {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
 
-    await tester.pumpWidget(const MyApp());
+    final authProvider = AuthProvider();
+    await authProvider.initialize();
+
+    final tenantProvider = TenantProvider();
+    await tenantProvider.loadTenant();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: authProvider),
+          ChangeNotifierProvider.value(value: tenantProvider),
+        ],
+        child: MyApp(authProvider: authProvider),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Kitchen Login'), findsOneWidget);

@@ -30,7 +30,7 @@ class SaasSidebar extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _accentColor.withOpacity(0.2),
+                    color: _accentColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.admin_panel_settings,
@@ -141,7 +141,7 @@ class _NavItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Material(
         color: isSelected
-            ? SaasSidebar._accentColor.withOpacity(0.15)
+            ? SaasSidebar._accentColor.withValues(alpha: 0.15)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(

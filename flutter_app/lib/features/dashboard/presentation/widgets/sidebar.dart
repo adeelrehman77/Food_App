@@ -85,6 +85,12 @@ class Sidebar extends StatelessWidget {
                   route: '/finance',
                   isSelected: currentRoute == '/finance',
                 ),
+                _SidebarItem(
+                  icon: Icons.badge_rounded,
+                  label: 'Staff',
+                  route: '/staff',
+                  isSelected: currentRoute == '/staff',
+                ),
               ],
             ),
           ),
@@ -169,7 +175,7 @@ class _SidebarItem extends StatelessWidget {
           }
         },
         selected: isSelected,
-        selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.08),
+        selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),

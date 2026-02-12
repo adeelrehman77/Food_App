@@ -3,7 +3,11 @@ import '../data/menu_repository.dart';
 import '../domain/food_item.dart';
 import 'widgets/food_item_card.dart';
 import 'widgets/add_item_modal.dart';
+import '../../admin/presentation/daily_planner_screen.dart';
 
+/// Menu screen with two tabs:
+///  1. Master Items – the existing reusable food item library
+///  2. Daily Planner – weekly calendar view for daily rotating menus
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
 
@@ -11,11 +15,73 @@ class MenuScreen extends StatefulWidget {
   State<MenuScreen> createState() => _MenuScreenState();
 }
 
-class _MenuScreenState extends State<MenuScreen> {
+class _MenuScreenState extends State<MenuScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // ── Tab bar ──
+        Material(
+          color: Theme.of(context).colorScheme.surface,
+          elevation: 1,
+          child: TabBar(
+            controller: _tabCtrl,
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Theme.of(context).colorScheme.primary,
+            tabs: const [
+              Tab(icon: Icon(Icons.restaurant_menu), text: 'Master Items'),
+              Tab(icon: Icon(Icons.calendar_month), text: 'Daily Planner'),
+            ],
+          ),
+        ),
+        // ── Tab views ──
+        Expanded(
+          child: TabBarView(
+            controller: _tabCtrl,
+            children: const [
+              _MasterItemsTab(),
+              DailyPlannerScreen(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The original master items grid, extracted into its own widget.
+class _MasterItemsTab extends StatefulWidget {
+  const _MasterItemsTab();
+
+  @override
+  State<_MasterItemsTab> createState() => _MasterItemsTabState();
+}
+
+class _MasterItemsTabState extends State<_MasterItemsTab>
+    with AutomaticKeepAliveClientMixin {
   final MenuRepository _repository = MenuRepository();
   List<FoodItem> _items = [];
   bool _isLoading = true;
   String? _errorMessage;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -63,7 +129,8 @@ class _MenuScreenState extends State<MenuScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to add item: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text(
+                'Failed to add item: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: Colors.red.shade700,
             behavior: SnackBarBehavior.floating,
           ),
@@ -108,6 +175,7 @@ class _MenuScreenState extends State<MenuScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -117,8 +185,11 @@ class _MenuScreenState extends State<MenuScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Menu Management',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                'Master Item Library',
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               Row(
                 children: [
@@ -134,7 +205,8 @@ class _MenuScreenState extends State<MenuScreen> {
                     icon: const Icon(Icons.add),
                     label: const Text('Add Item'),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
                     ),
                   ),
                 ],

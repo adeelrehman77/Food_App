@@ -184,6 +184,136 @@ class Menu(models.Model):
         return self.name
 
 
+# ─── Daily Rotating Menu System ──────────────────────────────────────────────
+
+
+class MealSlot(models.Model):
+    """
+    Defines a meal time that the kitchen serves (e.g. Lunch, Dinner).
+    Tenants can customise their own slots.
+    """
+    name = models.CharField(max_length=50, help_text="e.g. Lunch, Dinner, Breakfast")
+    code = models.SlugField(
+        max_length=30,
+        help_text="URL-safe identifier, e.g. lunch, dinner",
+    )
+    cutoff_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Orders/changes for this slot must be placed before this time",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order (lower = first)",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class DailyMenu(models.Model):
+    """
+    A menu for a specific date + meal slot (e.g. "Feb 15 – Lunch").
+    Status workflow: draft -> published -> closed.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('closed', 'Closed'),
+    ]
+
+    menu_date = models.DateField(db_index=True)
+    meal_slot = models.ForeignKey(
+        MealSlot,
+        on_delete=models.CASCADE,
+        related_name='daily_menus',
+    )
+    status = models.CharField(
+        max_length=12,
+        choices=STATUS_CHOICES,
+        default='draft',
+        db_index=True,
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text="Internal notes for kitchen staff",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_daily_menus',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['menu_date', 'meal_slot__sort_order']
+        unique_together = [('menu_date', 'meal_slot')]
+        verbose_name = 'Daily Menu'
+        verbose_name_plural = 'Daily Menus'
+
+    def __str__(self):
+        return f"{self.menu_date} — {self.meal_slot.name} ({self.status})"
+
+    @property
+    def item_count(self):
+        return self.items.count()
+
+
+class DailyMenuItem(models.Model):
+    """
+    Links a master MenuItem to a DailyMenu, with optional price override
+    and portion label.
+    """
+    daily_menu = models.ForeignKey(
+        DailyMenu,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    master_item = models.ForeignKey(
+        MenuItem,
+        on_delete=models.CASCADE,
+        related_name='daily_appearances',
+        help_text="The reusable menu item from the master library",
+    )
+    override_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Leave blank to use the master item's base price",
+    )
+    portion_label = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="e.g. Regular, Family Pack, Diet Portion",
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Daily Menu Item'
+        verbose_name_plural = 'Daily Menu Items'
+
+    def __str__(self):
+        return f"{self.master_item.name} on {self.daily_menu}"
+
+    @property
+    def effective_price(self):
+        """Return the override price if set, otherwise the master item's base price."""
+        if self.override_price is not None:
+            return self.override_price
+        return self.master_item.price
+
+
 class Address(models.Model):
     customer = models.ForeignKey(
         CustomerProfile, 

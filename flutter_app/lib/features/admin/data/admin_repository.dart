@@ -1,0 +1,357 @@
+import 'package:dio/dio.dart';
+import '../../../core/network/api_client.dart';
+import '../domain/models.dart';
+
+/// Repository for all tenant-admin API calls.
+/// Endpoints are under /api/v1/ and require X-Tenant-Slug header.
+class AdminRepository {
+  final ApiClient _apiClient;
+
+  AdminRepository({ApiClient? apiClient})
+      : _apiClient = apiClient ?? ApiClient();
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  Future<String> _baseUrl() => _apiClient.getBaseUrl();
+
+  List<T> _parseList<T>(dynamic data, T Function(Map<String, dynamic>) fromJson) {
+    if (data is Map) {
+      return (data['results'] as List? ?? [])
+          .map((e) => fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    if (data is List) {
+      return data.map((e) => fromJson(e as Map<String, dynamic>)).toList();
+    }
+    return [];
+  }
+
+  String _extractError(DioException e) {
+    final data = e.response?.data;
+    if (data is Map) {
+      final messages = <String>[];
+      data.forEach((key, value) {
+        if (value is List) {
+          messages.add('$key: ${value.join(', ')}');
+        } else {
+          messages.add('$key: $value');
+        }
+      });
+      if (messages.isNotEmpty) return messages.join('\n');
+    }
+    return e.message ?? 'Request failed';
+  }
+
+  // ─── Dashboard ────────────────────────────────────────────────────────────
+
+  Future<DashboardSummary> getDashboardSummary() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}dashboard/summary/');
+    return DashboardSummary.fromJson(response.data);
+  }
+
+  // ─── Orders ───────────────────────────────────────────────────────────────
+
+  Future<List<OrderItem>> getOrders({String? status}) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    final response = await _apiClient.dio.get(
+      '${base}orders/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, OrderItem.fromJson);
+  }
+
+  Future<OrderItem> getOrder(int id) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}orders/$id/');
+    return OrderItem.fromJson(response.data);
+  }
+
+  Future<OrderItem> updateOrderStatus(int id, String newStatus) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}orders/$id/update_status/',
+      data: {'status': newStatus},
+    );
+    return OrderItem.fromJson(response.data);
+  }
+
+  // ─── Customers ────────────────────────────────────────────────────────────
+
+  Future<List<CustomerItem>> getCustomers({String? search}) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    final response = await _apiClient.dio.get(
+      '${base}customers/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, CustomerItem.fromJson);
+  }
+
+  Future<List<RegistrationRequest>> getRegistrationRequests({
+    String? status,
+  }) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    final response = await _apiClient.dio.get(
+      '${base}registration-requests/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, RegistrationRequest.fromJson);
+  }
+
+  Future<RegistrationRequest> approveRegistration(int id) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}registration-requests/$id/approve/',
+    );
+    return RegistrationRequest.fromJson(response.data);
+  }
+
+  Future<RegistrationRequest> rejectRegistration(int id, String reason) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}registration-requests/$id/reject/',
+      data: {'reason': reason},
+    );
+    return RegistrationRequest.fromJson(response.data);
+  }
+
+  // ─── Invoices ─────────────────────────────────────────────────────────────
+
+  Future<List<InvoiceItem>> getInvoices({String? status}) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    final response = await _apiClient.dio.get(
+      '${base}invoices/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, InvoiceItem.fromJson);
+  }
+
+  // ─── Inventory ────────────────────────────────────────────────────────────
+
+  Future<List<UnitOfMeasure>> getUnits() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}inventory/units/');
+    return _parseList(response.data, UnitOfMeasure.fromJson);
+  }
+
+  Future<List<InventoryItemModel>> getInventoryItems() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}inventory/items/');
+    return _parseList(response.data, InventoryItemModel.fromJson);
+  }
+
+  Future<List<InventoryItemModel>> getLowStockItems() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}inventory/items/low_stock/');
+    return _parseList(response.data, InventoryItemModel.fromJson);
+  }
+
+  Future<InventoryItemModel> createInventoryItem(
+      Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}inventory/items/',
+        data: data,
+      );
+      return InventoryItemModel.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<InventoryItemModel> updateInventoryItem(
+      int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.patch(
+        '${base}inventory/items/$id/',
+        data: data,
+      );
+      return InventoryItemModel.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<InventoryItemModel> adjustStock(int id, double quantity) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}inventory/items/$id/adjust_stock/',
+      data: {'quantity': quantity.toString()},
+    );
+    return InventoryItemModel.fromJson(response.data);
+  }
+
+  // ─── Deliveries ───────────────────────────────────────────────────────────
+
+  Future<List<DeliveryItem>> getDeliveries({String? status}) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    final response = await _apiClient.dio.get(
+      '${base}delivery/deliveries/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, DeliveryItem.fromJson);
+  }
+
+  // ─── Staff ────────────────────────────────────────────────────────────────
+
+  Future<List<StaffUser>> getStaffUsers() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}staff/');
+    return _parseList(response.data, StaffUser.fromJson);
+  }
+
+  Future<StaffUser> createStaffUser(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post('${base}staff/', data: data);
+      return StaffUser.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<void> deactivateStaffUser(int id) async {
+    final base = await _baseUrl();
+    await _apiClient.dio.post('${base}staff/$id/deactivate/');
+  }
+
+  Future<StaffUser> changeStaffRole(int id, String role) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}staff/$id/change_role/',
+      data: {'role': role},
+    );
+    return StaffUser.fromJson(response.data);
+  }
+
+  // ─── Meal Slots ──────────────────────────────────────────────────────────
+
+  Future<List<MealSlot>> getMealSlots() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}meal-slots/');
+    return _parseList(response.data, MealSlot.fromJson);
+  }
+
+  // ─── Daily Menus ─────────────────────────────────────────────────────────
+
+  /// Fetch a week's menus. [startDate] should be a Monday (YYYY-MM-DD).
+  Future<Map<String, dynamic>> getWeekMenus(String startDate) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get(
+      '${base}daily-menus/week/',
+      queryParameters: {'start': startDate},
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Fetch today's published menus (customer-facing).
+  Future<List<DailyMenu>> getTodayMenus() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}daily-menus/today/');
+    if (response.data is List) {
+      return (response.data as List)
+          .map((e) => DailyMenu.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
+  /// Fetch daily menus with optional filters.
+  Future<List<DailyMenu>> getDailyMenus({
+    String? dateFrom,
+    String? dateTo,
+    int? mealSlot,
+    String? status,
+  }) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (dateFrom != null) params['date_from'] = dateFrom;
+    if (dateTo != null) params['date_to'] = dateTo;
+    if (mealSlot != null) params['meal_slot'] = mealSlot;
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    final response = await _apiClient.dio.get(
+      '${base}daily-menus/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, DailyMenu.fromJson);
+  }
+
+  /// Fetch a single daily menu with full items.
+  Future<DailyMenu> getDailyMenu(int id) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}daily-menus/$id/');
+    return DailyMenu.fromJson(response.data);
+  }
+
+  /// Create a new daily menu (with items).
+  Future<DailyMenu> createDailyMenu(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}daily-menus/',
+        data: data,
+      );
+      return DailyMenu.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  /// Update an existing daily menu (with items).
+  Future<DailyMenu> updateDailyMenu(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.patch(
+        '${base}daily-menus/$id/',
+        data: data,
+      );
+      return DailyMenu.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  /// Delete a daily menu.
+  Future<void> deleteDailyMenu(int id) async {
+    final base = await _baseUrl();
+    await _apiClient.dio.delete('${base}daily-menus/$id/');
+  }
+
+  /// Publish a daily menu.
+  Future<DailyMenu> publishDailyMenu(int id) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}daily-menus/$id/publish/',
+      );
+      return DailyMenu.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  /// Close a daily menu.
+  Future<DailyMenu> closeDailyMenu(int id) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}daily-menus/$id/close/',
+      );
+      return DailyMenu.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+}

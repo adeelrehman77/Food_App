@@ -9,19 +9,23 @@ These endpoints are for the platform admin / SaaS owner to:
 
 Access: Superuser only (platform admin).
 """
+import logging
 import secrets
 from decimal import Decimal
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 from rest_framework import viewsets, permissions, status as drf_status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 
-from apps.users.models import Tenant
+from apps.users.models import Tenant, UserProfile
 from apps.organizations.models import ServicePlan
 from apps.organizations.models_saas import (
     TenantSubscription, TenantInvoice, TenantUsage,
@@ -94,14 +98,55 @@ class TenantViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Create tenant
+        # ── Create the PostgreSQL database for this tenant ──
+        db_name = f"tenant_{data['subdomain']}"
+        default_db = settings.DATABASES['default']
+        db_user = default_db.get('USER', '')
+        db_password = default_db.get('PASSWORD', '')
+        db_host = default_db.get('HOST', 'localhost')
+        db_port = default_db.get('PORT', '5432')
+
+        try:
+            from django.db import connection as default_conn
+            with default_conn.cursor() as cursor:
+                # CREATE DATABASE cannot run inside a transaction
+                cursor.execute("COMMIT")
+                cursor.execute(f'CREATE DATABASE "{db_name}"')
+        except Exception as db_err:
+            # Database may already exist (e.g. re-provisioning)
+            logger.warning("Could not create DB %s: %s", db_name, db_err)
+
+        # Create tenant record
         tenant = Tenant.objects.create(
             name=data['name'],
             subdomain=data['subdomain'],
             schema_name=data['subdomain'],
-            db_name=f"tenant_{data['subdomain']}",
+            db_name=db_name,
+            db_user=db_user,
+            db_password=db_password,
+            db_host=db_host,
+            db_port=db_port,
             is_active=True,
         )
+
+        # Run migrations on the new tenant database
+        try:
+            import copy
+            from django.core.management import call_command
+            tenant_db_alias = f"tenant_{tenant.id}"
+            db_config = copy.deepcopy(default_db)
+            db_config.update({
+                'NAME': db_name,
+                'USER': db_user,
+                'PASSWORD': db_password,
+                'HOST': db_host,
+                'PORT': db_port,
+                'ATOMIC_REQUESTS': False,
+            })
+            settings.DATABASES[tenant_db_alias] = db_config
+            call_command('migrate', database=tenant_db_alias, verbosity=0)
+        except Exception as mig_err:
+            logger.warning("Migration on %s failed: %s", db_name, mig_err)
 
         # ── Create tenant admin user ──
         admin_email = data.get('admin_email', '')
@@ -120,6 +165,12 @@ class TenantViewSet(viewsets.ModelViewSet):
             password=admin_password,
             is_staff=True,   # Gives access to tenant admin dashboard
             is_active=True,
+        )
+
+        # Link admin user to this tenant via UserProfile
+        UserProfile.objects.update_or_create(
+            user=admin_user,
+            defaults={'tenant': tenant},
         )
 
         # Store admin info in response for the SaaS owner to share

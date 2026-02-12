@@ -122,7 +122,7 @@ class _SaasLoginScreenState extends State<SaasLoginScreen> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 32,
                 offset: const Offset(0, 10),
               ),
@@ -137,7 +137,7 @@ class _SaasLoginScreenState extends State<SaasLoginScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF3F51B5).withOpacity(0.1),
+                    color: const Color(0xFF3F51B5).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(Icons.admin_panel_settings,

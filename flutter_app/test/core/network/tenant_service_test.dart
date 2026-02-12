@@ -79,7 +79,6 @@ class FakeSecureStorage implements FlutterSecureStorage {
 
 void main() {
   group('TenantService', () {
-    late TenantService content;
     late Dio mockDio;
     late FakeSecureStorage mockStorage;
 

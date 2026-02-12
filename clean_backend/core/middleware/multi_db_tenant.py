@@ -60,11 +60,14 @@ class MultiDbTenantMiddleware:
                 db_config = copy.deepcopy(settings.DATABASES['default'])
                 db_config.update({
                     'NAME': tenant.db_name,
-                    'USER': tenant.db_user,
-                    'PASSWORD': tenant.db_password,
-                    'HOST': tenant.db_host,
-                    'PORT': tenant.db_port,
-                    'ATOMIC_REQUESTS': True,
+                    'USER': tenant.db_user or db_config.get('USER', ''),
+                    'PASSWORD': tenant.db_password or db_config.get('PASSWORD', ''),
+                    'HOST': tenant.db_host or db_config.get('HOST', 'localhost'),
+                    'PORT': tenant.db_port or db_config.get('PORT', '5432'),
+                    # Do NOT set ATOMIC_REQUESTS — it causes Django to open
+                    # connections to ALL registered DBs for every request,
+                    # even when the router routes queries to 'default'.
+                    'ATOMIC_REQUESTS': False,
                     'CONN_MAX_AGE': 600,
                 })
                 settings.DATABASES[db_alias] = db_config

@@ -16,6 +16,10 @@ router.register(r'invoices', views.InvoiceViewSet, basename='invoice')
 router.register(r'notifications', views.NotificationViewSet, basename='notification')
 router.register(r'staff', views.StaffUserViewSet, basename='staff')
 
+# Daily rotating menu endpoints
+router.register(r'meal-slots', views.MealSlotViewSet, basename='meal-slot')
+router.register(r'daily-menus', views.DailyMenuViewSet, basename='daily-menu')
+
 # Customer-facing endpoints (read-only for now)
 router.register(r'subscriptions', views.SubscriptionViewSet, basename='subscription')
 router.register(r'wallet', views.WalletTransactionViewSet, basename='wallet-transaction')
@@ -23,5 +27,6 @@ router.register(r'addresses', views.AddressViewSet, basename='address')
 
 urlpatterns = [
     path('health/', views.health_check, name='health_check'),
+    path('dashboard/summary/', views.dashboard_summary, name='dashboard_summary'),
     path('', include(router.urls)),
 ]

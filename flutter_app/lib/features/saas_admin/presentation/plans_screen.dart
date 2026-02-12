@@ -258,7 +258,7 @@ class _PlansScreenState extends State<PlansScreen> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: tier,
+                            initialValue: tier,
                             decoration:
                                 const InputDecoration(labelText: 'Tier'),
                             items: const [
@@ -620,12 +620,12 @@ class _PlanCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: plan.isActive ? _tierColor.withOpacity(0.3) : Colors.grey.shade200,
+          color: plan.isActive ? _tierColor.withValues(alpha: 0.3) : Colors.grey.shade200,
           width: plan.isActive ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -640,7 +640,7 @@ class _PlanCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _tierColor.withOpacity(0.1),
+                  color: _tierColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(

@@ -116,7 +116,7 @@ class _AddItemModalState extends State<AddItemModal> {
                        Expanded(
                          child: DropdownButtonFormField<String>(
                            decoration: const InputDecoration(labelText: 'Link Inventory Item', border: OutlineInputBorder()),
-                           value: _selectedInventoryItem,
+                           initialValue: _selectedInventoryItem,
                            items: _inventoryItems.map((item) {
                              return DropdownMenuItem(value: item['id'], child: Text(item['name']!));
                            }).toList(),

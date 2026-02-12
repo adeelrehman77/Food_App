@@ -57,19 +57,11 @@ class TenantRouter:
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
         """
-        Shared apps ONLY migrate to 'default'.
-        Tenant-specific apps (functional apps) migrate to tenant databases,
-        but we also allow them in 'default' so the global admin doesn't crash.
+        Allow all apps to migrate on all databases.
+
+        The TenantRouter controls read/write routing at runtime, but tenant
+        app models have FK references to shared tables (e.g. main -> users_tenant),
+        so those tables must exist in every database.  Blocking shared-app
+        migrations on tenant DBs would break FK constraints.
         """
-        shared_apps = [
-            'users', 'organizations', 'admin', 'auth', 'contenttypes', 
-            'sessions', 'sites', 'account', 'socialaccount', 'authtoken', 
-            'axes', 'django_apscheduler'
-        ]
-        
-        if db == 'default':
-            # Everything is allowed in default (fallback/admin view)
-            return True
-        
-        # In tenant databases, we ONLY allow functional apps
-        return app_label not in shared_apps
+        return True

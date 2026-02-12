@@ -81,8 +81,7 @@ class SaasRepository {
           'name': name,
           'subdomain': subdomain,
           'admin_email': adminEmail,
-          if (adminPassword != null && adminPassword.isNotEmpty)
-            'admin_password': adminPassword,
+          if (adminPassword?.isNotEmpty ?? false) 'admin_password': adminPassword!,
           if (planId != null) 'plan_id': planId,
         });
         return TenantDetail.fromJson(response.data);

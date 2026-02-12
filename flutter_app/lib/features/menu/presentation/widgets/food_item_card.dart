@@ -92,7 +92,7 @@ class FoodItemCard extends StatelessWidget {
                           Switch(
                             value: item.isActive,
                             onChanged: onToggleActive,
-                            activeColor: Colors.green,
+                            activeThumbColor: Colors.green,
                           ),
                           Text(
                             item.isActive ? 'Active' : 'Inactive',

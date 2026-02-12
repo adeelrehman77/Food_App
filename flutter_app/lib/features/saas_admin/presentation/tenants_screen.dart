@@ -152,7 +152,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -390,7 +390,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
                               child: LinearProgressIndicator(),
                             )
                           : DropdownButtonFormField<int?>(
-                              value: selectedPlanId,
+                              initialValue: selectedPlanId,
                               decoration: const InputDecoration(
                                 labelText: 'Service Plan',
                                 prefixIcon: Icon(Icons.card_membership, size: 20),
@@ -620,7 +620,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
                               child: LinearProgressIndicator(),
                             )
                           : DropdownButtonFormField<int?>(
-                              value: selectedPlanId,
+                              initialValue: selectedPlanId,
                               decoration: const InputDecoration(
                                 labelText: 'Service Plan',
                                 prefixIcon:
@@ -661,7 +661,7 @@ class _TenantsScreenState extends State<TenantsScreen> {
                               : 'Tenant access is suspended',
                           style: const TextStyle(fontSize: 12),
                         ),
-                        activeColor: Colors.green,
+                        activeThumbColor: Colors.green,
                         contentPadding: EdgeInsets.zero,
                       ),
                     ],
@@ -722,7 +722,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

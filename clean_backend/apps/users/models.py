@@ -32,6 +32,14 @@ class Domain(models.Model):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff_profiles',
+        help_text="The tenant this user belongs to. NULL for platform-level superusers.",
+    )
     phone_number = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

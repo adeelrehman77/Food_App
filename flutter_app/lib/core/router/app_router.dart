@@ -4,6 +4,13 @@ import '../providers/auth_provider.dart';
 
 // Tenant admin screens
 import '../../features/dashboard/presentation/dashboard_shell.dart';
+import '../../features/admin/presentation/dashboard_screen.dart';
+import '../../features/admin/presentation/orders_screen.dart';
+import '../../features/admin/presentation/inventory_screen.dart';
+import '../../features/admin/presentation/delivery_screen.dart';
+import '../../features/admin/presentation/customers_screen.dart';
+import '../../features/admin/presentation/finance_screen.dart';
+import '../../features/admin/presentation/staff_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/auth/presentation/tenant_login_screen.dart';
 import '../../features/auth/presentation/user_login_screen.dart';
@@ -70,23 +77,13 @@ GoRouter buildRouter(AuthProvider authProvider) {
           GoRoute(
             path: '/dashboard',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: Center(
-                child: Text(
-                  'Dashboard Overview',
-                  style: TextStyle(fontSize: 24, color: Colors.grey),
-                ),
-              ),
+              child: DashboardScreen(),
             ),
           ),
           GoRoute(
             path: '/orders',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: Center(
-                child: Text(
-                  'Orders — Coming Soon',
-                  style: TextStyle(fontSize: 24, color: Colors.grey),
-                ),
-              ),
+              child: OrdersScreen(),
             ),
           ),
           GoRoute(
@@ -98,45 +95,31 @@ GoRouter buildRouter(AuthProvider authProvider) {
           GoRoute(
             path: '/inventory',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: Center(
-                child: Text(
-                  'Inventory — Coming Soon',
-                  style: TextStyle(fontSize: 24, color: Colors.grey),
-                ),
-              ),
+              child: InventoryScreen(),
             ),
           ),
           GoRoute(
             path: '/delivery',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: Center(
-                child: Text(
-                  'Delivery — Coming Soon',
-                  style: TextStyle(fontSize: 24, color: Colors.grey),
-                ),
-              ),
+              child: DeliveryScreen(),
             ),
           ),
           GoRoute(
             path: '/customers',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: Center(
-                child: Text(
-                  'Customers — Coming Soon',
-                  style: TextStyle(fontSize: 24, color: Colors.grey),
-                ),
-              ),
+              child: CustomersScreen(),
             ),
           ),
           GoRoute(
             path: '/finance',
             pageBuilder: (context, state) => const NoTransitionPage(
-              child: Center(
-                child: Text(
-                  'Finance — Coming Soon',
-                  style: TextStyle(fontSize: 24, color: Colors.grey),
-                ),
-              ),
+              child: FinanceScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/staff',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: StaffScreen(),
             ),
           ),
         ],

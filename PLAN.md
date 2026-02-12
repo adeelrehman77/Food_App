@@ -160,14 +160,34 @@ Added to `ServicePlan`:
 
 ## Remaining Work (Future Phases)
 
-### Phase 2 — Flutter Admin Dashboard Screens
-- Dashboard with summary cards
-- Orders management screen
-- Inventory management screen
-- Delivery management screen
-- Customer management screen
-- Finance/invoices screen
-- Staff management screen
+### Phase 2 — Flutter Admin Dashboard Screens ✅
+- **Dashboard overview** — summary metric cards (orders, deliveries, revenue, customers, inventory, staff) with recent orders table
+- **Orders screen** — tab-filtered list with status workflow (pending→confirmed→preparing→ready→delivered), cancel support
+- **Inventory screen** — CRUD with stock adjustment dialog, low-stock filter, cost/supplier tracking
+- **Delivery screen** — tab-filtered list with driver info, status tracking, pickup/delivery times
+- **Customers screen** — customer list with search, registration request approval/rejection with reasons
+- **Finance screen** — invoice list with status tabs, detail dialog with line items, paid/pending summary chips
+- **Staff screen** — CRUD with role assignment (manager/kitchen_staff/driver/staff), deactivation, change-role dialog
+
+#### Backend Addition (Phase 2)
+- `GET /api/v1/dashboard/summary/` — aggregated tenant dashboard metrics (orders, customers, revenue, inventory, deliveries, staff)
+
+#### Management Commands
+- `python manage.py migrate_all_tenants` — migrate all tenant databases (supports `--parallel`, `--tenant=<slug>`)
+- `python manage.py provision_tenant` — full tenant provisioning (DB create, migrate, admin user, plan assignment)
+
+#### New Flutter Files (Phase 2)
+| File | Purpose |
+|------|---------|
+| `features/admin/domain/models.dart` | Domain models (DashboardSummary, OrderItem, CustomerItem, InvoiceItem, InventoryItemModel, DeliveryItem, StaffUser) |
+| `features/admin/data/admin_repository.dart` | Repository wrapping all `/api/v1/` tenant admin endpoints |
+| `features/admin/presentation/dashboard_screen.dart` | Dashboard overview with metric cards and recent orders |
+| `features/admin/presentation/orders_screen.dart` | Orders management with status workflow |
+| `features/admin/presentation/inventory_screen.dart` | Inventory management with stock adjustment |
+| `features/admin/presentation/delivery_screen.dart` | Delivery tracking with status filters |
+| `features/admin/presentation/customers_screen.dart` | Customer + registration request management |
+| `features/admin/presentation/finance_screen.dart` | Invoice listing with detail dialog |
+| `features/admin/presentation/staff_screen.dart` | Staff CRUD with role management |
 
 ### Phase 4 — Flutter Customer App
 - Customer registration / login

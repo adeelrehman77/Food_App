@@ -44,7 +44,7 @@ class SaasHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFF3F51B5).withOpacity(0.08),
+              color: const Color(0xFF3F51B5).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
