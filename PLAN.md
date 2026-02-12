@@ -132,11 +132,11 @@ Added to `ServicePlan`:
 
 ### Phase 2 — Flutter Admin Dashboard Screens ✅
 - **Dashboard overview** — summary metric cards (orders, deliveries, revenue, customers, inventory, staff) with recent orders table
-- **Orders screen** — tab-filtered list with status workflow (pending→confirmed→preparing→ready→delivered), cancel support
+- **Orders screen** — tab-filtered list with status workflow; preparing/ready only on delivery day; cancel support
 - **Inventory screen** — CRUD with stock adjustment dialog, low-stock filter, cost/supplier tracking
 - **Delivery screen** — tab-filtered list with driver info, status tracking, pickup/delivery times
 - **Customers screen** — customer list with search, registration request approval/rejection with reasons
-- **Finance screen** — invoice list with status tabs, detail dialog with line items, paid/pending summary chips
+- **Finance screen** — invoice list with status tabs, summary cards (paid/pending/count), detail dialog with Mark paid and line items
 - **Staff screen** — CRUD with role assignment (manager/kitchen_staff/driver/staff), deactivation, change-role dialog
 
 #### Backend Addition (Phase 2)
@@ -146,6 +146,9 @@ Added to `ServicePlan`:
 - `python manage.py migrate_all_tenants` — migrate all tenant databases (supports `--parallel`, `--tenant=<slug>`)
 - `python manage.py provision_tenant` — full tenant provisioning (DB create, migrate, admin user, plan assignment)
 - `python manage.py seed_meal_slots` — seed default meal slots (Lunch, Dinner) for a tenant
+- `python manage.py clean_tenant_orders` — delete all orders for `--tenant=<slug>` or `--all`
+- `python manage.py clean_tenant_subscriptions` — delete all subscriptions for `--tenant=<slug>` or `--all`
+- `python manage.py auto_advance_today_orders` — advance today's orders to ready and create Deliveries; for cron use `--no-input`
 
 ### Phase 5 — SaaS Owner Dashboard (Flutter) ✅
 - **Overview screen** — platform-wide analytics cards (total/active/trial tenants, MRR, ARR, pending/overdue invoices)
@@ -219,6 +222,18 @@ Added to `ServicePlan`:
 | `provision_tenant` updated | Admin users now created in tenant DB using thread-local routing context |
 | `setup_tenant_defaults` signal | Creates `kitchen_admin` user and default category in tenant DB |
 
+### Recent Additions (Operational & Finance)
+
+| Area | Change |
+|------|--------|
+| **Order status** | Transition to Preparing or Ready allowed only when `delivery_date` is today; otherwise API returns 400 with a clear message. |
+| **Delivery auto-creation** | When an order is marked Ready, a `Delivery` record is auto-created so it appears in Delivery Management. |
+| **Subscription activate** | On activate: orders are auto-generated for all delivery dates in range; an Invoice is created (cash/card → paid, wallet → pending). Due date = start_date + 7 days. |
+| **Subscription create/update** | When saving with status `active`, `update_delivery_schedule()` and `generate_orders()` are called. Meal package FK is set on create/update. |
+| **Invoice** | `invoice_number` optional (auto-generated INV-YYYYMM-0001 if blank). `GET /api/v1/invoices/summary/` (paid_total, pending_total, total_count, overdue_count). `POST /api/v1/invoices/{id}/mark_paid/`. |
+| **Management commands** | `clean_tenant_orders`, `clean_tenant_subscriptions`, `auto_advance_today_orders` (for cron) in `apps/main/management/commands/`. |
+| **Flutter** | Orders: preparing/ready only on delivery day + hint; Finance: summary cards + Mark paid in invoice detail. |
+
 ---
 
 ## Files Created / Modified
@@ -244,7 +259,10 @@ Added to `ServicePlan`:
 | `apps/organizations/urls_saas.py` | SaaS owner URL routing |
 | `apps/organizations/management/commands/provision_tenant.py` | Full tenant provisioning command |
 | `apps/organizations/management/commands/migrate_all_tenants.py` | Migrate all tenant databases |
-| `apps/organizations/management/commands/seed_meal_slots.py` | Seed meal slots for a tenant |
+| `apps/main/management/commands/seed_meal_slots.py` | Seed meal slots for a tenant |
+| `apps/main/management/commands/clean_tenant_orders.py` | Delete all orders for tenant(s) |
+| `apps/main/management/commands/clean_tenant_subscriptions.py` | Delete all subscriptions for tenant(s) |
+| `apps/main/management/commands/auto_advance_today_orders.py` | Advance today's orders to ready and create Delivery records |
 
 ### Modified Files
 | File | Change |
@@ -284,3 +302,21 @@ Added to `ServicePlan`:
 - Analytics dashboard per tenant
 - Bulk operations (menu copy, customer import)
 - Delivery route optimization
+
+### Phase 11 — Accounting-Style Entries (Double-Entry Bookkeeping) — Future
+Professional accounting-style ledger so tenant cash, customer wallet, and revenue are tracked with balanced debits/credits.
+
+**Target flow (conceptual):**
+1. **Customer pays (cash/card) at signup** → Tenant credit (revenue/cash received).
+2. **Tenant transfers amount into customer wallet** → Tenant debit, Wallet credit (liability to customer increases).
+3. **Daily delivery done / auto-invoice** → Wallet debit (customer balance used), Tenant credit (revenue recognized for that delivery).
+
+**Implementation outline:**
+- **Models:** `JournalEntry` (date, reference_type, reference_id, memo) and `JournalLine` (entry, account, amount, debit_credit `dr`/`cr`). Optional: `Account` or fixed account codes (e.g. Tenant Cash, Tenant Revenue, Customer Wallet liability, Unearned revenue).
+- **Rules:** Every transaction posts balanced entries (sum of dr = sum of cr). Hook into: subscription activate + payment (cash/card), wallet top-up, “transfer to wallet”, delivery completed / invoice generated.
+- **Revenue recognition:** Decide policy (e.g. recognize at payment vs at delivery); may use Unearned revenue until delivery.
+- **Integration:** Reuse existing `Invoice`, `WalletTransaction`; journal entries can reference them for audit trail.
+
+**Phased approach:**
+- **Phase 11a:** Simple payment/event log (who paid what, when, method, linked subscription/invoice) for reporting; no full double-entry.
+- **Phase 11b:** Full double-entry ledger with chart of accounts, journal entries on payment, wallet transfer, and delivery; basic trial balance / reports.

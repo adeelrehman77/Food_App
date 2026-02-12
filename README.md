@@ -126,7 +126,10 @@ Food_App/
 │   ├── apps/
 │   │   ├── main/                  # Core domain (menu, daily menus, meal packages,
 │   │   │                          #   orders, subscriptions, customers, wallet,
-│   │   │                          #   invoicing, addresses, staff management)
+│   │   │                          #   invoicing, addresses, staff management);
+│   │   │                          #   management/commands: seed_meal_slots,
+│   │   │                          #   clean_tenant_orders, clean_tenant_subscriptions,
+│   │   │                          #   auto_advance_today_orders
 │   │   ├── users/                 # Tenant model, domain mapping, user profiles,
 │   │   │                          #   tenant discovery, setup_tenant_defaults signal
 │   │   ├── organizations/         # Service plans, SaaS models (subscriptions,
@@ -227,15 +230,19 @@ The API is organized into three layers matching the SaaS architecture:
 | `POST` | `/api/v1/daily-menus/{id}/archive/` | Archive a menu |
 | `CRUD` | `/api/v1/meal-packages/` | Meal package management (subscription tiers) |
 | **Orders** | | |
-| `CRUD` | `/api/v1/orders/` | Order management |
-| `POST` | `/api/v1/orders/{id}/update_status/` | Update order status |
+| `CRUD` | `/api/v1/orders/` | Order management (filter by status) |
+| `POST` | `/api/v1/orders/{id}/update_status/` | Update order status (preparing/ready only when delivery_date is today) |
 | **Kitchen KDS** | | |
 | `CRUD` | `/api/v1/kitchen/orders/` | Kitchen order queue |
 | `POST` | `/api/v1/kitchen/orders/{id}/claim/` | Claim an order |
 | `POST` | `/api/v1/kitchen/orders/{id}/start_preparation/` | Start cooking |
 | `POST` | `/api/v1/kitchen/orders/{id}/mark_ready/` | Mark ready |
+| **Subscriptions (Admin)** | | |
+| `CRUD` | `/api/v1/subscriptions-admin/` | Subscription CRUD (creates orders on activate) |
+| `POST` | `/api/v1/subscriptions-admin/{id}/activate/` | Activate subscription (auto-generates orders + invoice; cash/card → invoice paid) |
+| `POST` | `/api/v1/subscriptions-admin/{id}/generate_orders/` | Generate orders for remaining delivery dates |
 | **Delivery Management** | | |
-| `CRUD` | `/api/v1/delivery/deliveries/` | Delivery tracking |
+| `CRUD` | `/api/v1/delivery/deliveries/` | Delivery tracking (Delivery auto-created when order becomes ready) |
 | `CRUD` | `/api/v1/driver/zones/` | Delivery zones |
 | `CRUD` | `/api/v1/driver/routes/` | Delivery routes |
 | `CRUD` | `/api/v1/driver/drivers/` | Driver management |
@@ -260,9 +267,11 @@ The API is organized into three layers matching the SaaS architecture:
 | `POST` | `/api/v1/staff/{id}/deactivate/` | Deactivate staff |
 | `POST` | `/api/v1/staff/{id}/change_role/` | Change staff role |
 | **Finance & Misc** | | |
-| `GET` | `/api/v1/invoices/` | Invoice list |
+| `GET` | `/api/v1/invoices/` | Invoice list (filter by status) |
+| `GET` | `/api/v1/invoices/summary/` | Finance summary (paid_total, pending_total, total_count, overdue_count) |
+| `POST` | `/api/v1/invoices/{id}/mark_paid/` | Mark invoice as paid |
 | `GET` | `/api/v1/notifications/` | Notification management |
-| `GET` | `/api/v1/subscriptions/` | Subscription list |
+| `GET` | `/api/v1/subscriptions/` | Subscription list (read-only) |
 | `GET` | `/api/v1/wallet/` | Wallet transactions |
 | `GET` | `/api/v1/addresses/` | Address management |
 | `GET` | `/api/v1/dashboard/summary/` | Aggregated dashboard metrics |
@@ -339,7 +348,10 @@ New tenants are provisioned with `python manage.py provision_tenant`, which crea
 |---------|-------------|
 | `python manage.py provision_tenant` | Full tenant provisioning (creates DB, runs migrations, creates admin user, assigns plan) |
 | `python manage.py migrate_all_tenants` | Migrate all tenant databases. Supports `--parallel` and `--tenant=<slug>` |
-| `python manage.py seed_meal_slots` | Seed default meal slots (Lunch, Dinner) for a tenant |
+| `python manage.py seed_meal_slots` | Seed default meal slots (Lunch, Dinner) for a tenant (run with tenant context or pass DB) |
+| `python manage.py clean_tenant_orders` | Delete all orders (and related Delivery/KitchenOrder) for `--tenant=<slug>` or `--all` |
+| `python manage.py clean_tenant_subscriptions` | Delete all subscriptions (and related orders, delivery statuses) for `--tenant=<slug>` or `--all` |
+| `python manage.py auto_advance_today_orders` | Advance today's orders to ready and create Delivery records for `--tenant=<slug>` or `--all` (for cron) |
 | `python manage.py createsuperuser` | Create SaaS-level superuser in default DB |
 
 ### Backend Setup
@@ -410,13 +422,13 @@ The Flutter application serves as a multi-role dashboard targeting **web** and *
 | Category Management    | Complete  | CRUD with inline creation from menu item dialog            |
 | Daily Rotating Menus   | Complete  | Weekly calendar view, create/publish/archive daily menus   |
 | Meal Packages          | Complete  | Subscription tiers with configurable naming and pricing    |
-| Orders                 | Complete  | Tab-filtered list with status workflow and cancel support   |
+| Orders                 | Complete  | Tab-filtered list with status workflow; preparing/ready only on delivery day; cancel support |
 | Inventory              | Complete  | CRUD with stock adjustment, low-stock filter               |
 | Delivery               | Complete  | Tab-filtered list with driver info, status tracking        |
 | Customer Management    | Complete  | Master-detail layout, add customer (User+Profile+Address), search |
 | Registration Requests  | Complete  | Approve (creates account) / reject with reason             |
 | Address Management     | Complete  | Structured fields (building, floor, flat, street, city)    |
-| Finance                | Complete  | Invoice list with status tabs, detail dialog               |
+| Finance                | Complete  | Invoice list with status tabs, summary cards (paid/pending/count), detail dialog with Mark paid |
 | Staff Management       | Complete  | CRUD with role assignment, deactivation, change-role       |
 | Dynamic Tenant Info    | Complete  | Header displays real tenant name and user info             |
 | Logout                 | Complete  | Available in sidebar and header profile menu               |

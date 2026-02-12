@@ -3,9 +3,14 @@ import '../../domain/food_item.dart';
 import '../../data/menu_repository.dart';
 
 class AddItemModal extends StatefulWidget {
-  final Function(FoodItem) onSave;
+  final FoodItem? existing;
+  final Function(FoodItem, bool isEdit) onSave;
 
-  const AddItemModal({super.key, required this.onSave});
+  const AddItemModal({
+    super.key,
+    this.existing,
+    required this.onSave,
+  });
 
   @override
   State<AddItemModal> createState() => _AddItemModalState();
@@ -33,10 +38,22 @@ class _AddItemModalState extends State<AddItemModal> {
   ];
   final List<String> _selectedAllergens = [];
 
+  bool get _isEdit => widget.existing != null;
+
   @override
   void initState() {
     super.initState();
     _loadCategories();
+    final e = widget.existing;
+    if (e != null) {
+      _nameController.text = e.name;
+      _descriptionController.text = e.description;
+      _priceController.text = e.basePrice.toStringAsFixed(2);
+      _caloriesController.text = e.calories > 0 ? e.calories.toString() : '';
+      _dietType = e.dietType;
+      _selectedCategoryId = e.categoryId;
+      _selectedAllergens.addAll(e.allergens);
+    }
   }
 
   Future<void> _loadCategories() async {
@@ -83,8 +100,8 @@ class _AddItemModalState extends State<AddItemModal> {
 
   void _saveItem() {
     if (_formKey.currentState!.validate()) {
-      final newItem = FoodItem(
-        id: '',
+      final item = FoodItem(
+        id: _isEdit ? widget.existing!.id : '',
         name: _nameController.text,
         description: _descriptionController.text,
         basePrice: double.parse(_priceController.text),
@@ -92,9 +109,9 @@ class _AddItemModalState extends State<AddItemModal> {
         allergens: _selectedAllergens,
         dietType: _dietType,
         categoryId: _selectedCategoryId,
-        isActive: true,
+        isActive: _isEdit ? widget.existing!.isActive : true,
       );
-      widget.onSave(newItem);
+      widget.onSave(item, _isEdit);
       Navigator.of(context).pop();
     }
   }
@@ -114,7 +131,7 @@ class _AddItemModalState extends State<AddItemModal> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Add New Food Item',
+                  _isEdit ? 'Edit Food Item' : 'Add New Food Item',
                   style: Theme.of(context)
                       .textTheme
                       .headlineSmall
@@ -281,7 +298,7 @@ class _AddItemModalState extends State<AddItemModal> {
                     const SizedBox(width: 16),
                     ElevatedButton(
                       onPressed: _saveItem,
-                      child: const Text('Save Item'),
+                      child: Text(_isEdit ? 'Update Item' : 'Save Item'),
                     ),
                   ],
                 ),

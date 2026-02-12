@@ -407,6 +407,12 @@ class MealPackage(models.Model):
     )
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    menus = models.ManyToManyField(
+        Menu,
+        blank=True,
+        related_name='meal_packages',
+        help_text='Menu plans included in this package',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -549,7 +555,15 @@ class Address(models.Model):
 
 class Subscription(models.Model):
     customer = models.ForeignKey(CustomerProfile, on_delete=models.CASCADE, db_index=True)
-    menus = models.ManyToManyField(Menu, verbose_name='Menu Plans', help_text="Select the menus included in this subscription.")
+    meal_package = models.ForeignKey(
+        MealPackage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subscriptions',
+        help_text='Selected package; menus/diet/cost derived from package',
+    )
+    menus = models.ManyToManyField(Menu, verbose_name='Menu Plans', blank=True, help_text="Select the menus included in this subscription (or from meal_package).")
     lunch_address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True, blank=True, related_name='lunch_subscriptions', help_text="Optional: specific address for lunch deliveries.")
     dinner_address = models.ForeignKey(Address, on_delete=models.SET_NULL, null=True, blank=True, related_name='dinner_subscriptions', help_text="Optional: specific address for dinner deliveries.")
     status = models.CharField(
@@ -560,7 +574,7 @@ class Subscription(models.Model):
     )
     start_date = models.DateField(db_index=True)
     end_date = models.DateField(db_index=True)
-    time_slot = models.ForeignKey(TimeSlot, on_delete=models.CASCADE, null=True, blank=True, help_text="The main time slot for deliveries (e.g., Lunch, Dinner).")
+    time_slot = models.ForeignKey(MealSlot, on_delete=models.CASCADE, null=True, blank=True, related_name='subscriptions', help_text="The meal slot for deliveries (e.g., Lunch, Dinner).")
     
     DAYS_CHOICES = [
         ('Monday', 'Monday'), ('Tuesday', 'Tuesday'), ('Wednesday', 'Wednesday'),
@@ -568,6 +582,19 @@ class Subscription(models.Model):
     ]
     selected_days = models.JSONField(default=list, help_text='Select the days for delivery')
     payment_mode = models.CharField(max_length=20, choices=[('wallet', 'Wallet'), ('card', 'Card'), ('cash', 'Cash')], default='wallet')
+
+    DIET_TYPE_CHOICES = [
+        ('veg', 'Vegetarian'),
+        ('nonveg', 'Non-Vegetarian'),
+    ]
+    diet_type = models.CharField(
+        max_length=10,
+        choices=DIET_TYPE_CHOICES,
+        default='nonveg',
+        db_index=True,
+        help_text="Whether this subscription is for Vegetarian or Non-Vegetarian meals",
+    )
+
     want_notifications = models.BooleanField(default=True)
     dietary_preferences = models.CharField(max_length=100, blank=True, help_text="e.g., 'Gluten-free', 'Vegan'")
     special_instructions = models.TextField(blank=True)
@@ -678,6 +705,33 @@ class Subscription(models.Model):
                 DeliveryStatus(subscription=self, date=date, status='pending') for date in new_dates
             ])
 
+    def generate_orders(self):
+        """
+        Create Order records for each delivery date in [start_date, end_date]
+        that matches selected_days and does not already have an order.
+        Returns the number of orders created. No-op if subscription is not active.
+        """
+        if self.status != 'active':
+            return 0
+        today = timezone.now().date()
+        current_date = max(self.start_date, today)
+        selected = self.get_selected_days()
+        existing = set(self.order_set.values_list('delivery_date', flat=True))
+        created = 0
+        while current_date <= self.end_date:
+            if current_date.strftime('%A') in selected and current_date not in existing:
+                Order.objects.create(
+                    subscription=self,
+                    order_date=today,
+                    delivery_date=current_date,
+                    status='pending',
+                    quantity=1,
+                    special_instructions=self.special_instructions or '',
+                )
+                created += 1
+            current_date += timezone.timedelta(days=1)
+        return created
+
     class Meta:
         verbose_name_plural = "Subscriptions"
         ordering = ['-start_date', '-end_date']
@@ -722,7 +776,7 @@ class SubscriptionEditRequest(models.Model):
 class Invoice(models.Model):
     PAYMENT_STATUS = [('pending', 'Pending'), ('paid', 'Paid'), ('failed', 'Failed'), ('refunded', 'Refunded')]
     customer = models.ForeignKey(CustomerProfile, on_delete=models.CASCADE)
-    invoice_number = models.CharField(max_length=50, unique=True)
+    invoice_number = models.CharField(max_length=50, unique=True, blank=True, default='')
     date = models.DateField(auto_now_add=True)
     due_date = models.DateField()
     total = models.DecimalField(max_digits=10, decimal_places=2)
@@ -732,6 +786,13 @@ class Invoice(models.Model):
 
     def __str__(self):
         return f"{self.invoice_number} - {self.customer.user.username} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        if not self.invoice_number:
+            prefix = f"INV-{timezone.now().strftime('%Y%m')}-"
+            last = Invoice.objects.filter(invoice_number__startswith=prefix).count()
+            self.invoice_number = f"{prefix}{last + 1:04d}"
+        super().save(*args, **kwargs)
 
 
 class InvoiceItem(models.Model):

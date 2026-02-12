@@ -5,6 +5,7 @@ import 'widgets/food_item_card.dart';
 import 'widgets/add_item_modal.dart';
 import '../../admin/presentation/daily_planner_screen.dart';
 import '../../admin/presentation/meal_packages_screen.dart';
+import '../../admin/presentation/menus_screen.dart';
 
 /// Menu screen with three tabs:
 ///  1. Master Items – the reusable food item library
@@ -24,7 +25,7 @@ class _MenuScreenState extends State<MenuScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -48,6 +49,7 @@ class _MenuScreenState extends State<MenuScreen>
             indicatorColor: Theme.of(context).colorScheme.primary,
             tabs: const [
               Tab(icon: Icon(Icons.restaurant_menu), text: 'Master Items'),
+              Tab(icon: Icon(Icons.menu_book), text: 'Menus'),
               Tab(icon: Icon(Icons.calendar_month), text: 'Daily Planner'),
               Tab(icon: Icon(Icons.card_giftcard), text: 'Packages'),
             ],
@@ -59,6 +61,7 @@ class _MenuScreenState extends State<MenuScreen>
             controller: _tabCtrl,
             children: const [
               _MasterItemsTab(),
+              MenusScreen(),
               DailyPlannerScreen(),
               MealPackagesScreen(),
             ],
@@ -143,6 +146,32 @@ class _MasterItemsTabState extends State<_MasterItemsTab>
     }
   }
 
+  Future<void> _updateItem(FoodItem item) async {
+    try {
+      await _repository.updateFoodItem(item);
+      _loadItems();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Item updated successfully'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Failed to update item: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _toggleItemStatus(FoodItem item, bool isActive) async {
     // Optimistic update
     final previousItems = List<FoodItem>.from(_items);
@@ -173,7 +202,27 @@ class _MasterItemsTabState extends State<_MasterItemsTab>
   void _showAddItemModal() {
     showDialog(
       context: context,
-      builder: (context) => AddItemModal(onSave: _addNewItem),
+      builder: (context) => AddItemModal(
+        onSave: (item, isEdit) {
+          if (isEdit) {
+            _updateItem(item);
+          } else {
+            _addNewItem(item);
+          }
+        },
+      ),
+    );
+  }
+
+  void _showEditItemModal(FoodItem item) {
+    showDialog(
+      context: context,
+      builder: (context) => AddItemModal(
+        existing: item,
+        onSave: (updated, isEdit) {
+          _updateItem(updated);
+        },
+      ),
     );
   }
 
@@ -288,9 +337,7 @@ class _MasterItemsTabState extends State<_MasterItemsTab>
           return FoodItemCard(
             item: item,
             onToggleActive: (val) => _toggleItemStatus(item, val),
-            onTap: () {
-              // TODO: Show edit modal
-            },
+            onTap: () => _showEditItemModal(item),
           );
         },
       ),

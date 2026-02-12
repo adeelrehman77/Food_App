@@ -15,7 +15,7 @@ from django.utils import timezone
 from apps.main.models import (
     Order, CustomerProfile, Invoice, Notification,
     CustomerRegistrationRequest, Category, Subscription, Address,
-    MealSlot, DailyMenu, MealPackage,
+    MealSlot, DailyMenu, MealPackage, Menu,
 )
 from apps.main.serializers.admin_serializers import (
     OrderListSerializer, OrderDetailSerializer, OrderStatusUpdateSerializer,
@@ -26,7 +26,7 @@ from apps.main.serializers.admin_serializers import (
     StaffUserSerializer, StaffUserCreateSerializer,
     MealSlotSerializer,
     DailyMenuListSerializer, DailyMenuDetailSerializer, DailyMenuCreateSerializer,
-    MealPackageSerializer,
+    MealPackageSerializer, MenuAdminSerializer,
     SubscriptionAdminListSerializer, SubscriptionAdminDetailSerializer,
     SubscriptionAdminCreateSerializer,
 )
@@ -179,8 +179,27 @@ class OrderViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Preparing/ready only allowed when delivery date is today
+        today = timezone.now().date()
+        if new_status in ('preparing', 'ready') and order.delivery_date != today:
+            return Response(
+                {
+                    'error': (
+                        f"Order can only be marked as '{new_status}' when delivery date is today "
+                        f"({today.isoformat()}). This order is due {order.delivery_date.isoformat()}."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         order.status = new_status
         order.save(update_fields=['status', 'updated_at'])
+
+        # When order becomes "ready", create a Delivery so it appears in Delivery Management
+        if new_status == 'ready':
+            from apps.delivery.models import Delivery
+            Delivery.objects.get_or_create(order=order, defaults={'status': 'pending'})
+
         return Response(OrderDetailSerializer(order).data)
 
 
@@ -338,6 +357,34 @@ class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['status', 'customer']
     ordering = ['-date']
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Finance summary: paid total, pending total, counts (for Finance screen cards)."""
+        from django.db.models import Sum
+        today = timezone.now().date()
+        qs = Invoice.objects.all()
+        paid_total = qs.filter(status='paid').aggregate(t=Sum('total'))['t'] or 0
+        pending_total = qs.filter(status='pending').aggregate(t=Sum('total'))['t'] or 0
+        return Response({
+            'paid_total': float(paid_total),
+            'pending_total': float(pending_total),
+            'total_count': qs.count(),
+            'overdue_count': qs.filter(status='pending', due_date__lt=today).count(),
+        })
+
+    @action(detail=True, methods=['post'])
+    def mark_paid(self, request, pk=None):
+        """Mark an invoice as paid."""
+        invoice = self.get_object()
+        if invoice.status == 'paid':
+            return Response(
+                {'error': 'Invoice is already paid.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        invoice.status = 'paid'
+        invoice.save(update_fields=['status'])
+        return Response(InvoiceSerializer(invoice).data)
 
 
 # ─── Notifications ─────────────────────────────────────────────────────────────
@@ -623,6 +670,25 @@ class DailyMenuViewSet(viewsets.ModelViewSet):
         })
 
 
+# ─── Menus (admin) ────────────────────────────────────────────────────────────
+
+class MenuViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for menus (collections of menu items, e.g. Weekly Plan A).
+    Menus are used in MealPackages and Subscriptions.
+    """
+    queryset = Menu.objects.prefetch_related('menu_items').all()
+    serializer_class = MenuAdminSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    search_fields = ['name', 'description']
+    filterset_fields = ['is_active']
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [permissions.IsAdminUser()]
+        return [permissions.IsAuthenticated()]
+
+
 # ─── Meal Packages ────────────────────────────────────────────────────────────
 
 class MealPackageViewSet(viewsets.ModelViewSet):
@@ -630,7 +696,7 @@ class MealPackageViewSet(viewsets.ModelViewSet):
     CRUD for tenant-defined meal packages / subscription tiers.
     Tenants create their own package names, prices, and configurations.
     """
-    queryset = MealPackage.objects.all()
+    queryset = MealPackage.objects.prefetch_related('menus').all()
     serializer_class = MealPackageSerializer
     permission_classes = [permissions.IsAuthenticated]
     search_fields = ['name', 'description']
@@ -653,13 +719,13 @@ class SubscriptionAdminViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['status', 'payment_mode']
     search_fields = ['customer__name', 'customer__phone', 'customer__user__email']
-    ordering_fields = ['start_date', 'end_date', 'status', 'created_at', 'total_cost']
-    ordering = ['-created_at']
+    ordering_fields = ['start_date', 'end_date', 'status', 'total_cost']
+    ordering = ['-start_date']
 
     def get_queryset(self):
         return Subscription.objects.select_related(
-            'customer__user', 'time_slot', 'lunch_address', 'dinner_address',
-        ).annotate(
+            'customer__user', 'time_slot', 'meal_package', 'lunch_address', 'dinner_address',
+        ).prefetch_related('menus').annotate(
             order_count=Count('order'),
         ).all()
 
@@ -684,7 +750,26 @@ class SubscriptionAdminViewSet(viewsets.ModelViewSet):
         sub.calculate_total_cost()
         db_models.Model.save(sub)
         sub.update_delivery_schedule()
-        return Response(SubscriptionAdminDetailSerializer(sub).data)
+        orders_created = sub.generate_orders()
+        # Create invoice for this subscription period.
+        # Cash/card = tenant already collected → mark paid. Wallet = pending (settled on delivery/top-up).
+        invoice_created = False
+        if sub.total_cost and sub.total_cost > 0:
+            due = sub.start_date + datetime.timedelta(days=7)
+            invoice_status = 'paid' if sub.payment_mode in ('cash', 'card') else 'pending'
+            Invoice.objects.create(
+                customer=sub.customer,
+                due_date=due,
+                total=sub.total_cost,
+                status=invoice_status,
+                notes=f"Subscription #{sub.id} ({sub.start_date} to {sub.end_date})",
+            )
+            invoice_created = True
+        return Response({
+            **SubscriptionAdminDetailSerializer(sub).data,
+            'orders_created': orders_created,
+            'invoice_created': invoice_created,
+        })
 
     @action(detail=True, methods=['post'])
     def pause(self, request, pk=None):
@@ -724,21 +809,5 @@ class SubscriptionAdminViewSet(viewsets.ModelViewSet):
                 {'error': 'Only active subscriptions can generate orders.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        today = timezone.now().date()
-        current_date = max(sub.start_date, today)
-        selected = sub.get_selected_days()
-        existing = set(sub.order_set.values_list('delivery_date', flat=True))
-        created = 0
-        while current_date <= sub.end_date:
-            if current_date.strftime('%A') in selected and current_date not in existing:
-                Order.objects.create(
-                    subscription=sub,
-                    order_date=today,
-                    delivery_date=current_date,
-                    status='pending',
-                    quantity=1,
-                    special_instructions=sub.special_instructions,
-                )
-                created += 1
-            current_date += datetime.timedelta(days=1)
+        created = sub.generate_orders()
         return Response({'detail': f'{created} orders generated.', 'orders_created': created})

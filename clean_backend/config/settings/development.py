@@ -22,13 +22,7 @@ CORS_ORIGIN_REGEX_WHITELIST = [
     r"^http://127\.0\.0\.1:[0-9]+$",
 ]
 
-# Development database (SQLite for simplicity)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# Development uses base.py PostgreSQL config (DATABASE_URL or DB_* env vars)
 
 # Development cache
 CACHES = {

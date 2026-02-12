@@ -174,6 +174,12 @@ class AdminRepository {
 
   // ─── Invoices ─────────────────────────────────────────────────────────────
 
+  Future<InvoiceSummary> getInvoiceSummary() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}invoices/summary/');
+    return InvoiceSummary.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<List<InvoiceItem>> getInvoices({String? status}) async {
     final base = await _baseUrl();
     final params = <String, dynamic>{};
@@ -183,6 +189,12 @@ class AdminRepository {
       queryParameters: params,
     );
     return _parseList(response.data, InvoiceItem.fromJson);
+  }
+
+  Future<InvoiceItem> markInvoicePaid(int id) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post('${base}invoices/$id/mark_paid/');
+    return InvoiceItem.fromJson(response.data as Map<String, dynamic>);
   }
 
   // ─── Inventory ────────────────────────────────────────────────────────────
@@ -676,6 +688,31 @@ class AdminRepository {
     } on DioException catch (e) {
       throw Exception(_extractError(e));
     }
+  }
+
+  // ─── Menus (Menu plans for MealPackage) ───────────────────────────────────
+
+  Future<List<MenuPlan>> getMenus() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}menus/');
+    return _parseList(response.data, MenuPlan.fromJson);
+  }
+
+  Future<MenuPlan> createMenu(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post('${base}menus/', data: data);
+    return MenuPlan.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<MenuPlan> updateMenu(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.patch('${base}menus/$id/', data: data);
+    return MenuPlan.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteMenu(int id) async {
+    final base = await _baseUrl();
+    await _apiClient.dio.delete('${base}menus/$id/');
   }
 
   // ─── Meal Packages ─────────────────────────────────────────────────────────

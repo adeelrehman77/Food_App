@@ -345,9 +345,14 @@ class _MealPackageFormDialogState extends State<_MealPackageFormDialog> {
   bool _saving = false;
   String? _error;
 
+  List<MenuPlan> _menus = [];
+  final Set<int> _selectedMenuIds = {};
+  bool _loadingMenus = true;
+
   @override
   void initState() {
     super.initState();
+    _loadMenus();
     final e = widget.existing;
     if (e != null) {
       _nameCtrl.text = e.name;
@@ -361,6 +366,7 @@ class _MealPackageFormDialogState extends State<_MealPackageFormDialog> {
       _dietType = e.dietType;
       _duration = e.duration;
       _isActive = e.isActive;
+      _selectedMenuIds.addAll(e.menus.map((m) => m.id));
     } else {
       _durationDaysCtrl.text = '30';
       _mealsPerDayCtrl.text = '2';
@@ -379,6 +385,20 @@ class _MealPackageFormDialogState extends State<_MealPackageFormDialog> {
     _portionLabelCtrl.dispose();
     _sortOrderCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMenus() async {
+    try {
+      final menus = await widget.repo.getMenus();
+      if (mounted) {
+        setState(() {
+          _menus = menus;
+          _loadingMenus = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingMenus = false);
+    }
   }
 
   Future<void> _save() async {
@@ -401,6 +421,9 @@ class _MealPackageFormDialogState extends State<_MealPackageFormDialog> {
       'sort_order': int.tryParse(_sortOrderCtrl.text) ?? 0,
       'is_active': _isActive,
     };
+    if (_selectedMenuIds.isNotEmpty) {
+      data['menu_ids'] = _selectedMenuIds.toList();
+    }
 
     try {
       if (widget.existing != null) {
@@ -618,6 +641,35 @@ class _MealPackageFormDialogState extends State<_MealPackageFormDialog> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        Text('Menus (optional)',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700])),
+                        const SizedBox(height: 6),
+                        _loadingMenus
+                            ? const LinearProgressIndicator()
+                            : Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: _menus.map((m) {
+                                  final sel = _selectedMenuIds.contains(m.id);
+                                  return FilterChip(
+                                    label: Text('${m.name} (${m.price.toStringAsFixed(0)})'),
+                                    selected: sel,
+                                    onSelected: (v) {
+                                      setState(() {
+                                        if (v) {
+                                          _selectedMenuIds.add(m.id);
+                                        } else {
+                                          _selectedMenuIds.remove(m.id);
+                                        }
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
                         const SizedBox(height: 12),
                         SwitchListTile(
                           title: const Text('Active'),

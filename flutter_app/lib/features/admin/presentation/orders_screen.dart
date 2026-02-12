@@ -193,14 +193,35 @@ class _OrderCard extends StatelessWidget {
 
   const _OrderCard({required this.order, required this.onUpdateStatus});
 
+  /// True when delivery_date is today (preparing/ready only allowed then).
+  static bool _isDueToday(OrderItem order) {
+    final d = order.deliveryDate;
+    if (d == null || d.isEmpty) return false;
+    try {
+      final delivery = DateTime.parse(d);
+      final now = DateTime.now();
+      return delivery.year == now.year &&
+          delivery.month == now.month &&
+          delivery.day == now.day;
+    } catch (_) {
+      return false;
+    }
+  }
+
   List<String> _nextStatuses() {
-    return switch (order.status) {
+    final dueToday = _isDueToday(order);
+    final raw = switch (order.status) {
       'pending' => ['confirmed', 'cancelled'],
       'confirmed' => ['preparing', 'cancelled'],
       'preparing' => ['ready', 'cancelled'],
       'ready' => ['delivered'],
-      _ => [],
+      _ => <String>[],
     };
+    // Only allow preparing/ready when delivery date is today
+    if (!dueToday) {
+      return raw.where((s) => s != 'preparing' && s != 'ready').toList();
+    }
+    return raw;
   }
 
   @override
@@ -286,10 +307,27 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
             ],
-            if (nextStatuses.isNotEmpty) ...[
+            if (nextStatuses.isNotEmpty ||
+                (order.status == 'confirmed' &&
+                    !_OrderCard._isDueToday(order))) ...[
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 12),
+              if (order.status == 'confirmed' &&
+                  !_OrderCard._isDueToday(order) &&
+                  order.deliveryDate != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Preparing & Ready available on delivery day (${order.deliveryDate})',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              if (nextStatuses.isNotEmpty)
               Wrap(
                 spacing: 8,
                 children: nextStatuses.map((s) {

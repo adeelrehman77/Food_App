@@ -478,7 +478,7 @@ if not DEBUG and os.environ.get('REDIS_URL'):
         },
     }
 
-# Database configuration — PostgreSQL only (no SQLite fallback)
+# Database configuration — PostgreSQL
 if os.environ.get('DATABASE_URL'):
     DATABASES = {
         'default': dj_database_url.config(

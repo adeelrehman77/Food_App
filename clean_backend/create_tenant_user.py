@@ -51,7 +51,6 @@ def create_tenant_user(slug, username, password, email):
         import traceback
         traceback.print_exc()
         print(f"Error creating user: {e}")
-        # Fallback for SQLite or if DB doesn't exist yet/migrations not run
         print("Check if the tenant database exists and migrations are applied.")
 
 if __name__ == "__main__":

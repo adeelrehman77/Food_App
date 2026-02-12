@@ -1,6 +1,6 @@
 from django.apps import apps
 from rest_framework import serializers
-from apps.main.models import Subscription, WalletTransaction, Address, MenuItem, TimeSlot, CustomerProfile, Menu
+from apps.main.models import Subscription, WalletTransaction, Address, MenuItem, MealSlot, CustomerProfile, Menu
 
 class MenuItemSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
@@ -21,10 +21,18 @@ class MenuItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
 
-class TimeSlotSerializer(serializers.ModelSerializer):
+class MealSlotBriefSerializer(serializers.ModelSerializer):
+    """Brief serializer for MealSlot (subscription time_slot)."""
+    time = serializers.SerializerMethodField()
+
     class Meta:
-        model = TimeSlot
-        fields = ['id', 'name', 'time', 'start_time', 'end_time']
+        model = MealSlot
+        fields = ['id', 'name', 'code', 'cutoff_time', 'time']
+
+    def get_time(self, obj):
+        if obj and obj.cutoff_time:
+            return obj.cutoff_time.strftime('%H:%M')
+        return ''
 
 class MenuSerializer(serializers.ModelSerializer):
     class Meta:
@@ -46,7 +54,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     menu_ids = serializers.PrimaryKeyRelatedField(
         source='menus', many=True, queryset=apps.get_model('main', 'Menu').objects.all(), write_only=True
     )
-    time_slot_details = TimeSlotSerializer(source='time_slot', read_only=True)
+    time_slot_details = MealSlotBriefSerializer(source='time_slot', read_only=True)
     lunch_address = AddressSerializer(read_only=True)
     dinner_address = AddressSerializer(read_only=True)
 

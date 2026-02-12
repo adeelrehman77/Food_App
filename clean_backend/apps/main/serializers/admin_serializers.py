@@ -9,7 +9,7 @@ from apps.main.models import (
     Order, Subscription, CustomerProfile, Invoice, InvoiceItem,
     Notification, CustomerRegistrationRequest, Category, Address,
     MealSlot, DailyMenu, DailyMenuItem, MenuItem, MealPackage,
-    Menu, TimeSlot,
+    Menu,
 )
 
 
@@ -342,13 +342,20 @@ class StaffUserCreateSerializer(serializers.Serializer):
 # ─── Meal Slots ───────────────────────────────────────────────────────────────
 
 class MealSlotSerializer(serializers.ModelSerializer):
+    time = serializers.SerializerMethodField()
+
     class Meta:
         model = MealSlot
         fields = [
-            'id', 'name', 'code', 'cutoff_time',
+            'id', 'name', 'code', 'cutoff_time', 'time',
             'sort_order', 'is_active', 'created_at',
         ]
         read_only_fields = ['created_at']
+
+    def get_time(self, obj):
+        if obj.cutoff_time:
+            return obj.cutoff_time.strftime('%H:%M')
+        return ''
 
 
 # ─── Daily Menu Items ─────────────────────────────────────────────────────────
@@ -507,11 +514,53 @@ class DailyMenuCreateSerializer(serializers.ModelSerializer):
         return DailyMenuDetailSerializer(instance, context=self.context).data
 
 
+# ─── Menus (admin) ──────────────────────────────────────────────────────────
+
+class MenuBriefSerializer(serializers.ModelSerializer):
+    """Lightweight Menu for MealPackage/Subscription."""
+    class Meta:
+        model = Menu
+        fields = ['id', 'name', 'description', 'price']
+
+
+class MenuAdminSerializer(serializers.ModelSerializer):
+    """Full Menu CRUD with menu_items."""
+    menu_items = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    menu_item_ids = serializers.PrimaryKeyRelatedField(
+        source='menu_items', many=True, queryset=MenuItem.objects.all(), write_only=True, required=False
+    )
+
+    class Meta:
+        model = Menu
+        fields = ['id', 'name', 'description', 'price', 'is_active', 'menu_items', 'menu_item_ids', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+    def create(self, validated_data):
+        menu_items = validated_data.pop('menu_items', [])
+        instance = Menu.objects.create(**validated_data)
+        if menu_items:
+            instance.menu_items.set(menu_items)
+        return instance
+
+    def update(self, instance, validated_data):
+        menu_items = validated_data.pop('menu_items', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if menu_items is not None:
+            instance.menu_items.set(menu_items)
+        return instance
+
+
 # ─── Meal Packages ─────────────────────────────────────────────────────────
 
 class MealPackageSerializer(serializers.ModelSerializer):
     diet_type_display = serializers.CharField(source='get_diet_type_display', read_only=True)
     duration_display = serializers.CharField(source='get_duration_display', read_only=True)
+    menus = MenuBriefSerializer(many=True, read_only=True)
+    menu_ids = serializers.PrimaryKeyRelatedField(
+        source='menus', many=True, queryset=Menu.objects.all(), write_only=True, required=False
+    )
 
     class Meta:
         model = MealPackage
@@ -520,18 +569,43 @@ class MealPackageSerializer(serializers.ModelSerializer):
             'diet_type', 'diet_type_display',
             'duration', 'duration_display', 'duration_days',
             'meals_per_day', 'portion_label',
+            'menus', 'menu_ids',
             'sort_order', 'is_active',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
 
+    def create(self, validated_data):
+        menus = validated_data.pop('menus', [])
+        instance = MealPackage.objects.create(**validated_data)
+        if menus:
+            instance.menus.set(menus)
+        return instance
+
+    def update(self, instance, validated_data):
+        menus = validated_data.pop('menus', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if menus is not None:
+            instance.menus.set(menus)
+        return instance
+
 
 # ─── Subscriptions (admin) ─────────────────────────────────────────────────
 
-class _TimeSlotBrief(serializers.ModelSerializer):
+class _MealSlotBrief(serializers.ModelSerializer):
+    """Brief representation of MealSlot for subscription (time_slot FK)."""
+    time = serializers.SerializerMethodField()
+
     class Meta:
-        model = TimeSlot
-        fields = ['id', 'name', 'time', 'start_time', 'end_time']
+        model = MealSlot
+        fields = ['id', 'name', 'code', 'cutoff_time', 'time']
+
+    def get_time(self, obj):
+        if obj.cutoff_time:
+            return obj.cutoff_time.strftime('%H:%M')
+        return ''
 
 
 class _AddressBrief(serializers.ModelSerializer):
@@ -540,12 +614,21 @@ class _AddressBrief(serializers.ModelSerializer):
         fields = ['id', 'building_name', 'flat_number', 'floor_number', 'street', 'city']
 
 
+class _MealPackageBrief(serializers.ModelSerializer):
+    diet_type_display = serializers.CharField(source='get_diet_type_display', read_only=True)
+
+    class Meta:
+        model = MealPackage
+        fields = ['id', 'name', 'price', 'currency', 'diet_type', 'diet_type_display']
+
+
 class SubscriptionAdminListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views."""
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone', read_only=True)
     customer_id = serializers.IntegerField(source='customer.id', read_only=True)
     time_slot_name = serializers.CharField(source='time_slot.name', read_only=True, default='')
+    meal_package_name = serializers.CharField(source='meal_package.name', read_only=True, default='')
     order_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
@@ -553,12 +636,12 @@ class SubscriptionAdminListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'customer_id', 'customer_name', 'customer_phone',
             'status', 'start_date', 'end_date',
-            'time_slot', 'time_slot_name', 'selected_days',
-            'payment_mode', 'cost_per_meal', 'total_cost',
+            'time_slot', 'time_slot_name', 'meal_package', 'meal_package_name',
+            'selected_days', 'payment_mode', 'diet_type', 'cost_per_meal', 'total_cost',
             'dietary_preferences', 'order_count',
-            'created_at',
+            'lunch_address', 'dinner_address',
         ]
-        read_only_fields = ['cost_per_meal', 'total_cost', 'created_at']
+        read_only_fields = ['cost_per_meal', 'total_cost']
 
 
 class SubscriptionAdminDetailSerializer(serializers.ModelSerializer):
@@ -566,7 +649,9 @@ class SubscriptionAdminDetailSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone', read_only=True)
     customer_id = serializers.IntegerField(source='customer.id', read_only=True)
-    time_slot_details = _TimeSlotBrief(source='time_slot', read_only=True)
+    time_slot_name = serializers.CharField(source='time_slot.name', read_only=True, default='')
+    time_slot_details = _MealSlotBrief(source='time_slot', read_only=True)
+    meal_package_details = _MealPackageBrief(source='meal_package', read_only=True)
     lunch_address_details = _AddressBrief(source='lunch_address', read_only=True)
     dinner_address_details = _AddressBrief(source='dinner_address', read_only=True)
     order_count = serializers.SerializerMethodField()
@@ -576,15 +661,15 @@ class SubscriptionAdminDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'customer', 'customer_id', 'customer_name', 'customer_phone',
             'status', 'start_date', 'end_date',
-            'time_slot', 'time_slot_details',
+            'time_slot', 'time_slot_name', 'time_slot_details',
+            'meal_package', 'meal_package_details',
             'lunch_address', 'lunch_address_details',
             'dinner_address', 'dinner_address_details',
-            'selected_days', 'payment_mode',
+            'selected_days', 'payment_mode', 'diet_type',
             'want_notifications', 'dietary_preferences', 'special_instructions',
-            'cost_per_meal', 'total_cost',
-            'created_at',
+            'cost_per_meal', 'total_cost', 'order_count',
         ]
-        read_only_fields = ['cost_per_meal', 'total_cost', 'created_at']
+        read_only_fields = ['cost_per_meal', 'total_cost']
 
     def get_order_count(self, obj):
         return obj.order_set.count()
@@ -597,8 +682,8 @@ class SubscriptionAdminCreateSerializer(serializers.ModelSerializer):
         model = Subscription
         fields = [
             'customer', 'status', 'start_date', 'end_date',
-            'time_slot', 'lunch_address', 'dinner_address',
-            'selected_days', 'payment_mode',
+            'time_slot', 'meal_package', 'lunch_address', 'dinner_address',
+            'selected_days', 'payment_mode', 'diet_type',
             'want_notifications', 'dietary_preferences', 'special_instructions',
         ]
 
@@ -616,24 +701,45 @@ class SubscriptionAdminCreateSerializer(serializers.ModelSerializer):
             )
         return attrs
 
+    def _apply_meal_package(self, instance, meal_package):
+        """Derive menus, diet_type, cost_per_meal from package and set FK."""
+        if not meal_package:
+            return
+        instance.meal_package = meal_package
+        instance.menus.set(meal_package.menus.all())
+        if meal_package.diet_type in ('veg', 'nonveg'):
+            instance.diet_type = meal_package.diet_type
+        instance.cost_per_meal = meal_package.price
+
     def create(self, validated_data):
         from django.db import models as db_models
+        meal_package = validated_data.pop('meal_package', None)
         instance = Subscription(**validated_data)
         instance.calculate_total_cost()
-        # Bypass Subscription.save() which calls full_clean (too strict for admin)
-        db_models.Model.save(instance)
+        db_models.Model.save(instance)  # Need pk before M2M
+        if meal_package:
+            self._apply_meal_package(instance, meal_package)
+            instance.calculate_total_cost()
+            db_models.Model.save(instance)
         if instance.status == 'active':
             instance.update_delivery_schedule()
+            instance.generate_orders()
         return instance
 
     def update(self, instance, validated_data):
         from django.db import models as db_models
+        meal_package = validated_data.pop('meal_package', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        if meal_package is not None:
+            self._apply_meal_package(instance, meal_package)
+        else:
+            instance.meal_package = None
         instance.calculate_total_cost()
         db_models.Model.save(instance)
         if instance.status == 'active':
             instance.update_delivery_schedule()
+            instance.generate_orders()
         return instance
 
     def to_representation(self, instance):

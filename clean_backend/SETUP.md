@@ -37,14 +37,17 @@ This clean backend contains only the essential files needed for a Django-based k
 
 ### 📁 Directory Structure
 
+The project uses Django apps under `apps/`. Tenant-domain logic (menus, orders, subscriptions, customers, invoicing) lives in `apps/main/`. Management commands for tenant operations (e.g. `seed_meal_slots`, `clean_tenant_orders`, `clean_tenant_subscriptions`, `auto_advance_today_orders`) are in `apps/main/management/commands/`. Tenant provisioning and migrations are in `apps/organizations/management/commands/`.
+
 ```
 clean_backend/
-├── apps/                    # Django applications (to be created)
-│   ├── main/               # Main app
+├── apps/                    # Django applications
+│   ├── main/               # Core domain: menus, orders, subscriptions, customers, invoicing; management/commands (seed_meal_slots, clean_tenant_*, auto_advance_today_orders)
 │   ├── kitchen/            # Kitchen operations
 │   ├── delivery/           # Delivery management
 │   ├── inventory/          # Inventory management
 │   ├── users/              # User management
+│   ├── organizations/      # Service plans, provision_tenant, migrate_all_tenants
 │   └── driver/             # Driver management
 ├── config/                 # Django configuration
 │   ├── settings/
@@ -148,16 +151,13 @@ python scripts/setup_database.py
 python manage.py runserver
 ```
 
-## 🔧 What's Missing
+## 🔧 Optional / Production
 
-The following components need to be created or copied from the original project:
-
-1. **Django Apps** - Models, views, serializers, admin
-2. **Templates** - HTML templates for web interface
-3. **Static Files** - CSS, JS, images
-4. **Media Files** - User uploaded content
-5. **SSL Certificates** - For HTTPS in production
-6. **Nginx Configuration** - For reverse proxy
+1. **Templates** - HTML templates for web interface (if needed)
+2. **Static/Media Files** - Served as configured
+3. **SSL Certificates** - For HTTPS in production
+4. **Nginx Configuration** - For reverse proxy
+5. **Cron** - e.g. `auto_advance_today_orders` for automating today's orders (see README Management Commands)
 
 ## 🎉 Benefits of This Clean Structure
 

@@ -364,6 +364,38 @@ class RegistrationRequest {
 
 // ─── Invoice ────────────────────────────────────────────────────────────────
 
+/// Parse API value (num or String from Django DecimalField) to double.
+double _invoiceDouble(dynamic value) {
+  if (value == null) return 0;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value) ?? 0;
+  return 0;
+}
+
+/// Summary for Finance screen cards (from GET /invoices/summary/).
+class InvoiceSummary {
+  final double paidTotal;
+  final double pendingTotal;
+  final int totalCount;
+  final int overdueCount;
+
+  InvoiceSummary({
+    this.paidTotal = 0,
+    this.pendingTotal = 0,
+    this.totalCount = 0,
+    this.overdueCount = 0,
+  });
+
+  factory InvoiceSummary.fromJson(Map<String, dynamic> json) {
+    return InvoiceSummary(
+      paidTotal: _invoiceDouble(json['paid_total']),
+      pendingTotal: _invoiceDouble(json['pending_total']),
+      totalCount: json['total_count'] ?? 0,
+      overdueCount: json['overdue_count'] ?? 0,
+    );
+  }
+}
+
 class InvoiceItem {
   final int id;
   final String invoiceNumber;
@@ -399,7 +431,7 @@ class InvoiceItem {
       customerName: json['customer_name'],
       date: json['date'],
       dueDate: json['due_date'],
-      total: (json['total'] ?? 0).toDouble(),
+      total: _invoiceDouble(json['total']),
       status: json['status'] ?? 'pending',
       notes: json['notes'],
       items: (json['items'] as List? ?? [])
@@ -426,12 +458,14 @@ class InvoiceLineItem {
   });
 
   factory InvoiceLineItem.fromJson(Map<String, dynamic> json) {
+    final qty = json['quantity'];
+    final quantity = qty is num ? qty.toInt() : (int.tryParse(qty?.toString() ?? '') ?? 0);
     return InvoiceLineItem(
       id: json['id'] ?? 0,
       menuName: json['menu_name'],
-      quantity: json['quantity'] ?? 0,
-      unitPrice: (json['unit_price'] ?? 0).toDouble(),
-      totalPrice: (json['total_price'] ?? 0).toDouble(),
+      quantity: quantity,
+      unitPrice: _invoiceDouble(json['unit_price']),
+      totalPrice: _invoiceDouble(json['total_price']),
     );
   }
 }
@@ -864,8 +898,11 @@ class SubscriptionItem {
   final String endDate;
   final int? timeSlot;
   final String? timeSlotName;
+  final int? mealPackageId;
+  final String? mealPackageName;
   final List<String> selectedDays;
   final String paymentMode;
+  final String dietType; // 'veg' or 'nonveg'
   final double costPerMeal;
   final double totalCost;
   final String? dietaryPreferences;
@@ -889,8 +926,11 @@ class SubscriptionItem {
     required this.endDate,
     this.timeSlot,
     this.timeSlotName,
+    this.mealPackageId,
+    this.mealPackageName,
     this.selectedDays = const [],
     this.paymentMode = 'wallet',
+    this.dietType = 'nonveg',
     this.costPerMeal = 0,
     this.totalCost = 0,
     this.dietaryPreferences,
@@ -915,12 +955,17 @@ class SubscriptionItem {
       startDate: json['start_date'] ?? '',
       endDate: json['end_date'] ?? '',
       timeSlot: json['time_slot'],
-      timeSlotName: json['time_slot_name'],
+      timeSlotName: json['time_slot_name'] ??
+          (json['time_slot_details'] as Map<String, dynamic>?)?['name'],
+      mealPackageId: json['meal_package'],
+      mealPackageName: json['meal_package_name'] ??
+          (json['meal_package_details'] as Map<String, dynamic>?)?['name'],
       selectedDays: (json['selected_days'] as List?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       paymentMode: json['payment_mode'] ?? 'wallet',
+      dietType: json['diet_type'] ?? 'nonveg',
       costPerMeal: double.tryParse('${json['cost_per_meal']}') ?? 0,
       totalCost: double.tryParse('${json['total_cost']}') ?? 0,
       dietaryPreferences: json['dietary_preferences'],
@@ -1050,6 +1095,55 @@ class DailyMenu {
   }
 }
 
+// ─── Menu Plan (bundle of menu items for MealPackage) ───────────────────────
+
+class MenuPlan {
+  final int id;
+  final String name;
+  final String? description;
+  final double price;
+  final List<int> menuItemIds;
+
+  MenuPlan({
+    required this.id,
+    required this.name,
+    this.description,
+    this.price = 0,
+    this.menuItemIds = const [],
+  });
+
+  factory MenuPlan.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['menu_items'] ?? json['menu_item_ids'];
+    List<int> ids = [];
+    if (rawItems is List) {
+      for (final x in rawItems) {
+        if (x is int) {
+          ids.add(x);
+        } else if (x is num) {
+          ids.add(x.toInt());
+        } else if (x is Map && x['id'] != null) {
+          ids.add((x['id'] as num).toInt());
+        }
+      }
+    }
+    return MenuPlan(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      description: json['description'],
+      price: double.tryParse('${json['price']}') ?? 0,
+      menuItemIds: ids,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'description': description ?? '',
+        'price': price.toStringAsFixed(2),
+        'is_active': true,
+        if (menuItemIds.isNotEmpty) 'menu_item_ids': menuItemIds,
+      };
+}
+
 // ─── Meal Package (Subscription Tier) ───────────────────────────────────────
 
 class MealPackage {
@@ -1065,6 +1159,7 @@ class MealPackage {
   final int durationDays;
   final int mealsPerDay;
   final String portionLabel;
+  final List<MenuPlan> menus;
   final int sortOrder;
   final bool isActive;
   final String? createdAt;
@@ -1083,6 +1178,7 @@ class MealPackage {
     this.durationDays = 30,
     this.mealsPerDay = 2,
     this.portionLabel = '',
+    this.menus = const [],
     this.sortOrder = 0,
     this.isActive = true,
     this.createdAt,
@@ -1103,6 +1199,9 @@ class MealPackage {
       durationDays: json['duration_days'] ?? 30,
       mealsPerDay: json['meals_per_day'] ?? 2,
       portionLabel: json['portion_label'] ?? '',
+      menus: (json['menus'] as List? ?? [])
+          .map((e) => MenuPlan.fromJson(e as Map<String, dynamic>))
+          .toList(),
       sortOrder: json['sort_order'] ?? 0,
       isActive: json['is_active'] ?? true,
       createdAt: json['created_at'],
@@ -1121,8 +1220,12 @@ class MealPackage {
       'duration_days': durationDays,
       'meals_per_day': mealsPerDay,
       'portion_label': portionLabel,
+      if (menuIds.isNotEmpty) 'menu_ids': menuIds,
       'sort_order': sortOrder,
       'is_active': isActive,
     };
   }
+
+  /// IDs of menus in this package (for API write).
+  List<int> get menuIds => menus.map((m) => m.id).toList();
 }

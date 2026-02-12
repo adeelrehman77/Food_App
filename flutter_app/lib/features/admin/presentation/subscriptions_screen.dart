@@ -91,9 +91,12 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
               title: const Text('Cancel Subscription'),
               content: Text('Cancel subscription #${sub.id} for ${sub.customerName}?'),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
                 TextButton(
-                  onPressed: () => Navigator.pop(context, true),
+                  onPressed: () => Navigator.of(context, rootNavigator: true).pop(false),
+                  child: const Text('No'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context, rootNavigator: true).pop(true),
                   child: const Text('Yes, Cancel', style: TextStyle(color: Colors.red)),
                 ),
               ],
@@ -111,6 +114,22 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(msg), backgroundColor: Colors.green),
             );
+          }
+          return;
+        case 'edit':
+          final result = await showDialog<bool>(
+            context: context,
+            builder: (_) => _SubscriptionFormDialog(repo: _repo, existing: sub),
+          );
+          if (result == true) {
+            await _load();
+            if (mounted) {
+              final updated = _subs.where((s) => s.id == sub.id).firstOrNull ?? sub;
+              setState(() => _selected = updated);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Subscription updated'), backgroundColor: Colors.green),
+              );
+            }
           }
           return;
         default:
@@ -275,6 +294,214 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  Searchable Customer Field
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _SearchableCustomerField extends StatelessWidget {
+  final List<CustomerItem> customers;
+  final int? selectedId;
+  final InputDecoration inputDeco;
+  final void Function(int?) onSelected;
+  final String? Function(int?)? validator;
+
+  const _SearchableCustomerField({
+    required this.customers,
+    required this.selectedId,
+    required this.inputDeco,
+    required this.onSelected,
+    this.validator,
+  });
+
+  String _displayText(CustomerItem c) => '${c.name} (${c.phone ?? ""})';
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<int?>(
+      initialValue: selectedId,
+      validator: validator,
+      builder: (field) {
+        final selected = selectedId != null
+            ? customers.where((c) => c.id == selectedId).firstOrNull
+            : null;
+        final displayValue = selected != null ? _displayText(selected) : null;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => _showSearchSheet(context, field),
+              borderRadius: BorderRadius.circular(8),
+              child: InputDecorator(
+                decoration: inputDeco.copyWith(
+                  errorText: field.errorText,
+                  suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                ),
+                child: Text(
+                  displayValue ?? inputDeco.labelText ?? 'Select Customer',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: displayValue != null ? Colors.black87 : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ),
+            if (field.errorText != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                field.errorText!,
+                style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  void _showSearchSheet(BuildContext context, FormFieldState<int?> field) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _CustomerSearchSheet(
+        customers: customers,
+        selectedId: selectedId,
+        displayText: (c) => _displayText(c),
+        onSelected: (id) {
+          field.didChange(id);
+          onSelected(id);
+          Navigator.of(ctx, rootNavigator: true).pop();
+        },
+      ),
+    );
+  }
+}
+
+class _CustomerSearchSheet extends StatefulWidget {
+  final List<CustomerItem> customers;
+  final int? selectedId;
+  final String Function(CustomerItem) displayText;
+  final void Function(int?) onSelected;
+
+  const _CustomerSearchSheet({
+    required this.customers,
+    required this.selectedId,
+    required this.displayText,
+    required this.onSelected,
+  });
+
+  @override
+  State<_CustomerSearchSheet> createState() => _CustomerSearchSheetState();
+}
+
+class _CustomerSearchSheetState extends State<_CustomerSearchSheet> {
+  final _searchCtrl = TextEditingController();
+  final _searchFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _searchFocus.requestFocus());
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
+    super.dispose();
+  }
+
+  List<CustomerItem> get _filtered {
+    final q = _searchCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return widget.customers;
+    return widget.customers.where((c) {
+      final name = c.name.toLowerCase();
+      final phone = (c.phone ?? '').toLowerCase();
+      return name.contains(q) || phone.contains(q);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _filtered;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.3,
+      maxChildSize: 0.9,
+      builder: (_, scrollCtrl) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: TextField(
+                controller: _searchCtrl,
+                focusNode: _searchFocus,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Search by name or phone...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                ),
+              ),
+            ),
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No customers match "${_searchCtrl.text}"',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: scrollCtrl,
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final c = filtered[i];
+                        final isSelected = c.id == widget.selectedId;
+                        return ListTile(
+                          leading: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.deepOrange.withValues(alpha: 0.2),
+                            child: Text(
+                              c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.deepOrange,
+                              ),
+                            ),
+                          ),
+                          title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                          subtitle: c.phone != null ? Text(c.phone!, style: TextStyle(fontSize: 12, color: Colors.grey[600])) : null,
+                          trailing: isSelected ? const Icon(Icons.check, color: Colors.deepOrange, size: 20) : null,
+                          onTap: () => widget.onSelected(c.id),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  Subscription Card (list item)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -328,6 +555,8 @@ class _SubCard extends StatelessWidget {
                     ),
                   ),
                   _StatusChip(sub.status),
+                  const SizedBox(width: 6),
+                  _DietBadge(sub.dietType),
                 ],
               ),
               const SizedBox(height: 8),
@@ -416,6 +645,8 @@ class _DetailPanel extends StatelessWidget {
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                           const SizedBox(width: 8),
                           _StatusChip(sub.status),
+                          const SizedBox(width: 6),
+                          _DietBadge(sub.dietType),
                         ],
                       ),
                       const SizedBox(height: 2),
@@ -444,6 +675,7 @@ class _DetailPanel extends StatelessWidget {
                   _InfoRow('Start Date', _fmtDate(sub.startDate)),
                   _InfoRow('End Date', _fmtDate(sub.endDate)),
                   _InfoRow('Time Slot', sub.timeSlotName ?? '—'),
+                  _InfoRow('Package', sub.mealPackageName ?? (sub.dietType == 'veg' ? 'Vegetarian' : 'Non-Vegetarian')),
                   _InfoRow('Delivery Days', sub.selectedDays.join(', ')),
                 ]),
                 const SizedBox(height: 14),
@@ -489,6 +721,16 @@ class _DetailPanel extends StatelessWidget {
 
   List<Widget> _actionButtons(SubscriptionItem s) {
     final buttons = <Widget>[];
+    if (s.status != 'cancelled' && s.status != 'expired') {
+      buttons.add(
+        _ActionBtn(
+          icon: Icons.edit,
+          label: 'Edit',
+          color: Colors.blue,
+          onTap: () => onAction(s, 'edit'),
+        ),
+      );
+    }
     if (s.status == 'pending' || s.status == 'paused') {
       buttons.add(
         _ActionBtn(
@@ -569,12 +811,14 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
   // Loaded data
   List<CustomerItem> _customers = [];
   List<Map<String, dynamic>> _timeSlots = [];
+  List<MealPackage> _packages = [];
   List<CustomerAddress> _addresses = [];
   bool _loadingData = true;
 
   // Form state
   int? _customerId;
   int? _timeSlotId;
+  int? _mealPackageId;
   int? _lunchAddressId;
   int? _dinnerAddressId;
   DateTime? _startDate;
@@ -597,6 +841,7 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
       final s = widget.existing!;
       _customerId = s.customerId;
       _timeSlotId = s.timeSlot;
+      _mealPackageId = s.mealPackageId;
       _lunchAddressId = s.lunchAddress;
       _dinnerAddressId = s.dinnerAddress;
       _startDate = DateTime.tryParse(s.startDate);
@@ -622,10 +867,12 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
     try {
       final customers = await widget.repo.getCustomers();
       final timeSlots = await widget.repo.getTimeSlots();
+      final packages = await widget.repo.getMealPackages();
       if (mounted) {
         setState(() {
           _customers = customers;
           _timeSlots = timeSlots;
+          _packages = packages;
           _loadingData = false;
         });
         // If editing and customer is selected, load addresses
@@ -675,6 +922,12 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
       setState(() => _error = 'Please select at least one delivery day');
       return;
     }
+    if (_mealPackageId == null) {
+      setState(() => _error = _packages.isEmpty
+          ? 'No meal packages. Create packages first in Meal Packages.'
+          : 'Please select a meal package');
+      return;
+    }
 
     setState(() {
       _saving = true;
@@ -688,6 +941,7 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
         'start_date': DateFormat('yyyy-MM-dd').format(_startDate!),
         'end_date': DateFormat('yyyy-MM-dd').format(_endDate!),
         'time_slot': _timeSlotId,
+        'meal_package': _mealPackageId,
         'lunch_address': _lunchAddressId,
         'dinner_address': _dinnerAddressId,
         'selected_days': _selectedDays.toList(),
@@ -702,7 +956,7 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
       } else {
         await widget.repo.createSubscription(data);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.of(context, rootNavigator: true).pop(true);
     } catch (e) {
       setState(() => _error = e.toString().replaceAll('Exception: ', ''));
     } finally {
@@ -732,7 +986,7 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
                     icon: const Icon(Icons.close, size: 20)),
               ]),
             ),
@@ -757,19 +1011,14 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
                                   style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
                             ),
 
-                          // Customer
+                          // Customer (searchable dropdown)
                           _sectionLabel('Customer'),
                           const SizedBox(height: 6),
-                          DropdownButtonFormField<int>(
-                            value: _customerId,
-                            decoration: _inputDeco('Select Customer', Icons.person),
-                            isExpanded: true,
-                            items: _customers.map((c) => DropdownMenuItem(
-                                  value: c.id,
-                                  child: Text('${c.name} (${c.phone ?? ""})',
-                                      style: const TextStyle(fontSize: 13)),
-                                )).toList(),
-                            onChanged: (v) {
+                          _SearchableCustomerField(
+                            customers: _customers,
+                            selectedId: _customerId,
+                            inputDeco: _inputDeco('Select Customer', Icons.person),
+                            onSelected: (v) {
                               setState(() {
                                 _customerId = v;
                                 _lunchAddressId = null;
@@ -806,13 +1055,41 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
                             value: _timeSlotId,
                             decoration: _inputDeco('Time Slot', Icons.schedule),
                             isExpanded: true,
-                            items: _timeSlots.map((ts) => DropdownMenuItem(
-                                  value: ts['id'] as int,
-                                  child: Text('${ts['name']} (${ts['time'] ?? ''})',
-                                      style: const TextStyle(fontSize: 13)),
-                                )).toList(),
+                            items: _timeSlots.map((ts) {
+                              final raw = ts['time'] ?? ts['cutoff_time'];
+                              final time = raw is String && raw.length >= 5 ? raw.substring(0, 5) : (raw?.toString() ?? '');
+                              return DropdownMenuItem(
+                                value: ts['id'] as int,
+                                child: Text(time.isNotEmpty ? '${ts['name']} ($time)' : '${ts['name']}',
+                                    style: const TextStyle(fontSize: 13)),
+                              );
+                            }).toList(),
                             onChanged: (v) => setState(() => _timeSlotId = v),
                           ),
+                          const SizedBox(height: 10),
+                          // Meal Package (required)
+                          Text('Meal Package *',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600])),
+                          const SizedBox(height: 4),
+                          DropdownButtonFormField<int>(
+                            value: _mealPackageId,
+                            decoration: _inputDeco('Select Package', Icons.inventory_2),
+                            isExpanded: true,
+                            items: _packages
+                                .where((p) => p.isActive)
+                                .map((p) => DropdownMenuItem(
+                                      value: p.id,
+                                      child: Text(
+                                        '${p.name} (${p.dietTypeDisplay}) — ${p.currency.isNotEmpty ? p.currency : 'AED'} ${p.price.toStringAsFixed(2)}',
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                    ))
+                                .toList(),
+                            onChanged: (v) => setState(() => _mealPackageId = v),
+                            validator: (v) => v == null ? 'Required' : null,
+                          ),
+
                           const SizedBox(height: 10),
                           // Days
                           Text('Delivery Days *',
@@ -947,7 +1224,7 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
                   border: Border(top: BorderSide(color: Colors.grey.shade200))),
               child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                 TextButton(
-                    onPressed: _saving ? null : () => Navigator.pop(context),
+                    onPressed: _saving ? null : () => Navigator.of(context, rootNavigator: true).pop(),
                     child: const Text('Cancel')),
                 const SizedBox(width: 8),
                 FilledButton.icon(
@@ -1008,6 +1285,39 @@ class _StatusChip extends StatelessWidget {
       child: Text(
         status[0].toUpperCase() + status.substring(1),
         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+      ),
+    );
+  }
+}
+
+class _DietBadge extends StatelessWidget {
+  final String dietType;
+  const _DietBadge(this.dietType);
+
+  @override
+  Widget build(BuildContext context) {
+    final isVeg = dietType == 'veg';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isVeg ? Colors.green.shade50 : Colors.red.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isVeg ? Colors.green.shade200 : Colors.red.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(isVeg ? Icons.eco : Icons.restaurant,
+              size: 10, color: isVeg ? Colors.green.shade700 : Colors.red.shade700),
+          const SizedBox(width: 3),
+          Text(
+            isVeg ? 'Veg' : 'Non-Veg',
+            style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: isVeg ? Colors.green.shade700 : Colors.red.shade700),
+          ),
+        ],
       ),
     );
   }

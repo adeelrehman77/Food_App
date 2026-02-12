@@ -3,11 +3,19 @@ from .base import *
 # Test-specific settings
 DEBUG = False
 
-# Test database
+# Test database — PostgreSQL (same as base, use test DB name via env or default)
+import os
+_db_name = os.environ.get('DB_NAME', 'food_app')
+_test_db = os.environ.get('TEST_DB_NAME', f'{_db_name}_test')
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': _test_db,
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        'CONN_MAX_AGE': 0,
     }
 }
 

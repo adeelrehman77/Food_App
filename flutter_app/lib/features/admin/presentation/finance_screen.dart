@@ -24,6 +24,7 @@ class _FinanceScreenState extends State<FinanceScreen>
   final _statusFilters = [null, 'pending', 'paid', 'failed', 'refunded'];
 
   List<InvoiceItem> _invoices = [];
+  InvoiceSummary? _summary;
   bool _loading = true;
   String? _error;
 
@@ -49,10 +50,16 @@ class _FinanceScreenState extends State<FinanceScreen>
       _error = null;
     });
     try {
-      final invoices = await _repo.getInvoices(
-        status: _statusFilters[_tabCtrl.index],
-      );
-      if (mounted) setState(() => _invoices = invoices);
+      final results = await Future.wait([
+        _repo.getInvoiceSummary(),
+        _repo.getInvoices(status: _statusFilters[_tabCtrl.index]),
+      ]);
+      if (mounted) {
+        setState(() {
+          _summary = results[0] as InvoiceSummary;
+          _invoices = results[1] as List<InvoiceItem>;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -60,11 +67,9 @@ class _FinanceScreenState extends State<FinanceScreen>
     }
   }
 
-  double get _totalRevenue =>
-      _invoices.where((i) => i.status == 'paid').fold(0, (sum, i) => sum + i.total);
-
-  double get _totalPending =>
-      _invoices.where((i) => i.status == 'pending').fold(0, (sum, i) => sum + i.total);
+  double get _totalRevenue => _summary?.paidTotal ?? 0;
+  double get _totalPending => _summary?.pendingTotal ?? 0;
+  int get _totalInvoiceCount => _summary?.totalCount ?? 0;
 
   void _showInvoiceDetail(InvoiceItem invoice) {
     showDialog(
@@ -121,6 +126,24 @@ class _FinanceScreenState extends State<FinanceScreen>
           ),
         ),
         actions: [
+          if (invoice.status != 'paid')
+            FilledButton.icon(
+              onPressed: () async {
+                try {
+                  await _repo.markInvoicePaid(invoice.id);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  _load();
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text('Failed to mark paid: $e')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.check_circle_outline, size: 18),
+              label: const Text('Mark paid'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),
@@ -190,7 +213,7 @@ class _FinanceScreenState extends State<FinanceScreen>
                       icon: Icons.receipt_long,
                       color: Colors.blue,
                       label: 'Invoices',
-                      value: '${_invoices.length}',
+                      value: '$_totalInvoiceCount',
                     ),
                   ],
                 ),

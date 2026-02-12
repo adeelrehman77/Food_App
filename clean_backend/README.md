@@ -68,10 +68,11 @@ TenantRouter
 - **Meal Packages**: Subscription tiers (e.g., Executive, Economy) with tenant-configurable names, pricing, duration
 
 ### Orders & Subscriptions
-- **Order Lifecycle**: Pending → Confirmed → Preparing → Ready → Delivered
-- **Subscriptions**: Recurring meal delivery with multiple menu selections, time slots, and delivery addresses
+- **Order Lifecycle**: Pending → Confirmed → Preparing → Ready → Delivered. Transition to Preparing or Ready is allowed only when the order’s **delivery_date is today**.
+- **Subscriptions**: Recurring meal delivery with multiple menu selections, time slots, meal packages, and delivery addresses. On **activate**, orders are auto-generated for all delivery dates and an **Invoice** is created (cash/card → paid, wallet → pending).
+- **Delivery record**: When an order is marked **Ready**, a **Delivery** record is auto-created so it appears in Delivery Management for driver assignment.
 - **Wallet System**: Credits, debits, refund processing via WalletTransaction
-- **Invoicing**: Automated Invoice generation linked to wallet transactions
+- **Invoicing**: Invoice created on subscription activate; optional `GET /invoices/summary/`, `POST /invoices/{id}/mark_paid/`. Invoice number auto-generated (INV-YYYYMM-0001).
 
 ### Customer Management
 - **Customer Profiles**: User + CustomerProfile + Address created in tenant DB
@@ -103,16 +104,20 @@ clean_backend/
 │   │   ├── serializers/    #   Admin + Customer API serializers
 │   │   ├── views/          #   Admin + Customer API viewsets
 │   │   ├── urls_api.py     #   Tenant admin URL routing
-│   │   └── urls_customer_api.py  # Customer API URL routing
+│   │   ├── urls_customer_api.py  # Customer API URL routing
+│   │   └── management/commands/
+│   │       ├── seed_meal_slots.py      # Seed meal slots for a tenant
+│   │       ├── clean_tenant_orders.py   # Delete all orders for tenant(s)
+│   │       ├── clean_tenant_subscriptions.py  # Delete all subscriptions for tenant(s)
+│   │       └── auto_advance_today_orders.py   # Advance today's orders to ready + create Deliveries
 │   ├── kitchen/            # KDS and kitchen workflows
 │   ├── delivery/           # Delivery logistics and planning
 │   ├── inventory/          # Stock and ingredient management
 │   ├── users/              # Tenant model, domain mapping, user profiles, signals
-│   ├── organizations/      # Service plans, SaaS models, management commands
+│   ├── organizations/      # Service plans, SaaS models
 │   │   └── management/commands/
 │   │       ├── provision_tenant.py
-│   │       ├── migrate_all_tenants.py
-│   │       └── seed_meal_slots.py
+│   │       └── migrate_all_tenants.py
 │   └── driver/             # Driver fleet management
 ├── config/                 # Django configuration
 │   ├── settings/           # base, development, production, test
@@ -200,6 +205,9 @@ docker-compose exec web python manage.py provision_tenant
 | `python manage.py provision_tenant` | Full tenant provisioning: creates DB, runs migrations, creates admin user, assigns plan |
 | `python manage.py migrate_all_tenants` | Migrate all tenant databases (supports `--parallel`, `--tenant=<slug>`) |
 | `python manage.py seed_meal_slots` | Seed default meal slots (Lunch, Dinner) for a tenant |
+| `python manage.py clean_tenant_orders` | Delete all orders (and related Delivery/KitchenOrder) for `--tenant=<slug>` or `--all` |
+| `python manage.py clean_tenant_subscriptions` | Delete all subscriptions (and related orders, delivery statuses) for `--tenant=<slug>` or `--all` |
+| `python manage.py auto_advance_today_orders` | Advance today's orders to ready and create Delivery records; use `--tenant=<slug>` or `--all`, optional `--no-input` for cron |
 | `python manage.py createsuperuser` | Create SaaS-level superuser (default DB) |
 
 ## Configuration

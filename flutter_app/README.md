@@ -64,13 +64,14 @@ static AppConfig current = production;
 | Category Management    | Complete  | CRUD with inline creation from menu item dialog            |
 | Daily Rotating Menus   | Complete  | Weekly calendar view, create/publish/archive daily menus   |
 | Meal Packages          | Complete  | Subscription tiers with configurable naming and pricing    |
-| Orders                 | Complete  | Tab-filtered list with status workflow (pending→confirmed→preparing→ready→delivered) |
+| Subscriptions          | Complete  | Subscription CRUD; activate auto-generates orders and invoice (meal_package supported) |
+| Orders                 | Complete  | Tab-filtered list with status workflow; preparing/ready only on delivery day; hint for confirmed future orders |
 | Inventory              | Complete  | CRUD with stock adjustment dialog, low-stock filter, cost/supplier tracking |
 | Delivery               | Complete  | Tab-filtered list with driver info, status tracking, pickup/delivery times |
 | Customer Management    | Complete  | Master-detail layout, add customer (creates User + Profile + Address), search by name/phone/email |
 | Registration Requests  | Complete  | Approve (creates User + CustomerProfile) / reject with reason |
 | Address Management     | Complete  | Structured fields (building, floor, flat, street, city) with default/active badges |
-| Finance                | Complete  | Invoice list with status tabs, detail dialog with line items, paid/pending summary |
+| Finance                | Complete  | Invoice list with status tabs, summary cards (paid/pending/count), detail dialog with Mark paid and line items |
 | Staff Management       | Complete  | CRUD with role assignment (manager/kitchen_staff/driver/staff), deactivation, change-role |
 | Dynamic Tenant Info    | Complete  | Header displays real tenant name and user info             |
 | Logout                 | Complete  | Available in sidebar and header profile menu               |
