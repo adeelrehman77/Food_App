@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/providers/auth_provider.dart';
 
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
@@ -10,7 +12,10 @@ class Sidebar extends StatelessWidget {
 
     return Container(
       width: 250,
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(right: BorderSide(color: Colors.grey.shade200)),
+      ),
       child: Column(
         children: [
           const SizedBox(height: 20),
@@ -21,11 +26,12 @@ class Sidebar extends StatelessWidget {
               children: [
                 Icon(Icons.restaurant_menu, color: Theme.of(context).primaryColor, size: 30),
                 const SizedBox(width: 10),
-                const Text(
-                  'FoodApp',
+                Text(
+                  'Fun Adventure',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
                   ),
                 ),
               ],
@@ -38,43 +44,43 @@ class Sidebar extends StatelessWidget {
               padding: EdgeInsets.zero,
               children: [
                 _SidebarItem(
-                  icon: Icons.dashboard,
+                  icon: Icons.dashboard_rounded,
                   label: 'Dashboard',
                   route: '/dashboard',
                   isSelected: currentRoute == '/dashboard',
                 ),
                 _SidebarItem(
-                  icon: Icons.receipt_long,
+                  icon: Icons.receipt_long_rounded,
                   label: 'Orders',
                   route: '/orders',
                   isSelected: currentRoute == '/orders',
                 ),
                 _SidebarItem(
-                  icon: Icons.menu_book,
+                  icon: Icons.menu_book_rounded,
                   label: 'Menu',
                   route: '/menu',
                   isSelected: currentRoute == '/menu',
                 ),
                 _SidebarItem(
-                  icon: Icons.inventory,
+                  icon: Icons.inventory_2_rounded,
                   label: 'Inventory',
                   route: '/inventory',
                   isSelected: currentRoute == '/inventory',
                 ),
                 _SidebarItem(
-                  icon: Icons.local_shipping,
+                  icon: Icons.local_shipping_rounded,
                   label: 'Delivery',
                   route: '/delivery',
                   isSelected: currentRoute == '/delivery',
                 ),
                 _SidebarItem(
-                  icon: Icons.people,
+                  icon: Icons.people_rounded,
                   label: 'Customers',
                   route: '/customers',
                   isSelected: currentRoute == '/customers',
                 ),
                 _SidebarItem(
-                  icon: Icons.attach_money,
+                  icon: Icons.account_balance_wallet_rounded,
                   label: 'Finance',
                   route: '/finance',
                   isSelected: currentRoute == '/finance',
@@ -82,6 +88,23 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
+          // Logout button at the bottom
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.logout_rounded, color: Colors.red),
+            title: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            onTap: () async {
+              await context.read<AuthProvider>().logout();
+              if (context.mounted) {
+                context.go('/login');
+              }
+            },
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -103,25 +126,38 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Theme.of(context).primaryColor : Colors.grey[700],
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+          size: 22,
         ),
+        title: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Theme.of(context).primaryColor : Colors.grey[700],
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 14,
+          ),
+        ),
+        onTap: () {
+          context.go(route);
+          // Close drawer on mobile if open
+          final scaffold = Scaffold.maybeOf(context);
+          if (scaffold != null && scaffold.isDrawerOpen) {
+            Navigator.of(context).pop();
+          }
+        },
+        selected: isSelected,
+        selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.08),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        dense: true,
       ),
-      onTap: () => context.go(route),
-      selected: isSelected,
-      selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.1),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
     );
   }
 }

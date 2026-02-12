@@ -1,69 +1,84 @@
+import copy
+import logging
+
 from django.conf import settings
-from django.db import connections
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from apps.users.models import Tenant
 from core.db.router import set_current_db_alias
+
+logger = logging.getLogger(__name__)
+
 
 class MultiDbTenantMiddleware:
     """
     Middleware to identify the tenant and select the appropriate database.
-    Identifies via X-Tenant-ID header or subdomain.
+
+    Identification order:
+      1. ``X-Tenant-ID`` or ``X-Tenant-Slug`` header
+      2. Subdomain extracted from the ``Host`` header
+
+    After resolving the tenant, the middleware:
+      - Dynamically registers the tenant database in ``settings.DATABASES``
+      - Sets the thread-local DB alias so the ``TenantRouter`` uses it
+      - Attaches ``request.tenant`` (Tenant instance or None)
+      - Attaches ``request.tenant_plan`` (ServicePlan instance or None)
     """
+
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        tenant_id = request.headers.get('X-Tenant-ID') or request.headers.get('X-Tenant-Slug')
-        
-        # Fallback to subdomain if header is missing
+        tenant_id = (
+            request.headers.get('X-Tenant-ID')
+            or request.headers.get('X-Tenant-Slug')
+        )
+
+        # Fallback to subdomain
         if not tenant_id:
             host = request.get_host().split(':')[0]
-            # Check if host is an IP address
             is_ip = host.replace('.', '').isnumeric()
-            
             if not is_ip and host != 'localhost':
-                domain_parts = host.split('.')
-                if len(domain_parts) >= 3:
-                    tenant_id = domain_parts[0]
+                parts = host.split('.')
+                if len(parts) >= 3:
+                    tenant_id = parts[0]
 
         if tenant_id:
             try:
-                # Always look up the tenant in the 'default' database
-                tenant = Tenant.objects.using('default').get(
-                    subdomain__iexact=tenant_id, 
-                    is_active=True
-                )
-                
-                db_alias = f"tenant_{tenant.id}"
-                
-                # Check if this database configuration exists in Django settings
-                # If not, we might need to add it dynamically (advanced)
-                if db_alias not in settings.DATABASES:
-                    import copy
-                    db_config = copy.deepcopy(settings.DATABASES['default'])
-                    db_config.update({
-                        'NAME': tenant.db_name,
-                        'USER': tenant.db_user,
-                        'PASSWORD': tenant.db_password,
-                        'HOST': tenant.db_host,
-                        'PORT': tenant.db_port,
-                        'ATOMIC_REQUESTS': True,
-                        'CONN_MAX_AGE': 600,
-                    })
-                    settings.DATABASES[db_alias] = db_config
-                
-                set_current_db_alias(db_alias)
-                request.tenant = tenant
-                
+                tenant = Tenant.objects.using('default').select_related(
+                    'service_plan',
+                ).get(subdomain__iexact=tenant_id, is_active=True)
             except Tenant.DoesNotExist:
-                return HttpResponseForbidden("Invalid or inactive tenant.")
+                return JsonResponse(
+                    {'error': 'Invalid or inactive tenant.'},
+                    status=403,
+                )
+
+            db_alias = f"tenant_{tenant.id}"
+
+            # Dynamically register the tenant's database if not already present
+            if db_alias not in settings.DATABASES:
+                db_config = copy.deepcopy(settings.DATABASES['default'])
+                db_config.update({
+                    'NAME': tenant.db_name,
+                    'USER': tenant.db_user,
+                    'PASSWORD': tenant.db_password,
+                    'HOST': tenant.db_host,
+                    'PORT': tenant.db_port,
+                    'ATOMIC_REQUESTS': True,
+                    'CONN_MAX_AGE': 600,
+                })
+                settings.DATABASES[db_alias] = db_config
+
+            set_current_db_alias(db_alias)
+            request.tenant = tenant
+            request.tenant_plan = tenant.service_plan  # may be None
         else:
-            # Shared/Admin area or no tenant identified
             set_current_db_alias('default')
             request.tenant = None
+            request.tenant_plan = None
 
         response = self.get_response(request)
-        
+
         # Reset after request
         set_current_db_alias('default')
         return response

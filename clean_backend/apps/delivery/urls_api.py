@@ -1,8 +1,12 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 
 app_name = 'delivery_api'
 
+router = DefaultRouter()
+router.register(r'deliveries', views.DeliveryViewSet, basename='delivery')
+
 urlpatterns = [
-    path('', views.api_index, name='api_index'),
+    path('', include(router.urls)),
 ]

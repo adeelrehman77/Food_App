@@ -32,19 +32,27 @@ if not SECRET_KEY:
         raise ValueError("SECRET_KEY environment variable is required in production")
 
 # Host configuration
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else []
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
 PORT = int(os.environ.get('PORT', 8000))
 
 # CSRF settings
-CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://0.0.0.0:8000']
+CSRF_TRUSTED_ORIGINS = os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if os.environ.get('CSRF_TRUSTED_ORIGINS') else []
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS += ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://0.0.0.0:8000']
 
 # CORS Settings
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if os.environ.get('CORS_ALLOWED_ORIGINS') else [
     "https://kitchen.funadventure.ae",
     "https://staging.kitchen.funadventure.ae",
-    "http://localhost:3000",  # For local development
 ]
+if DEBUG:
+    CORS_ALLOWED_ORIGINS += [
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ]
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -210,7 +218,7 @@ DATABASE_ROUTERS = (
 SCHEDULER_CONFIG = {
     'apscheduler.jobstores.default': {
         'type': 'sqlalchemy',
-        'url': os.environ.get('DATABASE_URL', 'postgresql://kitchen_user:password@localhost:5432/kitchen_production'),
+        'url': os.environ.get('DATABASE_URL', 'sqlite:///scheduler.db'),
     },
     'apscheduler.executors.default': {
         'class': 'apscheduler.executors.pool:ThreadPoolExecutor',
@@ -485,15 +493,11 @@ elif all([os.environ.get(env_var) for env_var in ['DB_NAME', 'DB_USER', 'DB_PASS
     }
 else:
     if DEBUG:
-        logger.warning("PostgreSQL configuration not found. Using fallback PostgreSQL configuration.")
+        logger.warning("PostgreSQL configuration not found. Using SQLite for development.")
         DATABASES = {
             'default': {
-                'ENGINE': 'django.db.backends.postgresql',
-                'NAME': 'kitchen_production',
-                'USER': 'kitchen_user',
-                'PASSWORD': 'password',
-                'HOST': 'localhost',
-                'PORT': '5432',
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
             }
         }
     else:

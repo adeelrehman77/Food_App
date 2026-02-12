@@ -1,5 +1,10 @@
 import 'package:equatable/equatable.dart';
 
+/// Domain model for a food/menu item.
+///
+/// Field names align with the backend `MenuItem` model and its serializer:
+///   - `price` (backend) <-> `basePrice` (UI convenience alias)
+///   - `is_available` (backend) <-> `isActive` (UI convenience alias)
 class FoodItem extends Equatable {
   final String id;
   final String name;
@@ -8,6 +13,7 @@ class FoodItem extends Equatable {
   final int calories;
   final List<String> allergens;
   final bool isActive;
+  final String? categoryName;
   final String? inventoryItemId;
   final String? imageUrl;
 
@@ -19,9 +25,43 @@ class FoodItem extends Equatable {
     required this.calories,
     required this.allergens,
     required this.isActive,
+    this.categoryName,
     this.inventoryItemId,
     this.imageUrl,
   });
+
+  /// Deserialize from backend JSON.
+  factory FoodItem.fromJson(Map<String, dynamic> json) {
+    return FoodItem(
+      id: json['id'].toString(),
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      basePrice: (json['price'] is String)
+          ? double.tryParse(json['price']) ?? 0.0
+          : (json['price'] as num?)?.toDouble() ?? 0.0,
+      calories: json['calories'] ?? 0,
+      allergens: (json['allergens'] is List)
+          ? List<String>.from(json['allergens'])
+          : <String>[],
+      isActive: json['is_available'] ?? true,
+      categoryName: json['category_name'],
+      inventoryItemId: json['inventory_item_id']?.toString(),
+      imageUrl: json['image'],
+    );
+  }
+
+  /// Serialize to JSON for sending to backend.
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'description': description,
+      'price': basePrice.toStringAsFixed(2),
+      'calories': calories,
+      'allergens': allergens,
+      'is_available': isActive,
+      if (inventoryItemId != null) 'inventory_item': inventoryItemId,
+    };
+  }
 
   FoodItem copyWith({
     String? id,
@@ -31,6 +71,7 @@ class FoodItem extends Equatable {
     int? calories,
     List<String>? allergens,
     bool? isActive,
+    String? categoryName,
     String? inventoryItemId,
     String? imageUrl,
   }) {
@@ -42,6 +83,7 @@ class FoodItem extends Equatable {
       calories: calories ?? this.calories,
       allergens: allergens ?? this.allergens,
       isActive: isActive ?? this.isActive,
+      categoryName: categoryName ?? this.categoryName,
       inventoryItemId: inventoryItemId ?? this.inventoryItemId,
       imageUrl: imageUrl ?? this.imageUrl,
     );
@@ -56,6 +98,7 @@ class FoodItem extends Equatable {
         calories,
         allergens,
         isActive,
+        categoryName,
         inventoryItemId,
         imageUrl,
       ];

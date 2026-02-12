@@ -55,6 +55,12 @@ class TimeSlot(models.Model):
 class CustomerProfile(models.Model):
     """
     Extends the default Django User model with customer-specific information.
+    
+    Note: `tenant_id` is stored as an IntegerField (not a ForeignKey) because
+    Tenant lives in the shared/default database while CustomerProfile lives in
+    the tenant-specific database. Cross-database FKs are not supported by
+    PostgreSQL. The tenant is already implicit from the database being used;
+    this field exists only for reference/auditing.
     """
     user = models.OneToOneField(
         User, 
@@ -62,7 +68,10 @@ class CustomerProfile(models.Model):
         related_name='customerprofile', 
         db_index=True
     )
-    tenant = models.ForeignKey('users.Tenant', on_delete=models.CASCADE, related_name='customers', null=True, blank=True)
+    tenant_id = models.IntegerField(
+        null=True, blank=True, db_index=True,
+        help_text="References Tenant.id in the shared database (not a FK due to multi-DB)",
+    )
     name = models.CharField(
         max_length=100, 
         blank=True, 
@@ -121,7 +130,7 @@ class CustomerProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"[{self.tenant.name if self.tenant else 'No Tenant'}] {self.user.username} ({self.phone or 'No Phone'})"
+        return f"[Tenant #{self.tenant_id or '?'}] {self.user.username} ({self.phone or 'No Phone'})"
 
     @staticmethod
     def get_default_notifications():
@@ -138,9 +147,22 @@ class MenuItem(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     image = models.ImageField(upload_to='menu/', blank=True, null=True)
+    calories = models.PositiveIntegerField(default=0, help_text="Calorie count per serving")
+    allergens = models.JSONField(default=list, blank=True, help_text="List of allergens, e.g. ['Gluten', 'Dairy']")
     is_available = models.BooleanField(default=True)
+    inventory_item = models.ForeignKey(
+        'inventory.InventoryItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='menu_items',
+        help_text="Link to an inventory item for stock tracking",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.name

@@ -30,13 +30,16 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     
-    # API v1
+    # API v1 — Tenant Admin
     path('api/v1/', include('apps.main.urls_api')),
     path('api/v1/kitchen/', include('apps.kitchen.urls_api')),
     path('api/v1/delivery/', include('apps.delivery.urls_api')),
     path('api/v1/inventory/', include('apps.inventory.urls_api')),
     path('api/v1/users/', include('apps.users.urls_api')),
     path('api/v1/driver/', include('apps.driver.urls_api')),
+
+    # API v1 — Customer-facing (Layer 3: B2C)
+    path('api/v1/customer/', include('apps.main.urls_customer_api')),
     
     # Authentication
     path('api/v1/auth/', include('dj_rest_auth.urls')),
@@ -47,6 +50,9 @@ urlpatterns = [
     path('kitchen/', include('apps.kitchen.urls')),
     path('driver/', include('apps.driver.urls')),
     
+    # SaaS Owner API (Layer 1: Platform Admin)
+    path('api/saas/', include('apps.organizations.urls_saas')),
+
     # Public API
     path('api/discover/', users_views.discover_tenant),
     path('api/organizations/', include('apps.organizations.urls')),

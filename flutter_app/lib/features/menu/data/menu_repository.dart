@@ -1,65 +1,61 @@
-import 'package:uuid/uuid.dart';
 import '../domain/food_item.dart';
+import '../../../core/network/api_client.dart';
 
+/// Repository that fetches menu items from the backend API.
 class MenuRepository {
-  final List<FoodItem> _mockItems = [
-    const FoodItem(
-      id: '1',
-      name: 'Classic Burger',
-      description: 'Juicy beef patty with lettuce, tomato, and cheese.',
-      basePrice: 12.99,
-      calories: 850,
-      allergens: ['Gluten', 'Dairy'],
-      isActive: true,
-      imageUrl: 'https://via.placeholder.com/150',
-    ),
-    const FoodItem(
-      id: '2',
-      name: 'Vegan Salad',
-      description: 'Fresh greens with avocado and vinaigrette.',
-      basePrice: 10.50,
-      calories: 350,
-      allergens: [],
-      isActive: true,
-      imageUrl: 'https://via.placeholder.com/150',
-    ),
-      const FoodItem(
-      id: '3',
-      name: 'Spicy Wings',
-      description: 'Chicken wings tossed in hot sauce.',
-      basePrice: 15.00,
-      calories: 900,
-      allergens: ['Gluten'],
-      isActive: false,
-      imageUrl: 'https://via.placeholder.com/150',
-    ),
-  ];
+  final ApiClient _apiClient;
 
+  MenuRepository({ApiClient? apiClient})
+      : _apiClient = apiClient ?? ApiClient();
+
+  /// Fetch all menu items from the API.
   Future<List<FoodItem>> getFoodItems() async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-    return _mockItems;
+    final baseUrl = await _apiClient.getBaseUrl();
+    final response = await _apiClient.dio.get('${baseUrl}menu-items/');
+
+    if (response.statusCode == 200) {
+      final data = response.data;
+      // Handle both paginated and non-paginated responses
+      final List<dynamic> results =
+          data is Map ? (data['results'] ?? []) : (data as List);
+      return results.map((json) => FoodItem.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load menu items');
   }
 
-  Future<void> addFoodItem(FoodItem item) async {
-    await Future.delayed(const Duration(milliseconds: 500));
-    final newItem = item.copyWith(id: const Uuid().v4());
-    _mockItems.add(newItem);
+  /// Add a new menu item.
+  Future<FoodItem> addFoodItem(FoodItem item) async {
+    final baseUrl = await _apiClient.getBaseUrl();
+    final response = await _apiClient.dio.post(
+      '${baseUrl}menu-items/',
+      data: item.toJson(),
+    );
+
+    if (response.statusCode == 201) {
+      return FoodItem.fromJson(response.data);
+    }
+    throw Exception('Failed to add menu item');
   }
 
-  Future<void> updateFoodItem(FoodItem item) async {
-      await Future.delayed(const Duration(milliseconds: 500));
-      final index = _mockItems.indexWhere((element) => element.id == item.id);
-      if (index != -1) {
-          _mockItems[index] = item;
-      }
+  /// Update an existing menu item.
+  Future<FoodItem> updateFoodItem(FoodItem item) async {
+    final baseUrl = await _apiClient.getBaseUrl();
+    final response = await _apiClient.dio.patch(
+      '${baseUrl}menu-items/${item.id}/',
+      data: item.toJson(),
+    );
+
+    if (response.statusCode == 200) {
+      return FoodItem.fromJson(response.data);
+    }
+    throw Exception('Failed to update menu item');
   }
 
-    Future<void> toggleActiveStatus(String id, bool isActive) async {
-      await Future.delayed(const Duration(milliseconds: 200));
-      final index = _mockItems.indexWhere((element) => element.id == id);
-      if (index != -1) {
-          _mockItems[index] = _mockItems[index].copyWith(isActive: isActive);
-      }
+  /// Toggle the availability status of a menu item.
+  Future<void> toggleActiveStatus(String id, bool isActive) async {
+    final baseUrl = await _apiClient.getBaseUrl();
+    await _apiClient.dio.post(
+      '${baseUrl}menu-items/$id/toggle_availability/',
+    );
   }
 }

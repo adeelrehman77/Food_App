@@ -16,9 +16,9 @@ class TimeSlotAdmin(admin.ModelAdmin):
 
 @admin.register(CustomerProfile)
 class CustomerProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'tenant', 'phone', 'created_at')
+    list_display = ('user', 'tenant_id', 'phone', 'created_at')
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'phone')
-    list_filter = ('tenant',)
+    list_filter = ('tenant_id',)
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):

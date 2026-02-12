@@ -1,49 +1,44 @@
-import 'package:flutter/material.dart';
-import '../network/tenant_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// Manages the currently connected tenant (kitchen) state.
 class TenantProvider extends ChangeNotifier {
-  final TenantService _tenantService;
   final FlutterSecureStorage _storage;
 
   String? _tenantId;
   String? _tenantName;
 
-  TenantProvider({TenantService? tenantService, FlutterSecureStorage? storage})
-      : _tenantService = tenantService ?? TenantService(),
-        _storage = storage ?? const FlutterSecureStorage();
+  TenantProvider({FlutterSecureStorage? storage})
+      : _storage = storage ?? const FlutterSecureStorage();
 
   String? get tenantId => _tenantId;
   String? get tenantName => _tenantName;
+  bool get hasTenant => _tenantId != null;
 
+  /// Restore tenant info from secure storage on app startup.
   Future<void> loadTenant() async {
     _tenantId = await _storage.read(key: 'tenantId');
-    _tenantName = await _storage.read(key: 'tenantName'); // Assuming we save this
+    _tenantName = await _storage.read(key: 'tenantName');
     notifyListeners();
   }
 
+  /// Set the current tenant after a successful discovery.
   Future<void> setTenant(String id, String name) async {
     _tenantId = id;
     _tenantName = name;
     await _storage.write(key: 'tenantId', value: id);
     await _storage.write(key: 'tenantName', value: name);
-    
-    // Check for test_kitchen slug
-    if (id == 'test_kitchen') {
-       await _storage.write(key: 'baseUrl', value: 'http://127.0.0.1:8000/api/v1/');
-       await _storage.write(key: 'tenantSlug', value: 'test_kitchen');
-    } else {
-       await _storage.delete(key: 'tenantSlug');
-    }
-    
     notifyListeners();
   }
 
+  /// Clear tenant data (used during logout).
   Future<void> clearTenant() async {
     _tenantId = null;
     _tenantName = null;
     await _storage.delete(key: 'tenantId');
     await _storage.delete(key: 'tenantName');
+    await _storage.delete(key: 'tenantSlug');
+    await _storage.delete(key: 'baseUrl');
     notifyListeners();
   }
 }

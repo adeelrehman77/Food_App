@@ -1,0 +1,191 @@
+# Fun Adventure Kitchen — 3-Layer SaaS Implementation Plan
+
+> **Status:** All backend phases implemented. See below for what was built and the complete API reference.
+
+---
+
+## Architecture Summary
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    LAYER 1: SaaS Owner                          │
+│  /api/saas/*  (Superuser only)                                  │
+│  Tenant management, Plans, Billing, Analytics                    │
+├─────────────────────────────────────────────────────────────────┤
+│                    LAYER 2: Tenant Admin                         │
+│  /api/v1/*  (Staff auth + X-Tenant-Slug header)                 │
+│  Orders, Menu, Kitchen KDS, Inventory, Delivery,                │
+│  Staff, Customers, Invoices, Notifications                      │
+├─────────────────────────────────────────────────────────────────┤
+│                    LAYER 3: B2C Customers                       │
+│  /api/v1/customer/*  (Customer JWT auth)                        │
+│  Register, Login, Menu browse, Subscriptions, Orders,           │
+│  Wallet, Invoices, Notifications, Addresses                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Completed Phases
+
+### Phase 1.1 — Fix Cross-Database FK ✅
+- `CustomerProfile.tenant` → `tenant_id` IntegerField
+- `InventoryItem.tenant` → `tenant_id` IntegerField
+- Prevents cross-DB foreign key errors at runtime
+
+### Phase 1.2 — Expand ServicePlan Model ✅
+Added to `ServicePlan`:
+- Pricing: `price_monthly`, `price_yearly`, `trial_days`
+- Limits: `max_menu_items`, `max_staff_users`, `max_customers`, `max_orders_per_month`
+- Features: `has_delivery_tracking`, `has_customer_app`, `has_analytics`, `has_whatsapp_notifications`, `has_multi_branch`
+- JSON `features` field for extensible feature flags
+- `tier` choices (free/basic/pro/enterprise)
+- Helper methods: `has_feature()`, `check_limit()`
+
+### Phase 1.3 — Plan Enforcement ✅
+- `MultiDbTenantMiddleware` now attaches `request.tenant_plan`
+- Created `PlanLimitMenuItems`, `PlanLimitStaffUsers`, `PlanLimitCustomers`
+- Created `PlanFeatureInventory`, `PlanFeatureDeliveryTracking`, `PlanFeatureAnalytics`
+- Permissions auto-check limits on `create` actions
+
+### Phase 1.4 — Build Missing ViewSets ✅
+
+| ViewSet | App | Endpoint |
+|---------|-----|----------|
+| `OrderViewSet` | main | `/api/v1/orders/` |
+| `CustomerProfileViewSet` | main | `/api/v1/customers/` |
+| `CustomerRegistrationRequestViewSet` | main | `/api/v1/registration-requests/` |
+| `InvoiceViewSet` | main | `/api/v1/invoices/` |
+| `NotificationViewSet` | main | `/api/v1/notifications/` |
+| `CategoryViewSet` | main | `/api/v1/categories/` |
+| `StaffUserViewSet` | main | `/api/v1/staff/` |
+| `KitchenOrderViewSet` | kitchen | `/api/v1/kitchen/orders/` |
+| `DeliveryViewSet` | delivery | `/api/v1/delivery/deliveries/` |
+| `InventoryItemViewSet` | inventory | `/api/v1/inventory/items/` |
+| `UnitOfMeasureViewSet` | inventory | `/api/v1/inventory/units/` |
+| `ZoneViewSet` | driver | `/api/v1/driver/zones/` |
+| `RouteViewSet` | driver | `/api/v1/driver/routes/` |
+| `DeliveryDriverViewSet` | driver | `/api/v1/driver/drivers/` |
+| `DeliveryScheduleViewSet` | driver | `/api/v1/driver/schedules/` |
+| `DeliveryAssignmentAdminViewSet` | driver | `/api/v1/driver/assignments/` |
+
+### Phase 1.5 — Customer-Facing APIs (B2C) ✅
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/customer/auth/register/` | POST | None | Customer registration |
+| `/api/v1/customer/auth/login/` | POST | None | Customer login (JWT) |
+| `/api/v1/customer/menu/` | GET | None | Browse available menu |
+| `/api/v1/customer/menu/categories/` | GET | None | List categories |
+| `/api/v1/customer/profile/` | GET/PUT | JWT | View/update profile |
+| `/api/v1/customer/subscriptions/` | GET/POST | JWT | Manage subscriptions |
+| `/api/v1/customer/orders/` | GET | JWT | View order history |
+| `/api/v1/customer/orders/{id}/track/` | GET | JWT | Delivery tracking |
+| `/api/v1/customer/wallet/` | GET | JWT | Balance + transactions |
+| `/api/v1/customer/wallet/topup/` | POST | JWT | Add funds |
+| `/api/v1/customer/invoices/` | GET | JWT | View invoices |
+| `/api/v1/customer/notifications/` | GET | JWT | List notifications |
+| `/api/v1/customer/notifications/{id}/mark_read/` | POST | JWT | Mark read |
+| `/api/v1/customer/notifications/mark_all_read/` | POST | JWT | Mark all read |
+| `/api/v1/customer/addresses/` | CRUD | JWT | Manage addresses |
+
+### Phase 3.1 — SaaS Owner Models ✅
+- `TenantSubscription` — tracks plan, status, billing cycle, trial
+- `TenantInvoice` — auto-numbered invoices with tax and status
+- `TenantUsage` — monthly usage snapshots (orders, customers, revenue)
+
+### Phase 3.2 — SaaS Owner API ✅
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/saas/analytics/` | GET | Superuser | Platform-wide metrics |
+| `/api/saas/tenants/` | GET/POST | Superuser | List/create tenants |
+| `/api/saas/tenants/{id}/` | GET/PATCH | Superuser | Detail/update |
+| `/api/saas/tenants/{id}/usage/` | GET | Superuser | Usage metrics |
+| `/api/saas/tenants/{id}/suspend/` | POST | Superuser | Suspend tenant |
+| `/api/saas/tenants/{id}/activate/` | POST | Superuser | Activate tenant |
+| `/api/saas/plans/` | CRUD | Superuser | Manage service plans |
+| `/api/saas/subscriptions/` | CRUD | Superuser | Manage subscriptions |
+| `/api/saas/invoices/` | CRUD | Superuser | Manage invoices |
+| `/api/saas/invoices/{id}/mark_paid/` | POST | Superuser | Mark invoice paid |
+
+---
+
+## Files Created / Modified
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `core/permissions/plan_limits.py` | Plan-based permission classes |
+| `apps/main/serializers/__init__.py` | Serializer package init |
+| `apps/main/serializers/admin_serializers.py` | Tenant-admin serializers |
+| `apps/main/serializers/customer_api_serializers.py` | B2C customer serializers |
+| `apps/main/views/admin_views.py` | Tenant-admin ViewSets |
+| `apps/main/views/customer_api_views.py` | B2C customer ViewSets |
+| `apps/main/urls_customer_api.py` | Customer API URL routing |
+| `apps/kitchen/serializers.py` | Kitchen KDS serializers |
+| `apps/delivery/serializers.py` | Delivery serializers |
+| `apps/inventory/serializers.py` | Inventory serializers |
+| `apps/driver/serializers/admin_serializers.py` | Zone/Route/Schedule serializers |
+| `apps/driver/views/admin_views.py` | Delivery management ViewSets |
+| `apps/organizations/models_saas.py` | SaaS owner models |
+| `apps/organizations/serializers.py` | SaaS owner serializers |
+| `apps/organizations/views_saas.py` | SaaS owner ViewSets |
+| `apps/organizations/urls_saas.py` | SaaS owner URL routing |
+
+### Modified Files
+| File | Change |
+|------|--------|
+| `apps/main/models.py` | FK → IntegerField for `CustomerProfile.tenant` |
+| `apps/main/admin.py` | Updated admin for new field |
+| `apps/main/urls_api.py` | Registered new ViewSets |
+| `apps/main/views/__init__.py` | Added new view exports |
+| `apps/organizations/models.py` | Expanded ServicePlan |
+| `apps/organizations/admin.py` | Admin for SaaS models |
+| `apps/inventory/models.py` | FK → IntegerField, added fields |
+| `apps/inventory/admin.py` | Updated admin |
+| `apps/inventory/views.py` | Added ViewSets |
+| `apps/inventory/urls_api.py` | Router-based URLs |
+| `apps/kitchen/views.py` | Added KitchenOrderViewSet |
+| `apps/kitchen/urls_api.py` | Router-based URLs |
+| `apps/delivery/views.py` | Added DeliveryViewSet |
+| `apps/delivery/urls_api.py` | Router-based URLs |
+| `apps/driver/urls_api.py` | Added admin ViewSets |
+| `apps/driver/views/__init__.py` | Added admin view exports |
+| `core/middleware/multi_db_tenant.py` | Attaches `request.tenant_plan` |
+| `core/permissions/__init__.py` | Imports plan_limits |
+| `config/urls.py` | Added customer + SaaS URL routes |
+
+---
+
+## Remaining Work (Future Phases)
+
+### Phase 2 — Flutter Admin Dashboard Screens
+- Dashboard with summary cards
+- Orders management screen
+- Inventory management screen
+- Delivery management screen
+- Customer management screen
+- Finance/invoices screen
+- Staff management screen
+
+### Phase 4 — Flutter Customer App
+- Customer registration / login
+- Menu browsing
+- Subscription management
+- Order tracking
+- Wallet / payments
+- Push notifications
+
+### Phase 5 — SaaS Owner Dashboard
+- Tenant management UI
+- Plan management
+- Revenue / growth charts
+- Platform health monitoring
+
+### Phase 6 — Production Hardening
+- Celery tasks for usage collection
+- Payment gateway integration (Stripe / PayTabs)
+- Email / WhatsApp notification service
+- Rate limiting per plan tier
+- Comprehensive test suite

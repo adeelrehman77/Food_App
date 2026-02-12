@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/network/tenant_service.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/tenant_provider.dart';
 import '../data/auth_service.dart';
 
 class TenantLoginScreen extends StatefulWidget {
@@ -14,14 +17,15 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
   final _slugController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   final _formKey = GlobalKey<FormState>();
   final _loginFormKey = GlobalKey<FormState>();
-  
+
   final _tenantService = TenantService();
   final _authService = AuthService();
-  
+
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _kitchenName;
   final PageController _pageController = PageController();
 
@@ -34,6 +38,17 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
     super.dispose();
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _connectToKitchen() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -42,26 +57,22 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
 
     try {
       final name = await _tenantService.discoverTenant(slug);
+      if (!mounted) return;
+
+      // Update the tenant provider
+      context.read<TenantProvider>().setTenant(slug, name);
+
       setState(() {
-        _kitchenName = name ?? slug;
+        _kitchenName = name;
       });
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError(e.toString().replaceAll('Exception: ', ''));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -71,28 +82,18 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _authService.login(
-        _usernameController.text.trim(),
-        _passwordController.text.trim(),
-      );
-      if (mounted) {
-        // Navigate to dashboard 
-        // Assuming '/' is the dashboard or main authenticated route
-        context.go('/'); 
-      }
+      final username = _usernameController.text.trim();
+      await _authService.login(username, _passwordController.text.trim());
+      if (!mounted) return;
+
+      // Notify the auth provider so the router redirect kicks in
+      await context.read<AuthProvider>().onLoginSuccess(username: username);
+
+      // The router's redirect will automatically navigate to /dashboard
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError(e.toString().replaceAll('Exception: ', ''));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -107,23 +108,24 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       body: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
+          constraints: const BoxConstraints(maxWidth: 420),
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: SizedBox(
-            height: 400, // Fixed height to prevent layout shifts
+            height: 420,
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
@@ -144,7 +146,7 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.storefront, size: 64, color: Colors.deepOrange),
+          const Icon(Icons.storefront_rounded, size: 64, color: Colors.deepOrange),
           const SizedBox(height: 16),
           Text(
             'Kitchen Login',
@@ -155,7 +157,7 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Enter your Kitchen Slug to connect',
+            'Enter your kitchen code to connect',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.grey[600],
                 ),
@@ -164,13 +166,14 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
           TextFormField(
             controller: _slugController,
             decoration: const InputDecoration(
-              labelText: 'Kitchen Slug',
+              labelText: 'Kitchen Code',
               hintText: 'e.g. downtown-branch',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.link),
             ),
+            textInputAction: TextInputAction.go,
             validator: (value) =>
-                value == null || value.isEmpty ? 'Please enter a slug' : null,
+                value == null || value.trim().isEmpty ? 'Please enter a kitchen code' : null,
             onFieldSubmitted: (_) => _connectToKitchen(),
           ),
           const SizedBox(height: 24),
@@ -190,10 +193,7 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
                   ? const SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Text('Connect to Kitchen'),
             ),
@@ -209,7 +209,7 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.lock_open, size: 48, color: Colors.deepOrange),
+          const Icon(Icons.lock_open_rounded, size: 48, color: Colors.deepOrange),
           const SizedBox(height: 16),
           Text(
             'Welcome back,',
@@ -231,20 +231,26 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
             decoration: const InputDecoration(
               labelText: 'Username or Email',
               border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.person),
+              prefixIcon: Icon(Icons.person_outline),
             ),
+            textInputAction: TextInputAction.next,
             validator: (value) =>
-                value == null || value.isEmpty ? 'Required' : null,
+                value == null || value.trim().isEmpty ? 'Required' : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _passwordController,
-            obscureText: true,
-            decoration: const InputDecoration(
+            obscureText: _obscurePassword,
+            decoration: InputDecoration(
               labelText: 'Password',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.lock),
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.lock_outline),
+              suffixIcon: IconButton(
+                icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
             ),
+            textInputAction: TextInputAction.go,
             validator: (value) =>
                 value == null || value.isEmpty ? 'Required' : null,
             onFieldSubmitted: (_) => _loginUser(),
@@ -266,15 +272,12 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
                   ? const SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Text('Sign In'),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           TextButton(
             onPressed: _isLoading ? null : _backToSlug,
             child: const Text('Back to Workspace Selection'),

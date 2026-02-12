@@ -171,39 +171,22 @@ clean_backend/
 
 Create a `.env` file with the following variables:
 
-```env
-# Django
-DJANGO_SETTINGS_MODULE=config.settings.development
-DJANGO_SECRET_KEY=your-secret-key-here
-DEBUG=True
-
-# Database
-DATABASE_URL=postgresql://kitchen_user:password@localhost:5432/kitchen_production
-DB_NAME=kitchen_production
-DB_USER=kitchen_user
-DB_PASSWORD=password
-DB_HOST=localhost
-DB_PORT=5432
-
-# Redis
-REDIS_URL=redis://localhost:6379/0
-
-# Security
-SYNC_TOKEN=your-sync-token-here
-ENCRYPTION_KEY=your-encryption-key-here
-
-# Email
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-password
-DEFAULT_FROM_EMAIL=no-reply@kitchen.funadventure.ae
-
-# WhatsApp API
-WHATSAPP_PHONE_ID=your-phone-id
-WHATSAPP_TOKEN=your-token
+```bash
+# Copy the example and fill in real values:
+cp .env.example .env
 ```
+
+See `.env.example` for the full list of variables with descriptions. Key variables:
+
+```env
+DJANGO_ENV=development
+DJANGO_SECRET_KEY=          # Generate: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+DATABASE_URL=               # e.g. postgresql://user:pass@localhost:5432/dbname
+REDIS_URL=redis://localhost:6379/0
+SYNC_TOKEN=                 # A strong random token
+```
+
+> **Important:** Never use default or example passwords. Always generate strong, unique credentials for each environment.
 
 ### Settings Files
 

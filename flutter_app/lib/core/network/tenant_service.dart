@@ -1,39 +1,29 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../config/app_config.dart';
 
 class TenantService {
   final Dio _dio;
   final FlutterSecureStorage _storage;
-  
-  // Endpoint for tenant discovery
-  // static const String _discoveryUrl = "https://api.funadventure.ae/discover/";
-  static const String _discoveryUrl = "http://127.0.0.1:8000/api/discover/"; // Local for testing
 
   TenantService({Dio? dio, FlutterSecureStorage? storage})
       : _dio = dio ?? Dio(),
         _storage = storage ?? const FlutterSecureStorage();
 
-  Future<String?> discoverTenant(String slug) async {
-    if (slug == 'test_kitchen') {
-        const apiEndpoint = "http://127.0.0.1:8000/api/v1/";
-        const tenantId = "test_kitchen";
-        const name = "Test Kitchen";
-
-        await _storage.write(key: 'baseUrl', value: apiEndpoint);
-        await _storage.write(key: 'tenantId', value: tenantId);
-        await _storage.write(key: 'tenantName', value: name);
-        await _storage.write(key: 'tenantSlug', value: tenantId);
-        
-        return name;
-    }
+  /// Discovers a tenant by its slug/kitchen code.
+  ///
+  /// Returns the tenant display name on success.
+  /// Throws [Exception] with a user-friendly message on failure.
+  Future<String> discoverTenant(String slug) async {
+    final discoveryUrl = AppConfig.current.discoveryUrl;
 
     try {
       final response = await _dio.post(
-        _discoveryUrl,
-        data: {'kitchen_code': slug}, // Assuming 'slug' maps to 'kitchen_code'
+        discoveryUrl,
+        data: {'kitchen_code': slug},
         options: Options(
           headers: {'Content-Type': 'application/json'},
-          validateStatus: (status) => status! < 500, // Handle 4xx manually
+          validateStatus: (status) => status! < 500,
         ),
       );
 
@@ -45,24 +35,25 @@ class TenantService {
 
         await _storage.write(key: 'baseUrl', value: apiEndpoint);
         await _storage.write(key: 'tenantId', value: tenantId);
+        await _storage.write(key: 'tenantSlug', value: tenantId);
         if (name != null) {
           await _storage.write(key: 'tenantName', value: name);
         }
-        // Clear manual tenant slug if normal discovery is used
-        await _storage.delete(key: 'tenantSlug');
-        
-        return name ?? slug; // Return the name for the UI
+
+        return name ?? slug;
       } else if (response.statusCode == 404) {
         throw Exception("Kitchen not found. Please check the code and try again.");
       } else if (response.statusCode == 403) {
         throw Exception("This kitchen is currently inactive.");
       } else {
-        throw Exception("Failed to discover tenant. Error: ${response.statusCode}");
+        throw Exception("Something went wrong. Please try again later.");
       }
     } on DioException catch (e) {
-      throw Exception("Network error: ${e.message}");
-    } catch (e) {
-      throw Exception(e.toString());
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        throw Exception("Connection timed out. Please check your internet.");
+      }
+      throw Exception("Network error. Please check your connection.");
     }
   }
 }

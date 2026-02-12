@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/tenant_provider.dart';
 import '../data/auth_service.dart';
 
 class UserLoginScreen extends StatefulWidget {
@@ -15,22 +17,7 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final _authService = AuthService();
-  final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
-  String? _tenantId;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTenantInfo();
-  }
-
-  Future<void> _loadTenantInfo() async {
-    final tenantId = await _storage.read(key: 'tenantId');
-    setState(() {
-      _tenantId = tenantId;
-    });
-  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -38,51 +25,52 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _authService.login(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
-      if (mounted) {
-        context.go('/dashboard');
-      }
+      final username = _emailController.text.trim();
+      await _authService.login(username, _passwordController.text.trim());
+      if (!mounted) return;
+
+      await context.read<AuthProvider>().onLoginSuccess(username: username);
+      // Router redirect handles navigation to /dashboard
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final tenantName = context.watch<TenantProvider>().tenantName;
+
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: Text(_tenantId != null ? 'Kitchen: $_tenantId' : 'Kitchen Login'),
+        title: Text(tenantName != null ? 'Kitchen: $tenantName' : 'Staff Login'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/login'), // Go back to tenant discovery
+          onPressed: () => context.go('/login'),
         ),
       ),
       body: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
+          constraints: const BoxConstraints(maxWidth: 420),
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -91,7 +79,7 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.lock_person, size: 64, color: Colors.deepOrange),
+                const Icon(Icons.lock_person_rounded, size: 64, color: Colors.deepOrange),
                 const SizedBox(height: 16),
                 Text(
                   'Staff Login',
@@ -104,22 +92,24 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email),
+                    labelText: 'Username or Email',
+                    prefixIcon: Icon(Icons.person_outline),
                     border: OutlineInputBorder(),
                   ),
+                  textInputAction: TextInputAction.next,
                   validator: (value) =>
-                      value == null || value.isEmpty ? 'Enter your email' : null,
+                      value == null || value.trim().isEmpty ? 'Enter your email or username' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock),
+                    prefixIcon: Icon(Icons.lock_outline),
                     border: OutlineInputBorder(),
                   ),
                   obscureText: true,
+                  textInputAction: TextInputAction.go,
                   validator: (value) =>
                       value == null || value.isEmpty ? 'Enter your password' : null,
                   onFieldSubmitted: (_) => _login(),
@@ -141,10 +131,7 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
                         ? const SizedBox(
                             width: 24,
                             height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
                         : const Text('Login'),
                   ),

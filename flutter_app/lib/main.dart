@@ -1,35 +1,45 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart'; // Add this to pubspec.yaml
+import 'package:provider/provider.dart';
 import 'core/router/app_router.dart';
-import 'core/providers/tenant_provider.dart'; // We'll create this next
-import 'core/theme/app_theme.dart';          // We'll create this next
+import 'core/providers/tenant_provider.dart';
+import 'core/providers/auth_provider.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Here we would eventually initialize local storage/secure storage
+
+  // Initialize auth provider and restore persisted session
+  final authProvider = AuthProvider();
+  await authProvider.initialize();
+
+  // Restore tenant info
+  final tenantProvider = TenantProvider();
+  await tenantProvider.loadTenant();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => TenantProvider()),
+        ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider.value(value: tenantProvider),
       ],
-      child: const MyApp(),
+      child: MyApp(authProvider: authProvider),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final AuthProvider authProvider;
+
+  const MyApp({super.key, required this.authProvider});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Fun Adventure Admin',
-      // High-end enterprise theme
-      theme: AppTheme.lightTheme, 
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      routerConfig: router,
+      routerConfig: buildRouter(authProvider),
       debugShowCheckedModeBanner: false,
     );
   }

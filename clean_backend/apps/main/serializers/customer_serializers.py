@@ -4,10 +4,19 @@ from apps.main.models import Subscription, WalletTransaction, Address, MenuItem,
 
 class MenuItemSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
+    inventory_item_id = serializers.PrimaryKeyRelatedField(
+        source='inventory_item', read_only=True,
+    )
 
     class Meta:
         model = MenuItem
-        fields = ['id', 'name', 'description', 'price', 'image', 'category_name', 'is_available']
+        fields = [
+            'id', 'name', 'description', 'price', 'image',
+            'calories', 'allergens', 'category_name',
+            'is_available', 'inventory_item_id',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
 
 class TimeSlotSerializer(serializers.ModelSerializer):
     class Meta:

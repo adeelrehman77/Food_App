@@ -57,18 +57,23 @@ def provision_tenant_db(tenant_id):
 
     # 4. Create default data (Admin User and Inventory Category)
     from django.contrib.auth.models import User
+    from django.utils.crypto import get_random_string
     from apps.main.models import Category
-    
+
     print(f"Setting up default data for {tenant.name}...")
     if not User.objects.using(db_alias).filter(username='kitchen_admin').exists():
+        default_password = os.environ.get(
+            'DEFAULT_TENANT_ADMIN_PASSWORD',
+            get_random_string(length=24),
+        )
         admin = User.objects.create_user(
             username='kitchen_admin',
             email=f'admin@{tenant.subdomain}.com',
-            password='default_password_123'
+            password=default_password,
         )
         admin.is_staff = True
         admin.save(using=db_alias)
-        print("- Created 'kitchen_admin' user.")
+        print(f"- Created 'kitchen_admin' user. Password set from env or generated randomly.")
         
     Category.objects.using(db_alias).get_or_create(
         name='Inventory',
