@@ -52,7 +52,7 @@ class AddressSerializer(serializers.ModelSerializer):
 class SubscriptionSerializer(serializers.ModelSerializer):
     menus = MenuSerializer(many=True, read_only=True)
     menu_ids = serializers.PrimaryKeyRelatedField(
-        source='menus', many=True, queryset=apps.get_model('main', 'Menu').objects.all(), write_only=True
+        source='menus', many=True, queryset=apps.get_model('main', 'Menu').objects.all(), write_only=True, required=False
     )
     time_slot_details = MealSlotBriefSerializer(source='time_slot', read_only=True)
     lunch_address = AddressSerializer(read_only=True)
@@ -66,9 +66,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'time_slot', 'time_slot_details',
             'lunch_address', 'dinner_address',
             'selected_days', 'payment_mode', 'total_cost',
-            'created_at'
         ]
-        read_only_fields = ['status', 'created_at', 'total_cost']
+        read_only_fields = ['status', 'total_cost']
 
 class WalletTransactionSerializer(serializers.ModelSerializer):
     class Meta:
