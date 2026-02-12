@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 
 from apps.main.models import (
     Order, Subscription, CustomerProfile, Invoice, InvoiceItem,
-    Notification, CustomerRegistrationRequest, Category,
+    Notification, CustomerRegistrationRequest, Category, Address,
     MealSlot, DailyMenu, DailyMenuItem, MenuItem, MealPackage,
 )
 
@@ -62,12 +62,42 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True)
 
 
+# ─── Address (admin view) ────────────────────────────────────────────────────
+
+class AddressAdminSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+
+    class Meta:
+        model = Address
+        fields = [
+            'id', 'customer', 'customer_name',
+            'street', 'city', 'building_name',
+            'floor_number', 'flat_number',
+            'is_default', 'status',
+            'admin_notes', 'reason',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class AddressCreateSerializer(serializers.ModelSerializer):
+    """For creating addresses from admin side (auto-approved as active)."""
+
+    class Meta:
+        model = Address
+        fields = [
+            'customer', 'street', 'city', 'building_name',
+            'floor_number', 'flat_number', 'is_default',
+        ]
+
+
 # ─── Customers (admin view) ───────────────────────────────────────────────────
 
 class CustomerProfileAdminSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.CharField(source='user.email', read_only=True)
     full_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    addresses = AddressAdminSerializer(many=True, read_only=True)
 
     class Meta:
         model = CustomerProfile
@@ -75,7 +105,8 @@ class CustomerProfileAdminSerializer(serializers.ModelSerializer):
             'id', 'username', 'email', 'full_name',
             'name', 'phone', 'emirates_id', 'zone',
             'wallet_balance', 'loyalty_points', 'loyalty_tier',
-            'preferred_communication', 'created_at', 'updated_at',
+            'preferred_communication', 'addresses',
+            'created_at', 'updated_at',
         ]
         read_only_fields = ['wallet_balance', 'loyalty_points', 'created_at', 'updated_at']
 
@@ -83,7 +114,7 @@ class CustomerProfileAdminSerializer(serializers.ModelSerializer):
 class CustomerProfileCreateSerializer(serializers.Serializer):
     """
     Admin-facing serializer to create a new customer.
-    Creates a Django User + CustomerProfile in the tenant database.
+    Creates a Django User + CustomerProfile + (optional) Address in the tenant DB.
     """
     name = serializers.CharField(max_length=100)
     phone = serializers.CharField(max_length=20)
@@ -95,10 +126,14 @@ class CustomerProfileCreateSerializer(serializers.Serializer):
         default='whatsapp',
         required=False,
     )
-    address = serializers.CharField(required=False, allow_blank=True, default='')
+    # Structured address fields (all optional)
+    street = serializers.CharField(max_length=200, required=False, allow_blank=True, default='')
+    city = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    building_name = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    floor_number = serializers.CharField(max_length=10, required=False, allow_blank=True, default='')
+    flat_number = serializers.CharField(max_length=10, required=False, allow_blank=True, default='')
 
     def validate_phone(self, value):
-        # Check uniqueness within the tenant DB
         if CustomerProfile.objects.filter(phone=value).exists():
             raise serializers.ValidationError("A customer with this phone number already exists.")
         return value
@@ -113,11 +148,16 @@ class CustomerProfileCreateSerializer(serializers.Serializer):
         name = validated_data['name']
         phone = validated_data['phone']
         email = validated_data.get('email', '')
-        address = validated_data.pop('address', '')
+
+        # Extract address fields
+        street = validated_data.pop('street', '')
+        city = validated_data.pop('city', '')
+        building_name = validated_data.pop('building_name', '')
+        floor_number = validated_data.pop('floor_number', '')
+        flat_number = validated_data.pop('flat_number', '')
 
         # Generate a unique username from the phone number
         username = f"cust_{phone.replace('+', '').replace(' ', '').replace('-', '')}"
-        # Ensure uniqueness
         if User.objects.filter(username=username).exists():
             username = f"{username}_{uuid.uuid4().hex[:6]}"
 
@@ -127,12 +167,9 @@ class CustomerProfileCreateSerializer(serializers.Serializer):
             email=email,
             first_name=name.split()[0] if name else '',
             last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else '',
-            # No password — customer can't login via admin-created accounts
-            # until they set one (or we send them a link)
             is_active=True,
             is_staff=False,
         )
-        # Set an unusable password for now
         user.set_unusable_password()
         user.save()
 
@@ -145,6 +182,23 @@ class CustomerProfileCreateSerializer(serializers.Serializer):
             zone=validated_data.get('zone', ''),
             preferred_communication=validated_data.get('preferred_communication', 'whatsapp'),
         )
+
+        # Create Address if any address field was provided
+        has_address = any([street, city, building_name, floor_number, flat_number])
+        if has_address:
+            Address.objects.create(
+                customer=customer,
+                street=street,
+                city=city,
+                building_name=building_name,
+                floor_number=floor_number,
+                flat_number=flat_number,
+                is_default=True,
+                status='active',  # Admin-created → auto-approved
+                requested_by=self.context.get('request', {}).user
+                    if hasattr(self.context.get('request', {}), 'user') else None,
+            )
+
         return customer
 
 

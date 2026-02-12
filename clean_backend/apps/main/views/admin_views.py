@@ -14,13 +14,14 @@ from django.utils import timezone
 
 from apps.main.models import (
     Order, CustomerProfile, Invoice, Notification,
-    CustomerRegistrationRequest, Category, Subscription,
+    CustomerRegistrationRequest, Category, Subscription, Address,
     MealSlot, DailyMenu, MealPackage,
 )
 from apps.main.serializers.admin_serializers import (
     OrderListSerializer, OrderDetailSerializer, OrderStatusUpdateSerializer,
     CustomerProfileAdminSerializer, CustomerProfileCreateSerializer,
     CustomerRegistrationRequestSerializer,
+    AddressAdminSerializer, AddressCreateSerializer,
     InvoiceSerializer, NotificationSerializer, CategorySerializer,
     StaffUserSerializer, StaffUserCreateSerializer,
     MealSlotSerializer,
@@ -185,7 +186,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 class CustomerProfileViewSet(viewsets.ModelViewSet):
     """View and manage customer profiles within the tenant."""
-    queryset = CustomerProfile.objects.select_related('user').all()
+    queryset = CustomerProfile.objects.select_related('user').prefetch_related('addresses').all()
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['loyalty_tier', 'preferred_communication']
     search_fields = ['user__username', 'user__email', 'name', 'phone']
@@ -281,6 +282,49 @@ class CustomerRegistrationRequestViewSet(viewsets.ModelViewSet):
         obj.processed_by = request.user
         obj.save()
         return Response(self.get_serializer(obj).data)
+
+
+# ─── Address Management ──────────────────────────────────────────────────────
+
+class AddressAdminViewSet(viewsets.ModelViewSet):
+    """Admin CRUD for customer addresses in the tenant."""
+    queryset = Address.objects.select_related('customer__user').all()
+    permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['customer', 'status', 'is_default']
+    ordering = ['-created_at']
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return AddressCreateSerializer
+        return AddressAdminSerializer
+
+    def perform_create(self, serializer):
+        """Admin-created addresses are auto-approved as active."""
+        serializer.save(
+            status='active',
+            requested_by=self.request.user,
+        )
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        address = self.get_object()
+        if address.approve(request.user):
+            return Response(AddressAdminSerializer(address).data)
+        return Response(
+            {'error': 'Only pending addresses can be approved.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        address = self.get_object()
+        reason = request.data.get('reason', '')
+        if address.reject(request.user, reason):
+            return Response(AddressAdminSerializer(address).data)
+        return Response(
+            {'error': 'Only pending addresses can be rejected.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 # ─── Invoices ──────────────────────────────────────────────────────────────────

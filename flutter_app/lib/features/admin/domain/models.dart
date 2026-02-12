@@ -181,6 +181,62 @@ class OrderItem {
   }
 }
 
+// ─── Customer Address ────────────────────────────────────────────────────────
+
+class CustomerAddress {
+  final int id;
+  final int? customerId;
+  final String? customerName;
+  final String? street;
+  final String? city;
+  final String? buildingName;
+  final String? floorNumber;
+  final String? flatNumber;
+  final bool isDefault;
+  final String status;
+  final String? createdAt;
+
+  CustomerAddress({
+    required this.id,
+    this.customerId,
+    this.customerName,
+    this.street,
+    this.city,
+    this.buildingName,
+    this.floorNumber,
+    this.flatNumber,
+    this.isDefault = false,
+    this.status = 'active',
+    this.createdAt,
+  });
+
+  factory CustomerAddress.fromJson(Map<String, dynamic> json) {
+    return CustomerAddress(
+      id: json['id'] ?? 0,
+      customerId: json['customer'],
+      customerName: json['customer_name'],
+      street: json['street'],
+      city: json['city'],
+      buildingName: json['building_name'],
+      floorNumber: json['floor_number'],
+      flatNumber: json['flat_number'],
+      isDefault: json['is_default'] ?? false,
+      status: json['status'] ?? 'active',
+      createdAt: json['created_at'],
+    );
+  }
+
+  String get displayString {
+    final parts = <String>[];
+    if (buildingName != null && buildingName!.isNotEmpty) parts.add(buildingName!);
+    if (flatNumber != null && flatNumber!.isNotEmpty) parts.add('Flat $flatNumber');
+    if (floorNumber != null && floorNumber!.isNotEmpty) parts.add('Floor $floorNumber');
+    if (street != null && street!.isNotEmpty) parts.add(street!);
+    if (city != null && city!.isNotEmpty) parts.add(city!);
+    return parts.isEmpty ? '—' : parts.join(', ');
+  }
+}
+
 // ─── Customer ───────────────────────────────────────────────────────────────
 
 class CustomerItem {
@@ -196,6 +252,7 @@ class CustomerItem {
   final int loyaltyPoints;
   final String loyaltyTier;
   final String? preferredCommunication;
+  final List<CustomerAddress> addresses;
   final String? createdAt;
 
   CustomerItem({
@@ -211,8 +268,15 @@ class CustomerItem {
     this.loyaltyPoints = 0,
     this.loyaltyTier = 'bronze',
     this.preferredCommunication,
+    this.addresses = const [],
     this.createdAt,
   });
+
+  /// The default or first address, if any.
+  CustomerAddress? get defaultAddress {
+    if (addresses.isEmpty) return null;
+    return addresses.firstWhere((a) => a.isDefault, orElse: () => addresses.first);
+  }
 
   factory CustomerItem.fromJson(Map<String, dynamic> json) {
     return CustomerItem(
@@ -224,10 +288,14 @@ class CustomerItem {
       phone: json['phone'],
       emiratesId: json['emirates_id'],
       zone: json['zone'],
-      walletBalance: (json['wallet_balance'] ?? 0).toDouble(),
+      walletBalance: double.tryParse(json['wallet_balance']?.toString() ?? '0') ?? 0,
       loyaltyPoints: json['loyalty_points'] ?? 0,
       loyaltyTier: json['loyalty_tier'] ?? 'bronze',
       preferredCommunication: json['preferred_communication'],
+      addresses: (json['addresses'] as List<dynamic>?)
+              ?.map((a) => CustomerAddress.fromJson(a as Map<String, dynamic>))
+              .toList() ??
+          [],
       createdAt: json['created_at'],
     );
   }
