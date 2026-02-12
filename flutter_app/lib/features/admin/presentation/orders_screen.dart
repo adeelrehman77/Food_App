@@ -256,6 +256,22 @@ class _OrderCard extends StatelessWidget {
                   'Qty: ${order.quantity}',
                   style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
+                if (order.subscriptionId != null) ...[
+                  const SizedBox(width: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.card_membership, size: 12, color: Colors.deepOrange[400]),
+                      const SizedBox(width: 4),
+                      Text('Sub #${order.subscriptionId}',
+                          style: TextStyle(fontSize: 11, color: Colors.deepOrange[700], fontWeight: FontWeight.w500)),
+                    ]),
+                  ),
+                ],
               ],
             ),
             if (order.specialInstructions != null &&

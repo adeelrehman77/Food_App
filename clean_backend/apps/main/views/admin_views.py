@@ -27,6 +27,8 @@ from apps.main.serializers.admin_serializers import (
     MealSlotSerializer,
     DailyMenuListSerializer, DailyMenuDetailSerializer, DailyMenuCreateSerializer,
     MealPackageSerializer,
+    SubscriptionAdminListSerializer, SubscriptionAdminDetailSerializer,
+    SubscriptionAdminCreateSerializer,
 )
 from core.permissions.plan_limits import PlanLimitStaffUsers
 
@@ -639,3 +641,104 @@ class MealPackageViewSet(viewsets.ModelViewSet):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
             return [permissions.IsAdminUser()]
         return [permissions.IsAuthenticated()]
+
+
+# ─── Subscriptions (admin) ────────────────────────────────────────────────
+
+class SubscriptionAdminViewSet(viewsets.ModelViewSet):
+    """
+    Admin CRUD for customer subscriptions.
+    Custom actions: activate, pause, cancel, generate_orders.
+    """
+    permission_classes = [permissions.IsAdminUser]
+    filterset_fields = ['status', 'payment_mode']
+    search_fields = ['customer__name', 'customer__phone', 'customer__user__email']
+    ordering_fields = ['start_date', 'end_date', 'status', 'created_at', 'total_cost']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return Subscription.objects.select_related(
+            'customer__user', 'time_slot', 'lunch_address', 'dinner_address',
+        ).annotate(
+            order_count=Count('order'),
+        ).all()
+
+    def get_serializer_class(self):
+        if self.action in ('create', 'update', 'partial_update'):
+            return SubscriptionAdminCreateSerializer
+        if self.action == 'retrieve':
+            return SubscriptionAdminDetailSerializer
+        return SubscriptionAdminListSerializer
+
+    @action(detail=True, methods=['post'])
+    def activate(self, request, pk=None):
+        """Activate a pending/paused subscription."""
+        sub = self.get_object()
+        if sub.status not in ('pending', 'paused'):
+            return Response(
+                {'error': f"Cannot activate a '{sub.status}' subscription."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from django.db import models as db_models
+        sub.status = 'active'
+        sub.calculate_total_cost()
+        db_models.Model.save(sub)
+        sub.update_delivery_schedule()
+        return Response(SubscriptionAdminDetailSerializer(sub).data)
+
+    @action(detail=True, methods=['post'])
+    def pause(self, request, pk=None):
+        """Pause an active subscription."""
+        from django.db import models as db_models
+        sub = self.get_object()
+        if sub.status != 'active':
+            return Response(
+                {'error': 'Only active subscriptions can be paused.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        sub.status = 'paused'
+        db_models.Model.save(sub)
+        return Response(SubscriptionAdminDetailSerializer(sub).data)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """Cancel a subscription."""
+        from django.db import models as db_models
+        sub = self.get_object()
+        if sub.status in ('cancelled', 'expired'):
+            return Response(
+                {'error': f"Subscription is already {sub.status}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        sub.status = 'cancelled'
+        db_models.Model.save(sub)
+        sub.order_set.filter(status='pending').update(status='cancelled')
+        return Response(SubscriptionAdminDetailSerializer(sub).data)
+
+    @action(detail=True, methods=['post'])
+    def generate_orders(self, request, pk=None):
+        """Generate Order objects for remaining delivery dates."""
+        sub = self.get_object()
+        if sub.status != 'active':
+            return Response(
+                {'error': 'Only active subscriptions can generate orders.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        today = timezone.now().date()
+        current_date = max(sub.start_date, today)
+        selected = sub.get_selected_days()
+        existing = set(sub.order_set.values_list('delivery_date', flat=True))
+        created = 0
+        while current_date <= sub.end_date:
+            if current_date.strftime('%A') in selected and current_date not in existing:
+                Order.objects.create(
+                    subscription=sub,
+                    order_date=today,
+                    delivery_date=current_date,
+                    status='pending',
+                    quantity=1,
+                    special_instructions=sub.special_instructions,
+                )
+                created += 1
+            current_date += datetime.timedelta(days=1)
+        return Response({'detail': f'{created} orders generated.', 'orders_created': created})

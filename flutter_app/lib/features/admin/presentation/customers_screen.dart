@@ -602,14 +602,51 @@ class _CustomersScreenState extends State<CustomersScreen>
 //  Customer Detail Panel (inline, right side)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _CustomerDetailPanel extends StatelessWidget {
+class _CustomerDetailPanel extends StatefulWidget {
   final CustomerItem customer;
   final VoidCallback onClose;
   const _CustomerDetailPanel({required this.customer, required this.onClose});
 
   @override
+  State<_CustomerDetailPanel> createState() => _CustomerDetailPanelState();
+}
+
+class _CustomerDetailPanelState extends State<_CustomerDetailPanel> {
+  late CustomerItem _customer;
+  final _repo = AdminRepository();
+
+  @override
+  void initState() {
+    super.initState();
+    _customer = widget.customer;
+  }
+
+  @override
+  void didUpdateWidget(covariant _CustomerDetailPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.customer.id != widget.customer.id) {
+      _customer = widget.customer;
+    }
+  }
+
+  Future<void> _refreshCustomer() async {
+    // Reload customer list to get updated addresses
+    final state = context.findAncestorStateOfType<_CustomersScreenState>();
+    await state?._load();
+    // Find updated customer
+    final updated = state?._customers.firstWhere(
+      (c) => c.id == _customer.id,
+      orElse: () => _customer,
+    );
+    if (mounted && updated != null) {
+      setState(() => _customer = updated);
+      state?.setState(() => state._selectedCustomer = updated);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final c = customer;
+    final c = _customer;
     return Container(
       color: Colors.white,
       child: Column(
@@ -655,7 +692,6 @@ class _CustomerDetailPanel extends StatelessWidget {
                 const SizedBox(width: 4),
                 IconButton(
                     onPressed: () {
-                      // Find the state to call _showEditCustomerDialog
                       final state =
                           context.findAncestorStateOfType<_CustomersScreenState>();
                       state?._showEditCustomerDialog(c);
@@ -664,7 +700,7 @@ class _CustomerDetailPanel extends StatelessWidget {
                     tooltip: 'Edit'),
                 const SizedBox(width: 4),
                 IconButton(
-                    onPressed: onClose,
+                    onPressed: widget.onClose,
                     icon: const Icon(Icons.close, size: 20),
                     tooltip: 'Close'),
               ],
@@ -716,12 +752,37 @@ class _CustomerDetailPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Delivery Addresses',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  letterSpacing: 0.2)),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Delivery Addresses',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        letterSpacing: 0.2)),
+              ),
+              InkWell(
+                onTap: () => _showAddressDialog(c.id),
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, size: 14, color: Colors.deepOrange[400]),
+                      const SizedBox(width: 2),
+                      Text('Add',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.deepOrange[400])),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
           const Divider(height: 16),
           if (c.addresses.isEmpty)
             Text('No address on file',
@@ -771,12 +832,78 @@ class _CustomerDetailPanel extends StatelessWidget {
                           ],
                         ),
                       ),
+                      // Edit / Delete buttons
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: () => _showAddressDialog(c.id, address: addr),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(Icons.edit,
+                                  size: 15, color: Colors.grey[500]),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => _deleteAddress(addr),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(Icons.delete_outline,
+                                  size: 15, color: Colors.red[300]),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 )),
         ],
       ),
     );
+  }
+
+  void _showAddressDialog(int customerId, {CustomerAddress? address}) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => _AddressFormDialog(
+        customerId: customerId,
+        address: address,
+      ),
+    );
+    if (result == true) _refreshCustomer();
+  }
+
+  Future<void> _deleteAddress(CustomerAddress addr) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Address'),
+        content: Text('Delete "${addr.displayString}"?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      try {
+        await _repo.deleteAddress(addr.id);
+        _refreshCustomer();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
   }
 
   String _commLabel(String? v) => switch (v) {
@@ -871,7 +998,7 @@ class _AddCustomerDialogState extends State<_AddCustomerDialog> {
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _emiratesIdCtrl = TextEditingController();
-  final _zoneCtrl = TextEditingController();
+  String? _selectedZone;
   String _preferredComm = 'whatsapp';
   final _buildingCtrl = TextEditingController();
   final _flatCtrl = TextEditingController();
@@ -881,10 +1008,26 @@ class _AddCustomerDialogState extends State<_AddCustomerDialog> {
   bool _saving = false;
   String? _error;
 
+  List<DeliveryZone> _zones = [];
+  bool _loadingZones = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadZones();
+  }
+
+  Future<void> _loadZones() async {
+    try {
+      _zones = await widget.repo.getZones();
+    } catch (_) {}
+    if (mounted) setState(() => _loadingZones = false);
+  }
+
   @override
   void dispose() {
     for (final c in [
-      _nameCtrl, _phoneCtrl, _emailCtrl, _emiratesIdCtrl, _zoneCtrl,
+      _nameCtrl, _phoneCtrl, _emailCtrl, _emiratesIdCtrl,
       _buildingCtrl, _flatCtrl, _floorCtrl, _streetCtrl, _cityCtrl,
     ]) {
       c.dispose();
@@ -904,7 +1047,7 @@ class _AddCustomerDialogState extends State<_AddCustomerDialog> {
         'phone': _phoneCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'emirates_id': _emiratesIdCtrl.text.trim(),
-        'zone': _zoneCtrl.text.trim(),
+        'zone': _selectedZone ?? '',
         'preferred_communication': _preferredComm,
         'building_name': _buildingCtrl.text.trim(),
         'flat_number': _flatCtrl.text.trim(),
@@ -1034,8 +1177,27 @@ class _AddCustomerDialogState extends State<_AddCustomerDialog> {
                               _cityCtrl, 'City', Icons.location_city)),
                     ]),
                     const SizedBox(height: 8),
-                    _field(_zoneCtrl, 'Delivery Zone', Icons.map,
-                        hint: 'e.g. Al Barsha, JLT'),
+                    _loadingZones
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Center(child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2))),
+                          )
+                        : DropdownButtonFormField<String>(
+                            value: _selectedZone,
+                            decoration: _deco('Delivery Zone', Icons.map),
+                            hint: const Text('Select zone'),
+                            isExpanded: true,
+                            items: _zones.map((z) => DropdownMenuItem(
+                                  value: z.name,
+                                  child: Text(z.name,
+                                      style: const TextStyle(fontSize: 13)),
+                                )).toList(),
+                            onChanged: (v) =>
+                                setState(() => _selectedZone = v),
+                          ),
                   ],
                 ),
               ),
@@ -1219,11 +1381,14 @@ class _EditCustomerDialogState extends State<_EditCustomerDialog> {
   late TextEditingController _phoneCtrl;
   late TextEditingController _emailCtrl;
   late TextEditingController _eidCtrl;
-  late TextEditingController _zoneCtrl;
+  String? _selectedZone;
   late String _prefComm;
 
   bool _submitting = false;
   String? _error;
+
+  List<DeliveryZone> _zones = [];
+  bool _loadingZones = true;
 
   @override
   void initState() {
@@ -1232,8 +1397,22 @@ class _EditCustomerDialogState extends State<_EditCustomerDialog> {
     _phoneCtrl = TextEditingController(text: widget.customer.phone);
     _emailCtrl = TextEditingController(text: widget.customer.email);
     _eidCtrl = TextEditingController(text: widget.customer.emiratesId);
-    _zoneCtrl = TextEditingController(text: widget.customer.zone);
+    _selectedZone = widget.customer.zone;
     _prefComm = widget.customer.preferredCommunication ?? 'whatsapp';
+    _loadZones();
+  }
+
+  Future<void> _loadZones() async {
+    try {
+      _zones = await widget.repo.getZones();
+      // Ensure the customer's current zone is in the dropdown
+      if (_selectedZone != null &&
+          _selectedZone!.isNotEmpty &&
+          !_zones.any((z) => z.name == _selectedZone)) {
+        _selectedZone = null;
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingZones = false);
   }
 
   @override
@@ -1242,7 +1421,6 @@ class _EditCustomerDialogState extends State<_EditCustomerDialog> {
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _eidCtrl.dispose();
-    _zoneCtrl.dispose();
     super.dispose();
   }
 
@@ -1265,7 +1443,7 @@ class _EditCustomerDialogState extends State<_EditCustomerDialog> {
         'phone': _phoneCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'emirates_id': _eidCtrl.text.trim(),
-        'zone': _zoneCtrl.text.trim(),
+        'zone': _selectedZone ?? '',
         'preferred_communication': _prefComm,
       });
       if (mounted) Navigator.pop(context, updated);
@@ -1319,10 +1497,27 @@ class _EditCustomerDialogState extends State<_EditCustomerDialog> {
                   decoration: const InputDecoration(labelText: 'Emirates ID'),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _zoneCtrl,
-                  decoration: const InputDecoration(labelText: 'Delivery Zone'),
-                ),
+                _loadingZones
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Center(child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2))),
+                      )
+                    : DropdownButtonFormField<String>(
+                        value: _selectedZone,
+                        decoration:
+                            const InputDecoration(labelText: 'Delivery Zone'),
+                        hint: const Text('Select zone'),
+                        isExpanded: true,
+                        items: _zones.map((z) => DropdownMenuItem(
+                              value: z.name,
+                              child: Text(z.name),
+                            )).toList(),
+                        onChanged: (v) =>
+                            setState(() => _selectedZone = v),
+                      ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _prefComm,
@@ -1356,6 +1551,225 @@ class _EditCustomerDialogState extends State<_EditCustomerDialog> {
           label: const Text('Save Changes'),
         ),
       ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Address Form Dialog (Add / Edit)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _AddressFormDialog extends StatefulWidget {
+  final int customerId;
+  final CustomerAddress? address;
+
+  const _AddressFormDialog({required this.customerId, this.address});
+
+  @override
+  State<_AddressFormDialog> createState() => _AddressFormDialogState();
+}
+
+class _AddressFormDialogState extends State<_AddressFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _repo = AdminRepository();
+  late TextEditingController _buildingCtrl;
+  late TextEditingController _flatCtrl;
+  late TextEditingController _floorCtrl;
+  late TextEditingController _streetCtrl;
+  late TextEditingController _cityCtrl;
+  late bool _isDefault;
+  bool _saving = false;
+  String? _error;
+
+  bool get _isEditing => widget.address != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _buildingCtrl = TextEditingController(text: widget.address?.buildingName ?? '');
+    _flatCtrl = TextEditingController(text: widget.address?.flatNumber ?? '');
+    _floorCtrl = TextEditingController(text: widget.address?.floorNumber ?? '');
+    _streetCtrl = TextEditingController(text: widget.address?.street ?? '');
+    _cityCtrl = TextEditingController(text: widget.address?.city ?? '');
+    _isDefault = widget.address?.isDefault ?? false;
+  }
+
+  @override
+  void dispose() {
+    _buildingCtrl.dispose();
+    _flatCtrl.dispose();
+    _floorCtrl.dispose();
+    _streetCtrl.dispose();
+    _cityCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      final data = {
+        'customer': widget.customerId,
+        'building_name': _buildingCtrl.text.trim(),
+        'flat_number': _flatCtrl.text.trim(),
+        'floor_number': _floorCtrl.text.trim(),
+        'street': _streetCtrl.text.trim(),
+        'city': _cityCtrl.text.trim(),
+        'is_default': _isDefault,
+      };
+
+      if (_isEditing) {
+        await _repo.updateAddress(widget.address!.id, data);
+      } else {
+        await _repo.createAddress(data);
+      }
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 12),
+              decoration: BoxDecoration(
+                  border:
+                      Border(bottom: BorderSide(color: Colors.grey.shade200))),
+              child: Row(children: [
+                Icon(_isEditing ? Icons.edit_location : Icons.add_location,
+                    size: 20, color: Colors.deepOrange),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Text(_isEditing ? 'Edit Address' : 'Add Address',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold))),
+                IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, size: 20)),
+              ]),
+            ),
+
+            // Body
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_error != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200)),
+                        child: Text(_error!,
+                            style: TextStyle(
+                                color: Colors.red.shade700, fontSize: 12)),
+                      ),
+                    Row(children: [
+                      Expanded(
+                          flex: 3,
+                          child: _buildField(
+                              _buildingCtrl, 'Building Name', Icons.apartment)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: _buildField(_floorCtrl, 'Floor', null,
+                              keyboard: TextInputType.number)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildField(_flatCtrl, 'Flat', null)),
+                    ]),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      Expanded(
+                          flex: 2,
+                          child: _buildField(
+                              _streetCtrl, 'Street / Area', Icons.signpost)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: _buildField(
+                              _cityCtrl, 'City', Icons.location_city)),
+                    ]),
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      value: _isDefault,
+                      onChanged: (v) =>
+                          setState(() => _isDefault = v ?? false),
+                      title: const Text('Set as default address',
+                          style: TextStyle(fontSize: 13)),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+              decoration: BoxDecoration(
+                  border:
+                      Border(top: BorderSide(color: Colors.grey.shade200))),
+              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(
+                    onPressed: _saving ? null : () => Navigator.pop(context),
+                    child: const Text('Cancel')),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: _saving ? null : _save,
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Icon(_isEditing ? Icons.check : Icons.add, size: 16),
+                  label: Text(_isEditing ? 'Save Address' : 'Add Address'),
+                ),
+              ]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController ctrl, String label, IconData? icon,
+      {TextInputType? keyboard}) {
+    return TextFormField(
+      controller: ctrl,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: icon != null ? Icon(icon, size: 18) : null,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300)),
+        isDense: true,
+        contentPadding: EdgeInsets.fromLTRB(icon != null ? 0 : 12, 10, 10, 10),
+      ),
+      keyboardType: keyboard,
+      style: const TextStyle(fontSize: 13),
     );
   }
 }

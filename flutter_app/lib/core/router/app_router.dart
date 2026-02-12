@@ -11,6 +11,7 @@ import '../../features/admin/presentation/delivery_screen.dart';
 import '../../features/admin/presentation/customers_screen.dart';
 import '../../features/admin/presentation/finance_screen.dart';
 import '../../features/admin/presentation/staff_screen.dart';
+import '../../features/admin/presentation/subscriptions_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/auth/presentation/tenant_login_screen.dart';
 import '../../features/auth/presentation/user_login_screen.dart';
@@ -114,6 +115,12 @@ GoRouter buildRouter(AuthProvider authProvider) {
             path: '/finance',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: FinanceScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/subscriptions',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SubscriptionsScreen(),
             ),
           ),
           GoRoute(

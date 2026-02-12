@@ -122,6 +122,39 @@ class AdminRepository {
     return CustomerItem.fromJson(response.data);
   }
 
+  // ─── Customer Addresses ──────────────────────────────────────────────────
+
+  Future<CustomerAddress> createAddress(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}customer-addresses/',
+        data: data,
+      );
+      return CustomerAddress.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<CustomerAddress> updateAddress(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.patch(
+        '${base}customer-addresses/$id/',
+        data: data,
+      );
+      return CustomerAddress.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<void> deleteAddress(int id) async {
+    final base = await _baseUrl();
+    await _apiClient.dio.delete('${base}customer-addresses/$id/');
+  }
+
   Future<Map<String, dynamic>> approveRegistration(int id) async {
     final base = await _baseUrl();
     final response = await _apiClient.dio.post(
@@ -426,6 +459,112 @@ class AdminRepository {
     final base = await _baseUrl();
     final response = await _apiClient.dio.get('${base}meal-slots/');
     return _parseList(response.data, MealSlot.fromJson);
+  }
+
+  // ─── Subscriptions (Admin) ────────────────────────────────────────────────
+
+  Future<List<SubscriptionItem>> getSubscriptions({String? status}) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (status != null && status.isNotEmpty) params['status'] = status;
+    final response = await _apiClient.dio.get(
+      '${base}subscriptions-admin/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, SubscriptionItem.fromJson);
+  }
+
+  Future<SubscriptionItem> getSubscription(int id) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}subscriptions-admin/$id/');
+    return SubscriptionItem.fromJson(response.data);
+  }
+
+  Future<SubscriptionItem> createSubscription(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}subscriptions-admin/',
+        data: data,
+      );
+      return SubscriptionItem.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<SubscriptionItem> updateSubscription(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.patch(
+        '${base}subscriptions-admin/$id/',
+        data: data,
+      );
+      return SubscriptionItem.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<SubscriptionItem> activateSubscription(int id) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}subscriptions-admin/$id/activate/',
+      );
+      return SubscriptionItem.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<SubscriptionItem> pauseSubscription(int id) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}subscriptions-admin/$id/pause/',
+      );
+      return SubscriptionItem.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<SubscriptionItem> cancelSubscription(int id) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}subscriptions-admin/$id/cancel/',
+      );
+      return SubscriptionItem.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<Map<String, dynamic>> generateOrders(int subscriptionId) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}subscriptions-admin/$subscriptionId/generate_orders/',
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  /// Fetch time slots for subscription forms.
+  Future<List<Map<String, dynamic>>> getTimeSlots() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}meal-slots/');
+    if (response.data is Map && response.data['results'] != null) {
+      return (response.data['results'] as List).cast<Map<String, dynamic>>();
+    }
+    if (response.data is List) {
+      return (response.data as List).cast<Map<String, dynamic>>();
+    }
+    return [];
   }
 
   // ─── Daily Menus ─────────────────────────────────────────────────────────

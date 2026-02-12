@@ -9,6 +9,7 @@ from apps.main.models import (
     Order, Subscription, CustomerProfile, Invoice, InvoiceItem,
     Notification, CustomerRegistrationRequest, Category, Address,
     MealSlot, DailyMenu, DailyMenuItem, MenuItem, MealPackage,
+    Menu, TimeSlot,
 )
 
 
@@ -523,3 +524,117 @@ class MealPackageSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+
+# ─── Subscriptions (admin) ─────────────────────────────────────────────────
+
+class _TimeSlotBrief(serializers.ModelSerializer):
+    class Meta:
+        model = TimeSlot
+        fields = ['id', 'name', 'time', 'start_time', 'end_time']
+
+
+class _AddressBrief(serializers.ModelSerializer):
+    class Meta:
+        model = Address
+        fields = ['id', 'building_name', 'flat_number', 'floor_number', 'street', 'city']
+
+
+class SubscriptionAdminListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for list views."""
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    customer_phone = serializers.CharField(source='customer.phone', read_only=True)
+    customer_id = serializers.IntegerField(source='customer.id', read_only=True)
+    time_slot_name = serializers.CharField(source='time_slot.name', read_only=True, default='')
+    order_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = Subscription
+        fields = [
+            'id', 'customer_id', 'customer_name', 'customer_phone',
+            'status', 'start_date', 'end_date',
+            'time_slot', 'time_slot_name', 'selected_days',
+            'payment_mode', 'cost_per_meal', 'total_cost',
+            'dietary_preferences', 'order_count',
+            'created_at',
+        ]
+        read_only_fields = ['cost_per_meal', 'total_cost', 'created_at']
+
+
+class SubscriptionAdminDetailSerializer(serializers.ModelSerializer):
+    """Full detail serializer with nested objects."""
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    customer_phone = serializers.CharField(source='customer.phone', read_only=True)
+    customer_id = serializers.IntegerField(source='customer.id', read_only=True)
+    time_slot_details = _TimeSlotBrief(source='time_slot', read_only=True)
+    lunch_address_details = _AddressBrief(source='lunch_address', read_only=True)
+    dinner_address_details = _AddressBrief(source='dinner_address', read_only=True)
+    order_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Subscription
+        fields = [
+            'id', 'customer', 'customer_id', 'customer_name', 'customer_phone',
+            'status', 'start_date', 'end_date',
+            'time_slot', 'time_slot_details',
+            'lunch_address', 'lunch_address_details',
+            'dinner_address', 'dinner_address_details',
+            'selected_days', 'payment_mode',
+            'want_notifications', 'dietary_preferences', 'special_instructions',
+            'cost_per_meal', 'total_cost',
+            'created_at',
+        ]
+        read_only_fields = ['cost_per_meal', 'total_cost', 'created_at']
+
+    def get_order_count(self, obj):
+        return obj.order_set.count()
+
+
+class SubscriptionAdminCreateSerializer(serializers.ModelSerializer):
+    """Create / update subscriptions from admin side."""
+
+    class Meta:
+        model = Subscription
+        fields = [
+            'customer', 'status', 'start_date', 'end_date',
+            'time_slot', 'lunch_address', 'dinner_address',
+            'selected_days', 'payment_mode',
+            'want_notifications', 'dietary_preferences', 'special_instructions',
+        ]
+
+    def validate(self, attrs):
+        start = attrs.get('start_date')
+        end = attrs.get('end_date')
+        if start and end and start > end:
+            raise serializers.ValidationError(
+                {'end_date': 'End date must be after start date.'}
+            )
+        selected_days = attrs.get('selected_days', [])
+        if not selected_days:
+            raise serializers.ValidationError(
+                {'selected_days': 'At least one delivery day must be selected.'}
+            )
+        return attrs
+
+    def create(self, validated_data):
+        from django.db import models as db_models
+        instance = Subscription(**validated_data)
+        instance.calculate_total_cost()
+        # Bypass Subscription.save() which calls full_clean (too strict for admin)
+        db_models.Model.save(instance)
+        if instance.status == 'active':
+            instance.update_delivery_schedule()
+        return instance
+
+    def update(self, instance, validated_data):
+        from django.db import models as db_models
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.calculate_total_cost()
+        db_models.Model.save(instance)
+        if instance.status == 'active':
+            instance.update_delivery_schedule()
+        return instance
+
+    def to_representation(self, instance):
+        return SubscriptionAdminDetailSerializer(instance, context=self.context).data

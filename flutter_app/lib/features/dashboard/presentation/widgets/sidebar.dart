@@ -56,6 +56,12 @@ class Sidebar extends StatelessWidget {
                   isSelected: currentRoute == '/orders',
                 ),
                 _SidebarItem(
+                  icon: Icons.card_membership_rounded,
+                  label: 'Subscriptions',
+                  route: '/subscriptions',
+                  isSelected: currentRoute == '/subscriptions',
+                ),
+                _SidebarItem(
                   icon: Icons.menu_book_rounded,
                   label: 'Menu',
                   route: '/menu',

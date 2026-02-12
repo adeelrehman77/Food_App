@@ -235,6 +235,18 @@ class CustomerAddress {
     if (city != null && city!.isNotEmpty) parts.add(city!);
     return parts.isEmpty ? '—' : parts.join(', ');
   }
+
+  Map<String, dynamic> toJson({int? forCustomerId}) {
+    return {
+      if (forCustomerId != null) 'customer': forCustomerId,
+      'building_name': buildingName ?? '',
+      'flat_number': flatNumber ?? '',
+      'floor_number': floorNumber ?? '',
+      'street': street ?? '',
+      'city': city ?? '',
+      'is_default': isDefault,
+    };
+  }
 }
 
 // ─── Customer ───────────────────────────────────────────────────────────────
@@ -835,6 +847,91 @@ class MealSlot {
       cutoffTime: json['cutoff_time'],
       sortOrder: json['sort_order'] ?? 0,
       isActive: json['is_active'] ?? true,
+      createdAt: json['created_at'],
+    );
+  }
+}
+
+// ─── Subscription ───────────────────────────────────────────────────────────
+
+class SubscriptionItem {
+  final int id;
+  final int customerId;
+  final String customerName;
+  final String? customerPhone;
+  final String status;
+  final String startDate;
+  final String endDate;
+  final int? timeSlot;
+  final String? timeSlotName;
+  final List<String> selectedDays;
+  final String paymentMode;
+  final double costPerMeal;
+  final double totalCost;
+  final String? dietaryPreferences;
+  final String? specialInstructions;
+  final bool wantNotifications;
+  final int? lunchAddress;
+  final int? dinnerAddress;
+  final Map<String, dynamic>? lunchAddressDetails;
+  final Map<String, dynamic>? dinnerAddressDetails;
+  final Map<String, dynamic>? timeSlotDetails;
+  final int orderCount;
+  final String? createdAt;
+
+  SubscriptionItem({
+    required this.id,
+    required this.customerId,
+    required this.customerName,
+    this.customerPhone,
+    required this.status,
+    required this.startDate,
+    required this.endDate,
+    this.timeSlot,
+    this.timeSlotName,
+    this.selectedDays = const [],
+    this.paymentMode = 'wallet',
+    this.costPerMeal = 0,
+    this.totalCost = 0,
+    this.dietaryPreferences,
+    this.specialInstructions,
+    this.wantNotifications = true,
+    this.lunchAddress,
+    this.dinnerAddress,
+    this.lunchAddressDetails,
+    this.dinnerAddressDetails,
+    this.timeSlotDetails,
+    this.orderCount = 0,
+    this.createdAt,
+  });
+
+  factory SubscriptionItem.fromJson(Map<String, dynamic> json) {
+    return SubscriptionItem(
+      id: json['id'] ?? 0,
+      customerId: json['customer_id'] ?? json['customer'] ?? 0,
+      customerName: json['customer_name'] ?? '',
+      customerPhone: json['customer_phone'],
+      status: json['status'] ?? 'pending',
+      startDate: json['start_date'] ?? '',
+      endDate: json['end_date'] ?? '',
+      timeSlot: json['time_slot'],
+      timeSlotName: json['time_slot_name'],
+      selectedDays: (json['selected_days'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      paymentMode: json['payment_mode'] ?? 'wallet',
+      costPerMeal: double.tryParse('${json['cost_per_meal']}') ?? 0,
+      totalCost: double.tryParse('${json['total_cost']}') ?? 0,
+      dietaryPreferences: json['dietary_preferences'],
+      specialInstructions: json['special_instructions'],
+      wantNotifications: json['want_notifications'] ?? true,
+      lunchAddress: json['lunch_address'],
+      dinnerAddress: json['dinner_address'],
+      lunchAddressDetails: json['lunch_address_details'] as Map<String, dynamic>?,
+      dinnerAddressDetails: json['dinner_address_details'] as Map<String, dynamic>?,
+      timeSlotDetails: json['time_slot_details'] as Map<String, dynamic>?,
+      orderCount: json['order_count'] ?? 0,
       createdAt: json['created_at'],
     );
   }
