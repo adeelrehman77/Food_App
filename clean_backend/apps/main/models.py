@@ -142,10 +142,23 @@ class CustomerProfile(models.Model):
 
 
 class MenuItem(models.Model):
+    DIET_CHOICES = [
+        ('veg', 'Vegetarian'),
+        ('nonveg', 'Non-Vegetarian'),
+        ('both', 'Both / Neutral'),
+    ]
+
     name = models.CharField(max_length=200)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    diet_type = models.CharField(
+        max_length=10,
+        choices=DIET_CHOICES,
+        default='both',
+        db_index=True,
+        help_text="Classify as Veg, Non-Veg, or Both (neutral items served on either track)",
+    )
     image = models.ImageField(upload_to='menu/', blank=True, null=True)
     calories = models.PositiveIntegerField(default=0, help_text="Calorie count per serving")
     allergens = models.JSONField(default=list, blank=True, help_text="List of allergens, e.g. ['Gluten', 'Dairy']")
@@ -165,7 +178,7 @@ class MenuItem(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_diet_type_display()})"
 
 
 class Menu(models.Model):
@@ -192,10 +205,10 @@ class MealSlot(models.Model):
     Defines a meal time that the kitchen serves (e.g. Lunch, Dinner).
     Tenants can customise their own slots.
     """
-    name = models.CharField(max_length=50, help_text="e.g. Lunch, Dinner, Breakfast")
+    name = models.CharField(max_length=50, help_text="Tenant-defined meal slot name")
     code = models.SlugField(
         max_length=30,
-        help_text="URL-safe identifier, e.g. lunch, dinner",
+        help_text="URL-safe identifier for this meal slot",
     )
     cutoff_time = models.TimeField(
         null=True,
@@ -218,7 +231,8 @@ class MealSlot(models.Model):
 
 class DailyMenu(models.Model):
     """
-    A menu for a specific date + meal slot (e.g. "Feb 15 – Lunch").
+    A menu for a specific date + meal slot + diet type.
+    e.g. "Feb 15 – Lunch – Veg" and "Feb 15 – Lunch – Non-Veg" are separate menus.
     Status workflow: draft -> published -> closed.
     """
     STATUS_CHOICES = [
@@ -226,12 +240,23 @@ class DailyMenu(models.Model):
         ('published', 'Published'),
         ('closed', 'Closed'),
     ]
+    DIET_CHOICES = [
+        ('veg', 'Vegetarian'),
+        ('nonveg', 'Non-Vegetarian'),
+    ]
 
     menu_date = models.DateField(db_index=True)
     meal_slot = models.ForeignKey(
         MealSlot,
         on_delete=models.CASCADE,
         related_name='daily_menus',
+    )
+    diet_type = models.CharField(
+        max_length=10,
+        choices=DIET_CHOICES,
+        default='nonveg',
+        db_index=True,
+        help_text="Whether this is the Veg or Non-Veg menu for the slot",
     )
     status = models.CharField(
         max_length=12,
@@ -254,13 +279,13 @@ class DailyMenu(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['menu_date', 'meal_slot__sort_order']
-        unique_together = [('menu_date', 'meal_slot')]
+        ordering = ['menu_date', 'meal_slot__sort_order', 'diet_type']
+        unique_together = [('menu_date', 'meal_slot', 'diet_type')]
         verbose_name = 'Daily Menu'
         verbose_name_plural = 'Daily Menus'
 
     def __str__(self):
-        return f"{self.menu_date} — {self.meal_slot.name} ({self.status})"
+        return f"{self.menu_date} — {self.meal_slot.name} — {self.get_diet_type_display()} ({self.status})"
 
     @property
     def item_count(self):
@@ -293,7 +318,7 @@ class DailyMenuItem(models.Model):
     portion_label = models.CharField(
         max_length=50,
         blank=True,
-        help_text="e.g. Regular, Family Pack, Diet Portion",
+        help_text="Tenant-defined portion descriptor for this item",
     )
     sort_order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -312,6 +337,86 @@ class DailyMenuItem(models.Model):
         if self.override_price is not None:
             return self.override_price
         return self.master_item.price
+
+
+# ─── Meal Packages / Subscription Tiers ──────────────────────────────────────
+
+
+class MealPackage(models.Model):
+    """
+    Tenant-defined subscription tiers / meal packages.
+    Each tenant creates their own packages with custom names, pricing,
+    diet preferences, and durations — nothing is hardcoded.
+    """
+    DIET_CHOICES = [
+        ('veg', 'Vegetarian'),
+        ('nonveg', 'Non-Vegetarian'),
+        ('both', 'Both'),
+    ]
+    DURATION_CHOICES = [
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('custom', 'Custom'),
+    ]
+
+    name = models.CharField(
+        max_length=100,
+        help_text="Tenant-defined package tier name",
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Details about what is included in this package",
+    )
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Package price in the tenant's currency",
+    )
+    currency = models.CharField(
+        max_length=10,
+        default='',
+        blank=True,
+        help_text="Currency code (tenant sets their own, e.g. AED, USD, INR)",
+    )
+    diet_type = models.CharField(
+        max_length=10,
+        choices=DIET_CHOICES,
+        default='both',
+        db_index=True,
+        help_text="Which diet track this package covers",
+    )
+    duration = models.CharField(
+        max_length=10,
+        choices=DURATION_CHOICES,
+        default='monthly',
+        help_text="Billing cycle for this package",
+    )
+    duration_days = models.PositiveIntegerField(
+        default=30,
+        help_text="Number of days in this package cycle",
+    )
+    meals_per_day = models.PositiveIntegerField(
+        default=2,
+        help_text="Number of meal slots included per day",
+    )
+    portion_label = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Portion descriptor shown to customers",
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Meal Package'
+        verbose_name_plural = 'Meal Packages'
+
+    def __str__(self):
+        currency = self.currency or ''
+        return f"{self.name} — {self.get_diet_type_display()} — {currency} {self.price}".strip()
 
 
 class Address(models.Model):

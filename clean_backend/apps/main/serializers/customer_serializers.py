@@ -4,6 +4,7 @@ from apps.main.models import Subscription, WalletTransaction, Address, MenuItem,
 
 class MenuItemSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
+    diet_type_display = serializers.CharField(source='get_diet_type_display', read_only=True)
     inventory_item_id = serializers.PrimaryKeyRelatedField(
         source='inventory_item', read_only=True,
     )
@@ -13,6 +14,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'price', 'image',
             'calories', 'allergens', 'category_name',
+            'diet_type', 'diet_type_display',
             'is_available', 'inventory_item_id',
             'created_at', 'updated_at',
         ]

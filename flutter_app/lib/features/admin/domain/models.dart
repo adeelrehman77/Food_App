@@ -642,6 +642,8 @@ class DailyMenu {
   final int mealSlotId;
   final String mealSlotName;
   final String mealSlotCode;
+  final String dietType; // 'veg' or 'nonveg'
+  final String dietTypeDisplay;
   final String status;
   final int itemCount;
   final String notes;
@@ -655,6 +657,8 @@ class DailyMenu {
     required this.mealSlotId,
     required this.mealSlotName,
     required this.mealSlotCode,
+    this.dietType = 'nonveg',
+    this.dietTypeDisplay = 'Non-Vegetarian',
     required this.status,
     this.itemCount = 0,
     this.notes = '',
@@ -670,6 +674,8 @@ class DailyMenu {
       mealSlotId: json['meal_slot'] ?? 0,
       mealSlotName: json['meal_slot_name'] ?? '',
       mealSlotCode: json['meal_slot_code'] ?? '',
+      dietType: json['diet_type'] ?? 'nonveg',
+      dietTypeDisplay: json['diet_type_display'] ?? 'Non-Vegetarian',
       status: json['status'] ?? 'draft',
       itemCount: json['item_count'] ?? 0,
       notes: json['notes'] ?? '',
@@ -679,5 +685,82 @@ class DailyMenu {
       createdAt: json['created_at'],
       updatedAt: json['updated_at'],
     );
+  }
+}
+
+// ─── Meal Package (Subscription Tier) ───────────────────────────────────────
+
+class MealPackage {
+  final int id;
+  final String name;
+  final String description;
+  final double price;
+  final String currency;
+  final String dietType;
+  final String dietTypeDisplay;
+  final String duration;
+  final String durationDisplay;
+  final int durationDays;
+  final int mealsPerDay;
+  final String portionLabel;
+  final int sortOrder;
+  final bool isActive;
+  final String? createdAt;
+  final String? updatedAt;
+
+  MealPackage({
+    required this.id,
+    required this.name,
+    this.description = '',
+    required this.price,
+    this.currency = '',
+    this.dietType = 'both',
+    this.dietTypeDisplay = 'Both',
+    this.duration = 'monthly',
+    this.durationDisplay = 'Monthly',
+    this.durationDays = 30,
+    this.mealsPerDay = 2,
+    this.portionLabel = '',
+    this.sortOrder = 0,
+    this.isActive = true,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory MealPackage.fromJson(Map<String, dynamic> json) {
+    return MealPackage(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      price: double.tryParse('${json['price']}') ?? 0,
+      currency: json['currency'] ?? '',
+      dietType: json['diet_type'] ?? 'both',
+      dietTypeDisplay: json['diet_type_display'] ?? 'Both',
+      duration: json['duration'] ?? 'monthly',
+      durationDisplay: json['duration_display'] ?? 'Monthly',
+      durationDays: json['duration_days'] ?? 30,
+      mealsPerDay: json['meals_per_day'] ?? 2,
+      portionLabel: json['portion_label'] ?? '',
+      sortOrder: json['sort_order'] ?? 0,
+      isActive: json['is_active'] ?? true,
+      createdAt: json['created_at'],
+      updatedAt: json['updated_at'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'description': description,
+      'price': price.toStringAsFixed(2),
+      'currency': currency,
+      'diet_type': dietType,
+      'duration': duration,
+      'duration_days': durationDays,
+      'meals_per_day': mealsPerDay,
+      'portion_label': portionLabel,
+      'sort_order': sortOrder,
+      'is_active': isActive,
+    };
   }
 }

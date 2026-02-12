@@ -5,7 +5,7 @@ import '../domain/models.dart';
 import 'daily_menu_editor_dialog.dart';
 
 /// Weekly daily-menu planner.
-/// Displays a grid: rows = meal slots, columns = days of the week.
+/// Displays a grid: rows = meal slots x diet type, columns = days of the week.
 /// Each cell shows item count + status chip; tapping opens the editor dialog.
 class DailyPlannerScreen extends StatefulWidget {
   const DailyPlannerScreen({super.key});
@@ -23,6 +23,15 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
   late DateTime _weekStart; // Monday
   List<MealSlot> _slots = [];
   List<DailyMenu> _menus = [];
+
+  // Diet type filter: null = show both, 'veg' or 'nonveg' = show only that
+  String? _dietFilter;
+
+  static const List<_DietOption> _dietOptions = [
+    _DietOption(value: null, label: 'All'),
+    _DietOption(value: 'veg', label: 'Veg'),
+    _DietOption(value: 'nonveg', label: 'Non-Veg'),
+  ];
 
   @override
   void initState() {
@@ -78,20 +87,25 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
     _load();
   }
 
-  DailyMenu? _findMenu(DateTime date, int slotId) {
+  DailyMenu? _findMenu(DateTime date, int slotId, String dietType) {
     final dateStr = DateFormat('yyyy-MM-dd').format(date);
     for (final m in _menus) {
-      if (m.menuDate == dateStr && m.mealSlotId == slotId) return m;
+      if (m.menuDate == dateStr && m.mealSlotId == slotId && m.dietType == dietType) {
+        return m;
+      }
     }
     return null;
   }
 
-  Future<void> _openEditor(DateTime date, MealSlot slot, DailyMenu? existing) async {
+  Future<void> _openEditor(
+    DateTime date, MealSlot slot, String dietType, DailyMenu? existing,
+  ) async {
     final changed = await showDialog<bool>(
       context: context,
       builder: (_) => DailyMenuEditorDialog(
         date: date,
         mealSlot: slot,
+        dietType: dietType,
         existingMenu: existing,
         repo: _repo,
       ),
@@ -149,6 +163,21 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
     }
   }
 
+  /// Rows to display: each row is a (MealSlot, dietType) combination.
+  List<_PlannerRow> _buildRows() {
+    final diets = _dietFilter != null
+        ? [_dietFilter!]
+        : ['veg', 'nonveg'];
+
+    final rows = <_PlannerRow>[];
+    for (final slot in _slots) {
+      for (final diet in diets) {
+        rows.add(_PlannerRow(slot: slot, dietType: diet));
+      }
+    }
+    return rows;
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -158,7 +187,9 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
       child: Column(
         children: [
           _buildHeader(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          _buildDietFilter(),
+          const SizedBox(height: 12),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -205,6 +236,41 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
     );
   }
 
+  Widget _buildDietFilter() {
+    return Row(
+      children: [
+        const Icon(Icons.filter_list, size: 18),
+        const SizedBox(width: 8),
+        const Text('Menu Track:', style: TextStyle(fontWeight: FontWeight.w500)),
+        const SizedBox(width: 8),
+        ...List.generate(_dietOptions.length, (i) {
+          final opt = _dietOptions[i];
+          final isSelected = _dietFilter == opt.value;
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: ChoiceChip(
+              label: Text(opt.label),
+              selected: isSelected,
+              onSelected: (_) {
+                setState(() => _dietFilter = opt.value);
+              },
+              selectedColor: opt.value == 'veg'
+                  ? Colors.green.shade100
+                  : opt.value == 'nonveg'
+                      ? Colors.red.shade100
+                      : Theme.of(context).colorScheme.primaryContainer,
+              labelStyle: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              visualDensity: VisualDensity.compact,
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
@@ -240,6 +306,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
     final todayStr = DateFormat('yyyy-MM-dd').format(today);
     final dayFmt = DateFormat('EEE');
     final dateFmt = DateFormat('MMM d');
+    final rows = _buildRows();
 
     return SingleChildScrollView(
       child: Table(
@@ -249,7 +316,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
         ),
         defaultVerticalAlignment: TableCellVerticalAlignment.top,
         columnWidths: {
-          0: const FixedColumnWidth(90), // slot label column
+          0: const FixedColumnWidth(110), // slot + diet label column
           for (int i = 1; i <= 7; i++) i: const FlexColumnWidth(),
         },
         children: [
@@ -267,13 +334,14 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
                 ),
             ],
           ),
-          // ── One row per meal slot ──
-          for (final slot in _slots)
+          // ── One row per (meal slot, diet type) ──
+          for (final row in rows)
             TableRow(
               children: [
-                _slotLabel(slot),
+                _slotDietLabel(row),
                 for (final d in days)
-                  _menuCell(d, slot, _findMenu(d, slot.id)),
+                  _menuCell(d, row.slot, row.dietType,
+                      _findMenu(d, row.slot.id, row.dietType)),
               ],
             ),
         ],
@@ -296,17 +364,53 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
     );
   }
 
-  Widget _slotLabel(MealSlot slot) {
+  Widget _slotDietLabel(_PlannerRow row) {
+    final isVeg = row.dietType == 'veg';
+    final dietColor = isVeg ? Colors.green : Colors.red.shade700;
+    final dietLabel = isVeg ? 'Veg' : 'Non-Veg';
+
     return Padding(
-      padding: const EdgeInsets.all(10),
-      child: Text(
-        slot.name,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            row.slot.name,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+          const SizedBox(height: 3),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: dietColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isVeg ? Icons.eco : Icons.restaurant,
+                  size: 11,
+                  color: dietColor,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  dietLabel,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: dietColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _menuCell(DateTime date, MealSlot slot, DailyMenu? menu) {
+  Widget _menuCell(DateTime date, MealSlot slot, String dietType, DailyMenu? menu) {
     final Color bg;
     final String label;
     final Color labelColor;
@@ -338,7 +442,7 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
     }
 
     return InkWell(
-      onTap: () => _openEditor(date, slot, menu),
+      onTap: () => _openEditor(date, slot, dietType, menu),
       child: Container(
         constraints: const BoxConstraints(minHeight: 80),
         color: bg,
@@ -431,4 +535,18 @@ class _DailyPlannerScreenState extends State<DailyPlannerScreen> {
       ),
     );
   }
+}
+
+// ── Helper types ────────────────────────────────────────────────────────────
+
+class _PlannerRow {
+  final MealSlot slot;
+  final String dietType;
+  const _PlannerRow({required this.slot, required this.dietType});
+}
+
+class _DietOption {
+  final String? value;
+  final String label;
+  const _DietOption({required this.value, required this.label});
 }

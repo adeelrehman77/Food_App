@@ -17,6 +17,8 @@ class _AddItemModalState extends State<AddItemModal> {
   final _priceController = TextEditingController();
   final _caloriesController = TextEditingController();
   
+  String _dietType = 'both';
+
   // Mock Allergens
   final List<String> _availableAllergens = ['Gluten', 'Dairy', 'Nuts', 'Soy', 'Eggs'];
   final List<String> _selectedAllergens = [];
@@ -47,6 +49,7 @@ class _AddItemModalState extends State<AddItemModal> {
         basePrice: double.parse(_priceController.text),
         calories: int.parse(_caloriesController.text),
         allergens: _selectedAllergens,
+        dietType: _dietType,
         isActive: true,
         inventoryItemId: _selectedInventoryItem,
       );
@@ -115,8 +118,25 @@ class _AddItemModalState extends State<AddItemModal> {
                        const SizedBox(width: 16),
                        Expanded(
                          child: DropdownButtonFormField<String>(
+                           value: _dietType,
+                           decoration: const InputDecoration(labelText: 'Diet Type', border: OutlineInputBorder()),
+                           items: const [
+                             DropdownMenuItem(value: 'veg', child: Text('Vegetarian')),
+                             DropdownMenuItem(value: 'nonveg', child: Text('Non-Vegetarian')),
+                             DropdownMenuItem(value: 'both', child: Text('Both / Neutral')),
+                           ],
+                           onChanged: (val) => setState(() => _dietType = val ?? 'both'),
+                         ),
+                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                       Expanded(
+                         child: DropdownButtonFormField<String>(
                            decoration: const InputDecoration(labelText: 'Link Inventory Item', border: OutlineInputBorder()),
-                           initialValue: _selectedInventoryItem,
+                           value: _selectedInventoryItem,
                            items: _inventoryItems.map((item) {
                              return DropdownMenuItem(value: item['id'], child: Text(item['name']!));
                            }).toList(),

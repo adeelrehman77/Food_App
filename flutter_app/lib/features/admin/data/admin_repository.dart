@@ -354,4 +354,48 @@ class AdminRepository {
       throw Exception(_extractError(e));
     }
   }
+
+  // ─── Meal Packages ─────────────────────────────────────────────────────────
+
+  Future<List<MealPackage>> getMealPackages({String? dietType}) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (dietType != null && dietType.isNotEmpty) params['diet_type'] = dietType;
+    final response = await _apiClient.dio.get(
+      '${base}meal-packages/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, MealPackage.fromJson);
+  }
+
+  Future<MealPackage> createMealPackage(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}meal-packages/',
+        data: data,
+      );
+      return MealPackage.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<MealPackage> updateMealPackage(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.patch(
+        '${base}meal-packages/$id/',
+        data: data,
+      );
+      return MealPackage.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<void> deleteMealPackage(int id) async {
+    final base = await _baseUrl();
+    await _apiClient.dio.delete('${base}meal-packages/$id/');
+  }
 }

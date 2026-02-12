@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from apps.main.models import (
     Order, Subscription, CustomerProfile, Invoice, InvoiceItem,
     Notification, CustomerRegistrationRequest, Category,
-    MealSlot, DailyMenu, DailyMenuItem, MenuItem,
+    MealSlot, DailyMenu, DailyMenuItem, MenuItem, MealPackage,
 )
 
 
@@ -234,13 +234,15 @@ class DailyMenuListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list / calendar views."""
     meal_slot_name = serializers.CharField(source='meal_slot.name', read_only=True)
     meal_slot_code = serializers.CharField(source='meal_slot.code', read_only=True)
+    diet_type_display = serializers.CharField(source='get_diet_type_display', read_only=True)
     item_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = DailyMenu
         fields = [
             'id', 'menu_date', 'meal_slot', 'meal_slot_name',
-            'meal_slot_code', 'status', 'item_count', 'notes',
+            'meal_slot_code', 'diet_type', 'diet_type_display',
+            'status', 'item_count', 'notes',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -250,6 +252,7 @@ class DailyMenuDetailSerializer(serializers.ModelSerializer):
     """Full serializer with nested items for detail view / editing."""
     meal_slot_name = serializers.CharField(source='meal_slot.name', read_only=True)
     meal_slot_code = serializers.CharField(source='meal_slot.code', read_only=True)
+    diet_type_display = serializers.CharField(source='get_diet_type_display', read_only=True)
     items = DailyMenuItemReadSerializer(many=True, read_only=True)
     item_count = serializers.IntegerField(read_only=True)
 
@@ -257,7 +260,8 @@ class DailyMenuDetailSerializer(serializers.ModelSerializer):
         model = DailyMenu
         fields = [
             'id', 'menu_date', 'meal_slot', 'meal_slot_name',
-            'meal_slot_code', 'status', 'notes',
+            'meal_slot_code', 'diet_type', 'diet_type_display',
+            'status', 'notes',
             'items', 'item_count',
             'created_by', 'created_at', 'updated_at',
         ]
@@ -270,10 +274,11 @@ class DailyMenuCreateSerializer(serializers.ModelSerializer):
     {
       "menu_date": "2026-02-15",
       "meal_slot": 1,
+      "diet_type": "veg",
       "notes": "",
       "items": [
-        {"master_item": 3, "override_price": null, "portion_label": "Regular"},
-        {"master_item": 7, "override_price": "12.50", "portion_label": "Family Pack"}
+        {"master_item": 3, "override_price": null, "portion_label": ""},
+        {"master_item": 7, "override_price": "12.50", "portion_label": ""}
       ]
     }
     """
@@ -281,18 +286,22 @@ class DailyMenuCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DailyMenu
-        fields = ['id', 'menu_date', 'meal_slot', 'notes', 'items']
+        fields = ['id', 'menu_date', 'meal_slot', 'diet_type', 'notes', 'items']
 
     def validate(self, attrs):
         menu_date = attrs.get('menu_date')
         meal_slot = attrs.get('meal_slot')
+        diet_type = attrs.get('diet_type', 'nonveg')
         instance = self.instance
 
-        # On create, check uniqueness
+        # On create, check uniqueness (date + slot + diet_type)
         if not instance:
-            if DailyMenu.objects.filter(menu_date=menu_date, meal_slot=meal_slot).exists():
+            if DailyMenu.objects.filter(
+                menu_date=menu_date, meal_slot=meal_slot, diet_type=diet_type,
+            ).exists():
+                diet_label = dict(DailyMenu.DIET_CHOICES).get(diet_type, diet_type)
                 raise serializers.ValidationError(
-                    f"A daily menu for {menu_date} / {meal_slot.name} already exists."
+                    f"A {diet_label} daily menu for {menu_date} / {meal_slot.name} already exists."
                 )
         return attrs
 
@@ -324,3 +333,22 @@ class DailyMenuCreateSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """Return full detail representation after write."""
         return DailyMenuDetailSerializer(instance, context=self.context).data
+
+
+# ─── Meal Packages ─────────────────────────────────────────────────────────
+
+class MealPackageSerializer(serializers.ModelSerializer):
+    diet_type_display = serializers.CharField(source='get_diet_type_display', read_only=True)
+    duration_display = serializers.CharField(source='get_duration_display', read_only=True)
+
+    class Meta:
+        model = MealPackage
+        fields = [
+            'id', 'name', 'description', 'price', 'currency',
+            'diet_type', 'diet_type_display',
+            'duration', 'duration_display', 'duration_days',
+            'meals_per_day', 'portion_label',
+            'sort_order', 'is_active',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']

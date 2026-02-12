@@ -5,12 +5,13 @@ import '../domain/models.dart';
 import '../../menu/data/menu_repository.dart';
 import '../../menu/domain/food_item.dart';
 
-/// Dialog for creating / editing a daily menu for a specific date + meal slot.
+/// Dialog for creating / editing a daily menu for a specific date + meal slot + diet type.
 /// Users pick items from the master library, set optional price overrides
 /// and portion labels, then save as draft or publish.
 class DailyMenuEditorDialog extends StatefulWidget {
   final DateTime date;
   final MealSlot mealSlot;
+  final String dietType; // 'veg' or 'nonveg'
   final DailyMenu? existingMenu;
   final AdminRepository repo;
 
@@ -18,6 +19,7 @@ class DailyMenuEditorDialog extends StatefulWidget {
     super.key,
     required this.date,
     required this.mealSlot,
+    required this.dietType,
     this.existingMenu,
     required this.repo,
   });
@@ -59,7 +61,7 @@ class _DailyMenuEditorDialogState extends State<DailyMenuEditorDialog> {
       if (mounted) {
         setState(() {
           _masterItems = items;
-          _filteredMaster = items;
+          _filteredMaster = _filterByDiet(items);
           _loadingMaster = false;
 
           // Pre-fill selected items from existing menu
@@ -86,18 +88,26 @@ class _DailyMenuEditorDialogState extends State<DailyMenuEditorDialog> {
     }
   }
 
+  /// Filter master items by search text AND diet type.
+  /// Items with diet_type 'both' are shown on either track.
+  List<FoodItem> _filterByDiet(List<FoodItem> items) {
+    return items.where((i) {
+      return i.dietType == widget.dietType || i.dietType == 'both';
+    }).toList();
+  }
+
   void _filterMaster(String query) {
     setState(() {
-      if (query.isEmpty) {
-        _filteredMaster = _masterItems;
-      } else {
+      var items = _filterByDiet(_masterItems);
+      if (query.isNotEmpty) {
         final q = query.toLowerCase();
-        _filteredMaster = _masterItems
+        items = items
             .where((i) =>
                 i.name.toLowerCase().contains(q) ||
                 (i.categoryName ?? '').toLowerCase().contains(q))
             .toList();
       }
+      _filteredMaster = items;
     });
   }
 
@@ -151,6 +161,7 @@ class _DailyMenuEditorDialogState extends State<DailyMenuEditorDialog> {
     final data = <String, dynamic>{
       'menu_date': DateFormat('yyyy-MM-dd').format(widget.date),
       'meal_slot': widget.mealSlot.id,
+      'diet_type': widget.dietType,
       'notes': _notesCtrl.text,
       'items': items,
     };
@@ -238,7 +249,7 @@ class _DailyMenuEditorDialogState extends State<DailyMenuEditorDialog> {
                         Text(title, style: Theme.of(context).textTheme.titleLarge),
                         const SizedBox(height: 4),
                         Text(
-                          '${dateFmt.format(widget.date)} — ${widget.mealSlot.name}',
+                          '${dateFmt.format(widget.date)} — ${widget.mealSlot.name} — ${widget.dietType == 'veg' ? 'Vegetarian' : 'Non-Vegetarian'}',
                           style: TextStyle(color: Colors.grey[600], fontSize: 14),
                         ),
                         if (widget.existingMenu != null)

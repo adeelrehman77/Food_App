@@ -19,6 +19,7 @@ router.register(r'staff', views.StaffUserViewSet, basename='staff')
 # Daily rotating menu endpoints
 router.register(r'meal-slots', views.MealSlotViewSet, basename='meal-slot')
 router.register(r'daily-menus', views.DailyMenuViewSet, basename='daily-menu')
+router.register(r'meal-packages', views.MealPackageViewSet, basename='meal-package')
 
 # Customer-facing endpoints (read-only for now)
 router.register(r'subscriptions', views.SubscriptionViewSet, basename='subscription')

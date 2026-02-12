@@ -82,26 +82,32 @@ class FoodItemCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
+                  // Diet type badge
+                  _DietBadge(dietType: item.dietType),
+                  const SizedBox(height: 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Active/Inactive Badge/Toggle
-                      Row(
-                        children: [
-                          Switch(
-                            value: item.isActive,
-                            onChanged: onToggleActive,
-                            activeThumbColor: Colors.green,
-                          ),
-                          Text(
-                            item.isActive ? 'Active' : 'Inactive',
-                            style: TextStyle(
-                              color: item.isActive ? Colors.green : Colors.grey,
-                              fontSize: 12,
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Switch(
+                              value: item.isActive,
+                              onChanged: onToggleActive,
+                              activeThumbColor: Colors.green,
                             ),
-                          ),
-                        ],
+                            Text(
+                              item.isActive ? 'Active' : 'Inactive',
+                              style: TextStyle(
+                                color: item.isActive ? Colors.green : Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       if (item.allergens.isNotEmpty)
                         Tooltip(
@@ -115,6 +121,51 @@ class FoodItemCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DietBadge extends StatelessWidget {
+  final String dietType;
+  const _DietBadge({required this.dietType});
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color;
+    final String label;
+    final IconData icon;
+    switch (dietType) {
+      case 'veg':
+        color = Colors.green;
+        label = 'Veg';
+        icon = Icons.eco;
+      case 'nonveg':
+        color = Colors.red.shade700;
+        label = 'Non-Veg';
+        icon = Icons.restaurant;
+      default:
+        color = Colors.blue;
+        label = 'Both';
+        icon = Icons.all_inclusive;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

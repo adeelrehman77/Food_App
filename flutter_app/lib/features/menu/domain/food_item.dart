@@ -14,6 +14,8 @@ class FoodItem extends Equatable {
   final List<String> allergens;
   final bool isActive;
   final String? categoryName;
+  final String dietType; // 'veg', 'nonveg', or 'both'
+  final String? dietTypeDisplay;
   final String? inventoryItemId;
   final String? imageUrl;
 
@@ -26,6 +28,8 @@ class FoodItem extends Equatable {
     required this.allergens,
     required this.isActive,
     this.categoryName,
+    this.dietType = 'both',
+    this.dietTypeDisplay,
     this.inventoryItemId,
     this.imageUrl,
   });
@@ -45,6 +49,8 @@ class FoodItem extends Equatable {
           : <String>[],
       isActive: json['is_available'] ?? true,
       categoryName: json['category_name'],
+      dietType: json['diet_type'] ?? 'both',
+      dietTypeDisplay: json['diet_type_display'],
       inventoryItemId: json['inventory_item_id']?.toString(),
       imageUrl: json['image'],
     );
@@ -58,6 +64,7 @@ class FoodItem extends Equatable {
       'price': basePrice.toStringAsFixed(2),
       'calories': calories,
       'allergens': allergens,
+      'diet_type': dietType,
       'is_available': isActive,
       if (inventoryItemId != null) 'inventory_item': inventoryItemId,
     };
@@ -72,6 +79,8 @@ class FoodItem extends Equatable {
     List<String>? allergens,
     bool? isActive,
     String? categoryName,
+    String? dietType,
+    String? dietTypeDisplay,
     String? inventoryItemId,
     String? imageUrl,
   }) {
@@ -84,6 +93,8 @@ class FoodItem extends Equatable {
       allergens: allergens ?? this.allergens,
       isActive: isActive ?? this.isActive,
       categoryName: categoryName ?? this.categoryName,
+      dietType: dietType ?? this.dietType,
+      dietTypeDisplay: dietTypeDisplay ?? this.dietTypeDisplay,
       inventoryItemId: inventoryItemId ?? this.inventoryItemId,
       imageUrl: imageUrl ?? this.imageUrl,
     );
@@ -99,6 +110,7 @@ class FoodItem extends Equatable {
         allergens,
         isActive,
         categoryName,
+        dietType,
         inventoryItemId,
         imageUrl,
       ];

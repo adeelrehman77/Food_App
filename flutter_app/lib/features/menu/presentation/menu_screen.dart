@@ -4,10 +4,12 @@ import '../domain/food_item.dart';
 import 'widgets/food_item_card.dart';
 import 'widgets/add_item_modal.dart';
 import '../../admin/presentation/daily_planner_screen.dart';
+import '../../admin/presentation/meal_packages_screen.dart';
 
-/// Menu screen with two tabs:
-///  1. Master Items – the existing reusable food item library
-///  2. Daily Planner – weekly calendar view for daily rotating menus
+/// Menu screen with three tabs:
+///  1. Master Items – the reusable food item library
+///  2. Daily Planner – weekly calendar view for daily rotating menus (Veg + Non-Veg)
+///  3. Packages – tenant-defined subscription tiers with pricing
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
 
@@ -22,7 +24,7 @@ class _MenuScreenState extends State<MenuScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -47,6 +49,7 @@ class _MenuScreenState extends State<MenuScreen>
             tabs: const [
               Tab(icon: Icon(Icons.restaurant_menu), text: 'Master Items'),
               Tab(icon: Icon(Icons.calendar_month), text: 'Daily Planner'),
+              Tab(icon: Icon(Icons.card_giftcard), text: 'Packages'),
             ],
           ),
         ),
@@ -57,6 +60,7 @@ class _MenuScreenState extends State<MenuScreen>
             children: const [
               _MasterItemsTab(),
               DailyPlannerScreen(),
+              MealPackagesScreen(),
             ],
           ),
         ),

@@ -15,7 +15,7 @@ from django.utils import timezone
 from apps.main.models import (
     Order, CustomerProfile, Invoice, Notification,
     CustomerRegistrationRequest, Category, Subscription,
-    MealSlot, DailyMenu,
+    MealSlot, DailyMenu, MealPackage,
 )
 from apps.main.serializers.admin_serializers import (
     OrderListSerializer, OrderDetailSerializer, OrderStatusUpdateSerializer,
@@ -24,6 +24,7 @@ from apps.main.serializers.admin_serializers import (
     StaffUserSerializer, StaffUserCreateSerializer,
     MealSlotSerializer,
     DailyMenuListSerializer, DailyMenuDetailSerializer, DailyMenuCreateSerializer,
+    MealPackageSerializer,
 )
 from apps.users.models import UserProfile
 from core.permissions.plan_limits import PlanLimitStaffUsers
@@ -427,6 +428,7 @@ class DailyMenuViewSet(viewsets.ModelViewSet):
         date_to = self.request.query_params.get('date_to')
         meal_slot = self.request.query_params.get('meal_slot')
         menu_status = self.request.query_params.get('status')
+        diet_type = self.request.query_params.get('diet_type')
 
         if date_from:
             qs = qs.filter(menu_date__gte=date_from)
@@ -436,6 +438,8 @@ class DailyMenuViewSet(viewsets.ModelViewSet):
             qs = qs.filter(meal_slot_id=meal_slot)
         if menu_status:
             qs = qs.filter(status=menu_status)
+        if diet_type:
+            qs = qs.filter(diet_type=diet_type)
 
         return qs
 
@@ -525,3 +529,23 @@ class DailyMenuViewSet(viewsets.ModelViewSet):
             'week_end': end.isoformat(),
             'menus': serializer.data,
         })
+
+
+# ─── Meal Packages ────────────────────────────────────────────────────────────
+
+class MealPackageViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for tenant-defined meal packages / subscription tiers.
+    Tenants create their own package names, prices, and configurations.
+    """
+    queryset = MealPackage.objects.all()
+    serializer_class = MealPackageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    search_fields = ['name', 'description']
+    filterset_fields = ['diet_type', 'duration', 'is_active']
+    ordering = ['sort_order', 'name']
+
+    def get_permissions(self):
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [permissions.IsAdminUser()]
+        return [permissions.IsAuthenticated()]
