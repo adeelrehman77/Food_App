@@ -1,6 +1,6 @@
 # Fun Adventure Kitchen
 
-A multi-tenant food delivery and kitchen management platform. The system supports subscription-based meal delivery, kitchen operations (KDS), driver fleet management, inventory tracking, and a full admin dashboard — all with per-tenant data isolation.
+A multi-tenant food delivery and kitchen management SaaS platform. The system supports subscription-based meal delivery with daily rotating menus, kitchen operations (KDS), driver fleet management, inventory tracking, customer management, and full admin dashboards — all with per-tenant database isolation.
 
 ---
 
@@ -14,9 +14,12 @@ A multi-tenant food delivery and kitchen management platform. The system support
   - [API Endpoints](#api-endpoints)
   - [Authentication](#authentication)
   - [Multi-Tenancy](#multi-tenancy)
+  - [Management Commands](#management-commands)
   - [Backend Setup](#backend-setup)
-- [Frontend (Flutter Admin Dashboard)](#frontend-flutter-admin-dashboard)
-  - [Features](#features)
+- [Frontend (Flutter)](#frontend-flutter)
+  - [Layer 1 — SaaS Owner Dashboard](#layer-1--saas-owner-dashboard)
+  - [Layer 2 — Tenant Admin Dashboard](#layer-2--tenant-admin-dashboard)
+  - [Layer 3 — Customer App (Planned)](#layer-3--customer-app-planned)
   - [App Architecture](#app-architecture)
   - [Frontend Setup](#frontend-setup)
 - [Docker Deployment](#docker-deployment)
@@ -39,7 +42,8 @@ A multi-tenant food delivery and kitchen management platform. The system support
 ├─────────────────────────────────────────────────────────────────────┤
 │                    LAYER 2: Tenant Admin (Kitchen Staff)             │
 │  /api/v1/*  — Staff JWT + X-Tenant-Slug header                      │
-│  Menu, Orders, Kitchen KDS, Inventory, Delivery, Staff, Finance     │
+│  Menu, Daily Menus, Meal Packages, Orders, Kitchen KDS, Inventory,  │
+│  Delivery, Staff, Customers, Addresses, Finance                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │                    LAYER 3: B2C Customer                             │
 │  /api/v1/customer/* — Customer JWT                                   │
@@ -53,19 +57,19 @@ A multi-tenant food delivery and kitchen management platform. The system support
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Nginx Reverse Proxy                         │
 │                     (SSL termination, static)                      │
-└─────────────┬──────────────────────────────────┬────────────────────┘
-              │                                  │
-              ▼                                  ▼
+└─────────────┬──────────────────────────────────────┬────────────────┘
+              │                                      │
+              ▼                                      ▼
 ┌──────────────────────────┐     ┌────────────────────────────────────┐
 │    Flutter Admin App     │     │     Django REST API (Gunicorn)     │
 │   (Web / macOS / iOS)    │────▶│   /api/v1/, /api/saas/,            │
 │                          │     │   /api/v1/customer/                │
-│  • Tenant Discovery      │     │                                    │
-│  • JWT Auth              │     │  ┌──────────┐  ┌───────────────┐  │
-│  • Dashboard (L2)        │     │  │  Celery   │  │ Celery Beat   │  │
-│  • Customer App (L3)     │     │  │  Worker   │  │ (Scheduler)   │  │
-│  • SaaS Admin (L1)       │     │  └─────┬────┘  └───────┬───────┘  │
-└──────────────────────────┘     └────────┼───────────────┼──────────┘
+│  • SaaS Admin (L1)       │     │                                    │
+│  • Tenant Dashboard (L2) │     │  ┌──────────┐  ┌───────────────┐  │
+│  • Customer App (L3)     │     │  │  Celery   │  │ Celery Beat   │  │
+│                          │     │  │  Worker   │  │ (Scheduler)   │  │
+└──────────────────────────┘     │  └─────┬────┘  └───────┬───────┘  │
+                                 └────────┼───────────────┼──────────┘
                                           │               │
                                  ┌────────▼───────────────▼──────────┐
                                  │        Redis 7 (Cache/Queue)      │
@@ -79,6 +83,25 @@ A multi-tenant food delivery and kitchen management platform. The system support
                                  └───────────────────────────────────┘
 ```
 
+### Multi-Tenant Database Isolation
+
+```
+TenantRouter
+├── SAAS_ONLY_APPS → always route to 'default' DB
+│   organizations, users, admin, sites, axes, django_apscheduler
+│
+└── ALL OTHER APPS → follow tenant context (thread-local DB alias)
+    auth, contenttypes, sessions, main, kitchen, delivery,
+    driver, inventory, account, authtoken
+
+Each tenant DB contains:
+  • auth_user (staff + customer users)
+  • main models (menus, orders, customers, addresses, wallet)
+  • kitchen, delivery, driver, inventory models
+  → No cross-database foreign keys
+  → Full data isolation per tenant
+```
+
 ---
 
 ## Tech Stack
@@ -87,8 +110,8 @@ A multi-tenant food delivery and kitchen management platform. The system support
 |--------------|-----------------------------------------------------------------------------|
 | **Backend**  | Python 3.11+, Django 4.2+, Django REST Framework, Celery, Django Channels   |
 | **Frontend** | Flutter (Dart 3.10+), Provider, GoRouter, Dio, Material Design 3            |
-| **Database** | PostgreSQL 15+ (production), SQLite (development fallback)                  |
-| **Cache**    | Redis 7+ (sessions, caching, Celery broker, Channels layer)                |
+| **Database** | PostgreSQL 15+ (per-tenant database isolation)                              |
+| **Cache**    | Redis 7+ (sessions, caching, Celery broker, Channels layer)               |
 | **Auth**     | JWT (SimpleJWT), API Keys, Session-based, django-axes brute-force protection|
 | **DevOps**   | Docker, Docker Compose, Nginx, Gunicorn, WhiteNoise                         |
 | **Docs**     | Swagger / OpenAPI (drf-yasg), ReDoc                                         |
@@ -101,9 +124,13 @@ A multi-tenant food delivery and kitchen management platform. The system support
 Food_App/
 ├── clean_backend/                 # Django REST API
 │   ├── apps/
-│   │   ├── main/                  # Core domain (menu, orders, subscriptions, wallet)
-│   │   ├── users/                 # Auth, tenants, user profiles
-│   │   ├── organizations/         # Tenant discovery, service plans
+│   │   ├── main/                  # Core domain (menu, daily menus, meal packages,
+│   │   │                          #   orders, subscriptions, customers, wallet,
+│   │   │                          #   invoicing, addresses, staff management)
+│   │   ├── users/                 # Tenant model, domain mapping, user profiles,
+│   │   │                          #   tenant discovery, setup_tenant_defaults signal
+│   │   ├── organizations/         # Service plans, SaaS models (subscriptions,
+│   │   │                          #   invoices, usage), management commands
 │   │   ├── kitchen/               # Kitchen Display System (KDS)
 │   │   ├── delivery/              # Delivery logistics
 │   │   ├── driver/                # Driver fleet management
@@ -115,8 +142,8 @@ Food_App/
 │   │   └── url_patterns/
 │   ├── core/
 │   │   ├── middleware/            # Security, tenant routing, performance monitoring
-│   │   ├── permissions/           # Custom DRF permissions
-│   │   ├── db/                    # Multi-database tenant router
+│   │   ├── permissions/           # Custom DRF permissions + plan-based limits
+│   │   ├── db/                    # Multi-database TenantRouter
 │   │   └── utils/                 # Validators and helpers
 │   ├── scripts/                   # Provisioning, migration, API key scripts
 │   ├── templates/                 # HTML templates
@@ -126,7 +153,7 @@ Food_App/
 │   ├── .env.example               # Environment variable reference
 │   └── manage.py
 │
-├── flutter_app/                   # Flutter Admin Dashboard
+├── flutter_app/                   # Flutter Multi-Dashboard Application
 │   ├── lib/
 │   │   ├── core/
 │   │   │   ├── config/            # AppConfig (environment URLs)
@@ -136,11 +163,14 @@ Food_App/
 │   │   │   └── theme/             # Material 3 theming
 │   │   ├── features/
 │   │   │   ├── auth/              # Login screens, AuthService
-│   │   │   ├── dashboard/         # Shell layout, header, sidebar
-│   │   │   └── menu/              # Menu CRUD (model, repository, screens)
+│   │   │   ├── dashboard/         # Tenant admin shell layout
+│   │   │   ├── admin/             # Tenant admin screens (all L2 features)
+│   │   │   ├── menu/              # Menu CRUD (model, repository, screens)
+│   │   │   └── saas_admin/        # SaaS owner dashboard (L1 features)
 │   │   └── main.dart              # App entry point
 │   └── pubspec.yaml
 │
+├── PLAN.md                        # Implementation plan and progress tracker
 └── README.md                      # ← You are here
 ```
 
@@ -152,9 +182,9 @@ Food_App/
 
 | App | Layer | Purpose |
 |-----|-------|---------|
-| `main` | L2 + L3 | Menu, orders, subscriptions, customers, wallet, invoicing, addresses, staff management, customer-facing APIs |
-| `users` | Shared | Tenant model, domain mapping, user profiles, tenant discovery |
-| `organizations` | L1 | Service plans, tenant subscriptions, tenant invoices, usage tracking, SaaS analytics |
+| `main` | L2 + L3 | Menu items, daily rotating menus, meal slots, meal packages, orders, subscriptions, customers, customer registration requests, wallet, invoicing, addresses, staff management, customer-facing APIs |
+| `users` | Shared | Tenant model, domain mapping, user profiles, tenant discovery, `setup_tenant_defaults` signal |
+| `organizations` | L1 | Service plans, tenant subscriptions, tenant invoices, usage tracking, SaaS analytics, provisioning management commands |
 | `kitchen` | L2 | Kitchen Display System (KDS) — order queue, claim, preparation tracking |
 | `delivery` | L2 | Delivery logistics and tracking |
 | `driver` | L2 | Zones, routes, schedules, driver profiles, delivery assignments, driver-facing APIs |
@@ -186,9 +216,16 @@ The API is organized into three layers matching the SaaS architecture:
 | `POST` | `/api/discover/` | Discover tenant by kitchen code |
 | `GET` | `/api/v1/health/` | Health check |
 | **Menu & Categories** | | |
-| `CRUD` | `/api/v1/menu-items/` | Menu item management |
+| `CRUD` | `/api/v1/menu-items/` | Menu item management (with diet_type, optional calories) |
 | `POST` | `/api/v1/menu-items/{id}/toggle_availability/` | Toggle availability |
-| `CRUD` | `/api/v1/categories/` | Category management |
+| `CRUD` | `/api/v1/categories/` | Category management (inline creation supported) |
+| **Daily Rotating Menus** | | |
+| `CRUD` | `/api/v1/meal-slots/` | Meal slot management (Breakfast, Lunch, Dinner, etc.) |
+| `CRUD` | `/api/v1/daily-menus/` | Daily menu management |
+| `GET` | `/api/v1/daily-menus/week/?start=YYYY-MM-DD` | Get menus for a 7-day window |
+| `POST` | `/api/v1/daily-menus/{id}/publish/` | Publish a draft menu |
+| `POST` | `/api/v1/daily-menus/{id}/archive/` | Archive a menu |
+| `CRUD` | `/api/v1/meal-packages/` | Meal package management (subscription tiers) |
 | **Orders** | | |
 | `CRUD` | `/api/v1/orders/` | Order management |
 | `POST` | `/api/v1/orders/{id}/update_status/` | Update order status |
@@ -213,20 +250,22 @@ The API is organized into three layers matching the SaaS architecture:
 | `GET` | `/api/v1/inventory/items/low_stock/` | Low stock alerts |
 | `CRUD` | `/api/v1/inventory/units/` | Units of measure |
 | **Customer Management** | | |
-| `CRUD` | `/api/v1/customers/` | Customer profiles |
+| `CRUD` | `/api/v1/customers/` | Customer profiles (admin can create User + Profile + Address) |
 | `CRUD` | `/api/v1/registration-requests/` | Registration requests |
-| `POST` | `/api/v1/registration-requests/{id}/approve/` | Approve request |
+| `POST` | `/api/v1/registration-requests/{id}/approve/` | Approve (creates User + CustomerProfile) |
 | `POST` | `/api/v1/registration-requests/{id}/reject/` | Reject request |
+| `CRUD` | `/api/v1/customer-addresses/` | Admin address management (with approve/reject) |
 | **Staff Management** | | |
 | `CRUD` | `/api/v1/staff/` | Staff user management |
 | `POST` | `/api/v1/staff/{id}/deactivate/` | Deactivate staff |
 | `POST` | `/api/v1/staff/{id}/change_role/` | Change staff role |
-| **Finance** | | |
+| **Finance & Misc** | | |
 | `GET` | `/api/v1/invoices/` | Invoice list |
 | `GET` | `/api/v1/notifications/` | Notification management |
 | `GET` | `/api/v1/subscriptions/` | Subscription list |
 | `GET` | `/api/v1/wallet/` | Wallet transactions |
 | `GET` | `/api/v1/addresses/` | Address management |
+| `GET` | `/api/v1/dashboard/summary/` | Aggregated dashboard metrics |
 
 #### Layer 3 — B2C Customer (`/api/v1/customer/`) — Customer JWT
 
@@ -278,21 +317,37 @@ Brute-force protection is provided by `django-axes` (5 failures = 1 hour lockout
 
 ### Multi-Tenancy
 
-The platform uses a **multi-database** isolation strategy:
+The platform uses a **multi-database** isolation strategy with per-tenant databases:
 
-1. **Shared database** (`default`) stores `Tenant`, `Domain`, `UserProfile`, and `ServicePlan` models.
-2. **Tenant databases** (e.g., `tenant_1`, `tenant_2`) store all domain-specific data (menus, orders, subscriptions, inventory).
-3. The `MultiDbTenantMiddleware` reads the `X-Tenant-ID` header or subdomain to resolve the current tenant and sets the database alias for the request.
-4. `TenantRouter` in `core/db/router.py` routes ORM queries to the correct database.
+1. **Shared database** (`default`) stores `Tenant`, `Domain`, `UserProfile`, `ServicePlan`, `TenantSubscription`, `TenantInvoice`, and `TenantUsage` models.
+2. **Tenant databases** (e.g., `tenant_acme`, `tenant_golden_kitchen`) store all domain-specific data including:
+   - `auth.User` — tenant staff and customers (each tenant has its own user table)
+   - Menu items, daily menus, meal slots, meal packages, categories
+   - Orders, subscriptions, wallet transactions, invoices
+   - Customer profiles, registration requests, addresses
+   - Kitchen orders, delivery assignments, inventory items
+3. The `MultiDbTenantMiddleware` reads the `X-Tenant-Slug` header to resolve the current tenant, dynamically registers the tenant database, and sets the thread-local database alias.
+4. `TenantRouter` in `core/db/router.py` routes ORM queries:
+   - **SAAS_ONLY_APPS** (`organizations`, `users`, `admin`, `sites`, `axes`, `django_apscheduler`) → always `default` database
+   - **All other apps** (including `auth`, `contenttypes`, `sessions`, `main`, `kitchen`, etc.) → current tenant database
 
-New tenants are provisioned with `scripts/provision_tenant.py`, which creates the database, runs migrations, and sets up default data.
+New tenants are provisioned with `python manage.py provision_tenant`, which creates the database, runs migrations, creates admin users, and sets up default data.
+
+### Management Commands
+
+| Command | Description |
+|---------|-------------|
+| `python manage.py provision_tenant` | Full tenant provisioning (creates DB, runs migrations, creates admin user, assigns plan) |
+| `python manage.py migrate_all_tenants` | Migrate all tenant databases. Supports `--parallel` and `--tenant=<slug>` |
+| `python manage.py seed_meal_slots` | Seed default meal slots (Lunch, Dinner) for a tenant |
+| `python manage.py createsuperuser` | Create SaaS-level superuser in default DB |
 
 ### Backend Setup
 
 #### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 15+ (or use SQLite in development)
+- PostgreSQL 15+
 - Redis 7+ (optional in development)
 
 #### Quick Start
@@ -309,13 +364,16 @@ pip install -r requirements/requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your values
+# Edit .env with your values (DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DJANGO_SECRET_KEY)
 
-# Run migrations
+# Run migrations (shared/default database)
 python manage.py migrate
 
-# Create superuser
+# Create SaaS superuser
 python manage.py createsuperuser
+
+# Provision a tenant (creates tenant DB, runs migrations, creates admin user)
+python manage.py provision_tenant
 
 # Start development server
 python manage.py runserver
@@ -325,27 +383,54 @@ The API is now available at `http://localhost:8000/api/v1/` and docs at `http://
 
 ---
 
-## Frontend (Flutter Admin Dashboard)
+## Frontend (Flutter)
 
-The admin dashboard is a Flutter application targeting **web** and **macOS** (extensible to iOS/Android). It connects to the Django backend via the REST API.
+The Flutter application serves as a multi-role dashboard targeting **web** and **macOS** (extensible to iOS/Android). It connects to the Django backend via the REST API and supports all three SaaS layers.
 
-### Features
+### Layer 1 — SaaS Owner Dashboard
 
-| Feature                | Status          | Description                                                |
-|------------------------|-----------------|------------------------------------------------------------|
-| Tenant Discovery       | Complete        | Connect to a kitchen by entering its code/slug             |
-| JWT Authentication     | Complete        | Two-step login flow with secure token storage              |
-| Auth State Management  | Complete        | Persistent session with automatic route guards             |
-| Token Refresh          | Complete        | Automatic 401 retry with refreshed access token            |
-| Menu Management        | Complete        | List, add, toggle availability (connected to real API)     |
-| Dashboard Shell        | Complete        | Responsive layout with sidebar and header                  |
-| Dynamic Tenant Info    | Complete        | Header displays real tenant name and user info             |
-| Logout                 | Complete        | Available in sidebar and header profile menu               |
-| Orders                 | Placeholder     | UI shell ready, API integration pending                    |
-| Inventory              | Placeholder     | UI shell ready, API integration pending                    |
-| Delivery               | Placeholder     | UI shell ready, API integration pending                    |
-| Customers              | Placeholder     | UI shell ready, API integration pending                    |
-| Finance                | Placeholder     | UI shell ready, API integration pending                    |
+| Feature                | Status    | Description                                                |
+|------------------------|-----------|------------------------------------------------------------|
+| Platform Analytics     | Complete  | MRR, ARR, tenant counts, invoice summaries                 |
+| Tenant Management      | Complete  | Searchable list, create, suspend/activate, detail view     |
+| Plan Management        | Complete  | Card grid with pricing, features, limits, create/edit      |
+| SaaS Shell             | Complete  | Dark indigo sidebar, responsive with mobile drawer         |
+| Router Integration     | Complete  | `/saas`, `/saas/tenants`, `/saas/tenants/:id`, `/saas/plans` |
+
+### Layer 2 — Tenant Admin Dashboard
+
+| Feature                | Status    | Description                                                |
+|------------------------|-----------|------------------------------------------------------------|
+| Tenant Discovery       | Complete  | Connect to a kitchen by entering its code/slug             |
+| JWT Authentication     | Complete  | Two-step login flow with secure token storage              |
+| Auth State Management  | Complete  | Persistent session with automatic route guards             |
+| Token Refresh          | Complete  | Automatic 401 retry with refreshed access token            |
+| Dashboard Overview     | Complete  | Metric cards (orders, deliveries, revenue, customers, etc.) |
+| Menu Management        | Complete  | List, add, edit, toggle availability with diet type filter |
+| Category Management    | Complete  | CRUD with inline creation from menu item dialog            |
+| Daily Rotating Menus   | Complete  | Weekly calendar view, create/publish/archive daily menus   |
+| Meal Packages          | Complete  | Subscription tiers with configurable naming and pricing    |
+| Orders                 | Complete  | Tab-filtered list with status workflow and cancel support   |
+| Inventory              | Complete  | CRUD with stock adjustment, low-stock filter               |
+| Delivery               | Complete  | Tab-filtered list with driver info, status tracking        |
+| Customer Management    | Complete  | Master-detail layout, add customer (User+Profile+Address), search |
+| Registration Requests  | Complete  | Approve (creates account) / reject with reason             |
+| Address Management     | Complete  | Structured fields (building, floor, flat, street, city)    |
+| Finance                | Complete  | Invoice list with status tabs, detail dialog               |
+| Staff Management       | Complete  | CRUD with role assignment, deactivation, change-role       |
+| Dynamic Tenant Info    | Complete  | Header displays real tenant name and user info             |
+| Logout                 | Complete  | Available in sidebar and header profile menu               |
+
+### Layer 3 — Customer App (Planned)
+
+| Feature                | Status    | Description                                                |
+|------------------------|-----------|------------------------------------------------------------|
+| Registration / Login   | Planned   | Customer JWT authentication                                |
+| Menu Browsing          | Planned   | Browse daily menus and meal packages                       |
+| Subscription Mgmt      | Planned   | Subscribe to meal plans                                    |
+| Order Tracking         | Planned   | Real-time delivery tracking                                |
+| Wallet / Payments      | Planned   | Fund wallet, pay for meals                                 |
+| Push Notifications     | Planned   | Order updates, menu announcements                          |
 
 ### App Architecture
 
@@ -374,20 +459,51 @@ lib/
 │   │       └── user_login_screen.dart    # Direct staff login
 │   ├── dashboard/
 │   │   └── presentation/
-│   │       ├── dashboard_shell.dart      # Layout wrapper (sidebar + header + content)
+│   │       ├── dashboard_shell.dart      # Tenant admin layout wrapper
 │   │       └── widgets/
 │   │           ├── header.dart           # Top bar with tenant info, search, profile
 │   │           └── sidebar.dart          # Navigation menu with logout
-│   └── menu/
+│   ├── admin/                           # Tenant admin features (Layer 2)
+│   │   ├── data/
+│   │   │   └── admin_repository.dart    # All /api/v1/ tenant admin endpoints
+│   │   ├── domain/
+│   │   │   └── models.dart              # DashboardSummary, OrderItem, CustomerItem,
+│   │   │                                # InvoiceItem, InventoryItemModel, DeliveryItem,
+│   │   │                                # StaffUser, DailyMenu, MealSlot, MealPackage,
+│   │   │                                # CustomerAddress
+│   │   └── presentation/
+│   │       ├── dashboard_screen.dart    # Dashboard overview with metric cards
+│   │       ├── orders_screen.dart       # Orders management with status workflow
+│   │       ├── inventory_screen.dart    # Inventory management with stock adjustment
+│   │       ├── delivery_screen.dart     # Delivery tracking with status filters
+│   │       ├── customers_screen.dart    # Customer management (master-detail layout)
+│   │       ├── finance_screen.dart      # Invoice listing with detail dialog
+│   │       └── staff_screen.dart        # Staff CRUD with role management
+│   ├── menu/
+│   │   ├── data/
+│   │   │   └── menu_repository.dart     # API calls for menu CRUD
+│   │   ├── domain/
+│   │   │   └── food_item.dart           # FoodItem model with JSON serialization
+│   │   └── presentation/
+│   │       ├── menu_screen.dart         # Grid view + daily menus + meal packages
+│   │       └── widgets/
+│   │           ├── food_item_card.dart   # Item display card
+│   │           └── add_item_modal.dart   # Add/edit dialog (with inline category creation)
+│   └── saas_admin/                      # SaaS owner features (Layer 1)
 │       ├── data/
-│       │   └── menu_repository.dart      # API calls for menu CRUD
+│       │   └── saas_repository.dart     # All /api/saas/ endpoints
 │       ├── domain/
-│       │   └── food_item.dart            # FoodItem model with JSON serialization
+│       │   └── models.dart              # ServicePlan, Tenant, TenantDetail,
+│       │                                # Subscription, Usage, Analytics
 │       └── presentation/
-│           ├── menu_screen.dart          # Grid view with error/empty/loading states
+│           ├── saas_shell.dart          # SaaS dashboard layout shell
+│           ├── saas_overview_screen.dart # Analytics overview (home)
+│           ├── tenants_screen.dart       # Tenant management list
+│           ├── tenant_detail_screen.dart # Tenant detail view
+│           ├── plans_screen.dart         # Service plan management
 │           └── widgets/
-│               ├── food_item_card.dart   # Item display card
-│               └── add_item_modal.dart   # Add/edit dialog
+│               ├── saas_sidebar.dart     # Dark sidebar navigation
+│               └── saas_header.dart      # SaaS header bar
 │
 └── main.dart                      # Entry point, provider setup, session restore
 ```
@@ -398,6 +514,7 @@ lib/
 - **Routing:** GoRouter with `redirect` function that reads `AuthProvider.isLoggedIn` — unauthenticated users are sent to `/login`, authenticated users on `/login` are sent to `/dashboard`.
 - **API Client:** Singleton `ApiClient` wrapping Dio with interceptors for automatic auth header injection, tenant header injection, and transparent token refresh on 401.
 - **Environment Config:** `AppConfig` class with `development` and `production` presets. Switch by changing `AppConfig.current` in `main.dart`.
+- **Master-Detail Pattern:** Customer management uses a responsive master-detail layout — list on the left, detail panel on the right for wide screens.
 
 ### Frontend Setup
 
@@ -455,7 +572,10 @@ docker-compose exec web python manage.py migrate
 # 4. Create admin user
 docker-compose exec web python manage.py createsuperuser
 
-# 5. Collect static files
+# 5. Provision a tenant
+docker-compose exec web python manage.py provision_tenant
+
+# 6. Collect static files
 docker-compose exec web python manage.py collectstatic --noinput
 ```
 
@@ -480,7 +600,7 @@ All configuration is managed through environment variables. See `clean_backend/.
 |----------------------------------|----------|--------------------------|------------------------------------------|
 | `DJANGO_ENV`                     | No       | `development`            | `development` or `production`            |
 | `DJANGO_SECRET_KEY`              | Prod     | Auto-generated in dev    | Django secret key                        |
-| `DATABASE_URL`                   | Prod     | SQLite in dev            | PostgreSQL connection string             |
+| `DATABASE_URL`                   | Prod     | —                        | PostgreSQL connection string             |
 | `DB_NAME` / `DB_USER` / `DB_PASSWORD` / `DB_HOST` | Alt | —           | Alternative to `DATABASE_URL`            |
 | `REDIS_URL`                      | Prod     | In-memory cache in dev   | Redis connection string                  |
 | `SYNC_TOKEN`                     | Prod     | Dev token in debug       | Security token for sync operations       |
@@ -507,6 +627,7 @@ All configuration is managed through environment variables. See `clean_backend/.
 - **Password validators** (similarity, minimum length, common passwords, numeric-only)
 - **Query optimization** middleware with N+1 detection
 - **Performance monitoring** middleware (request time, query count, memory usage)
+- **Plan-based permissions** — PlanLimitMenuItems, PlanLimitStaffUsers, PlanLimitCustomers enforce subscription limits
 
 ### Frontend Security
 
@@ -519,8 +640,8 @@ All configuration is managed through environment variables. See `clean_backend/.
 
 - **Never commit `.env` files** — they are excluded in `.gitignore`
 - All default passwords have been removed from the codebase — use environment variables
-- The `fix_tenant.py` script requires the password as a CLI argument
 - Tenant admin passwords are generated randomly if `DEFAULT_TENANT_ADMIN_PASSWORD` is not set
+- Per-tenant database isolation ensures no data leakage between tenants
 
 ---
 

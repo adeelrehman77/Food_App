@@ -213,6 +213,154 @@ class AdminRepository {
     return _parseList(response.data, DeliveryItem.fromJson);
   }
 
+  Future<DeliveryItem> updateDeliveryStatus(int id, String newStatus) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}delivery/deliveries/$id/update_status/',
+      data: {'status': newStatus},
+    );
+    return DeliveryItem.fromJson(response.data);
+  }
+
+  Future<DeliveryItem> assignDeliveryDriver(int deliveryId, int driverId) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}delivery/deliveries/$deliveryId/assign_driver/',
+      data: {'driver_id': driverId},
+    );
+    return DeliveryItem.fromJson(response.data);
+  }
+
+  // ─── Delivery Drivers ────────────────────────────────────────────────────
+
+  Future<List<DeliveryDriver>> getDrivers() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}driver/drivers/');
+    return _parseList(response.data, DeliveryDriver.fromJson);
+  }
+
+  Future<DeliveryDriver> createDriver(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}driver/drivers/',
+        data: data,
+      );
+      return DeliveryDriver.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<DeliveryDriver> updateDriver(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.patch(
+        '${base}driver/drivers/$id/',
+        data: data,
+      );
+      return DeliveryDriver.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<void> deleteDriver(int id) async {
+    final base = await _baseUrl();
+    await _apiClient.dio.delete('${base}driver/drivers/$id/');
+  }
+
+  Future<DeliveryDriver> toggleDriverActive(int id) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}driver/drivers/$id/toggle_active/',
+    );
+    return DeliveryDriver.fromJson(response.data);
+  }
+
+  // ─── Delivery Zones ─────────────────────────────────────────────────────
+
+  Future<List<DeliveryZone>> getZones() async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.get('${base}driver/zones/');
+    return _parseList(response.data, DeliveryZone.fromJson);
+  }
+
+  Future<DeliveryZone> createZone(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}driver/zones/',
+        data: data,
+      );
+      return DeliveryZone.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<DeliveryZone> updateZone(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.patch(
+        '${base}driver/zones/$id/',
+        data: data,
+      );
+      return DeliveryZone.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<void> deleteZone(int id) async {
+    final base = await _baseUrl();
+    await _apiClient.dio.delete('${base}driver/zones/$id/');
+  }
+
+  // ─── Delivery Routes ────────────────────────────────────────────────────
+
+  Future<List<DeliveryRoute>> getRoutes({int? zoneId}) async {
+    final base = await _baseUrl();
+    final params = <String, dynamic>{};
+    if (zoneId != null) params['zone'] = zoneId;
+    final response = await _apiClient.dio.get(
+      '${base}driver/routes/',
+      queryParameters: params,
+    );
+    return _parseList(response.data, DeliveryRoute.fromJson);
+  }
+
+  Future<DeliveryRoute> createRoute(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.post(
+        '${base}driver/routes/',
+        data: data,
+      );
+      return DeliveryRoute.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<DeliveryRoute> updateRoute(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    try {
+      final response = await _apiClient.dio.patch(
+        '${base}driver/routes/$id/',
+        data: data,
+      );
+      return DeliveryRoute.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(_extractError(e));
+    }
+  }
+
+  Future<void> deleteRoute(int id) async {
+    final base = await _baseUrl();
+    await _apiClient.dio.delete('${base}driver/routes/$id/');
+  }
+
   // ─── Staff ────────────────────────────────────────────────────────────────
 
   Future<List<StaffUser>> getStaffUsers() async {

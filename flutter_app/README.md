@@ -1,6 +1,6 @@
-# Fun Adventure Kitchen — Admin Dashboard
+# Fun Adventure Kitchen — Flutter Dashboard
 
-Flutter-based admin dashboard for the Fun Adventure Kitchen platform. Provides kitchen staff and administrators with tools to manage menus, view orders, track deliveries, and oversee operations.
+Multi-role Flutter dashboard application for the Fun Adventure Kitchen SaaS platform. Supports three layers: SaaS owner administration, tenant kitchen operations, and (planned) customer-facing features.
 
 ## Prerequisites
 
@@ -38,21 +38,118 @@ static AppConfig current = production;
 | Development   | `http://127.0.0.1:8000/api/discover/`              | `http://127.0.0.1:8000/api/v1/`                   |
 | Production    | `https://api.kitchen.funadventure.ae/api/discover/` | `https://api.kitchen.funadventure.ae/api/v1/`      |
 
+---
+
+## Features
+
+### Layer 1 — SaaS Owner Dashboard (`/saas/*`)
+
+| Feature                | Status    | Description                                                |
+|------------------------|-----------|------------------------------------------------------------|
+| Platform Analytics     | Complete  | MRR, ARR, total/active/trial tenant counts, invoice summaries |
+| Tenant Management      | Complete  | Searchable data table, create tenant, suspend/activate      |
+| Tenant Detail          | Complete  | Subscription info, plan limits, latest usage metrics        |
+| Plan Management        | Complete  | Card grid with pricing, feature limits, create/edit/toggle  |
+| SaaS Shell             | Complete  | Dark indigo sidebar, dedicated header, responsive drawer    |
+
+### Layer 2 — Tenant Admin Dashboard (`/dashboard/*`)
+
+| Feature                | Status    | Description                                                |
+|------------------------|-----------|------------------------------------------------------------|
+| Tenant Discovery       | Complete  | Connect to a kitchen by entering its code/slug             |
+| JWT Authentication     | Complete  | Two-step login flow with secure token storage              |
+| Token Refresh          | Complete  | Automatic 401 retry with refreshed access token            |
+| Dashboard Overview     | Complete  | Metric cards (orders, deliveries, revenue, customers, inventory, staff) + recent orders |
+| Menu Management        | Complete  | List, add, edit, toggle availability, diet type filter     |
+| Category Management    | Complete  | CRUD with inline creation from menu item dialog            |
+| Daily Rotating Menus   | Complete  | Weekly calendar view, create/publish/archive daily menus   |
+| Meal Packages          | Complete  | Subscription tiers with configurable naming and pricing    |
+| Orders                 | Complete  | Tab-filtered list with status workflow (pending→confirmed→preparing→ready→delivered) |
+| Inventory              | Complete  | CRUD with stock adjustment dialog, low-stock filter, cost/supplier tracking |
+| Delivery               | Complete  | Tab-filtered list with driver info, status tracking, pickup/delivery times |
+| Customer Management    | Complete  | Master-detail layout, add customer (creates User + Profile + Address), search by name/phone/email |
+| Registration Requests  | Complete  | Approve (creates User + CustomerProfile) / reject with reason |
+| Address Management     | Complete  | Structured fields (building, floor, flat, street, city) with default/active badges |
+| Finance                | Complete  | Invoice list with status tabs, detail dialog with line items, paid/pending summary |
+| Staff Management       | Complete  | CRUD with role assignment (manager/kitchen_staff/driver/staff), deactivation, change-role |
+| Dynamic Tenant Info    | Complete  | Header displays real tenant name and user info             |
+| Logout                 | Complete  | Available in sidebar and header profile menu               |
+| Platform Admin Link    | Complete  | Switch between tenant dashboard and SaaS owner dashboard   |
+
+### Layer 3 — Customer App (Planned)
+
+| Feature                | Status    | Description                                                |
+|------------------------|-----------|------------------------------------------------------------|
+| Registration / Login   | Planned   | Customer JWT authentication                                |
+| Menu Browsing          | Planned   | Browse daily menus and meal packages                       |
+| Subscription Mgmt      | Planned   | Subscribe to meal plans                                    |
+| Order Tracking         | Planned   | Real-time delivery tracking                                |
+| Wallet / Payments      | Planned   | Fund wallet, pay for meals                                 |
+| Push Notifications     | Planned   | Order updates, menu announcements                          |
+
+---
+
 ## Architecture
 
 ```
 lib/
-├── core/                    # Shared infrastructure
-│   ├── config/              # Environment configuration
-│   ├── network/             # API client with interceptors, tenant discovery
-│   ├── providers/           # Auth and tenant state management (ChangeNotifier)
-│   ├── router/              # GoRouter with auth-based redirect guards
-│   └── theme/               # Material 3 light/dark themes (Google Fonts Inter)
+├── core/                          # Shared infrastructure
+│   ├── config/
+│   │   └── app_config.dart        # Environment URLs (dev / prod)
+│   ├── network/
+│   │   ├── api_client.dart        # Singleton Dio client with auth interceptors
+│   │   └── tenant_service.dart    # Tenant discovery API calls
+│   ├── providers/
+│   │   ├── auth_provider.dart     # Auth state (ChangeNotifier)
+│   │   └── tenant_provider.dart   # Tenant state (ChangeNotifier)
+│   ├── router/
+│   │   └── app_router.dart        # GoRouter with redirect-based auth guards
+│   └── theme/
+│       └── app_theme.dart         # Material 3 light/dark themes
+│
 ├── features/
-│   ├── auth/                # Two-step tenant login + staff login
-│   ├── dashboard/           # Shell layout (sidebar, header, content area)
-│   └── menu/                # Menu item CRUD (model, repository, screen, widgets)
-└── main.dart                # Entry point, provider init, session restore
+│   ├── auth/                      # Two-step tenant login + staff login
+│   │   ├── data/auth_service.dart
+│   │   └── presentation/
+│   │       ├── tenant_login_screen.dart
+│   │       └── user_login_screen.dart
+│   │
+│   ├── dashboard/                 # Tenant admin shell layout
+│   │   └── presentation/
+│   │       ├── dashboard_shell.dart
+│   │       └── widgets/ (header, sidebar)
+│   │
+│   ├── admin/                     # Tenant admin features (Layer 2)
+│   │   ├── data/admin_repository.dart
+│   │   ├── domain/models.dart     # All admin domain models
+│   │   └── presentation/
+│   │       ├── dashboard_screen.dart
+│   │       ├── orders_screen.dart
+│   │       ├── inventory_screen.dart
+│   │       ├── delivery_screen.dart
+│   │       ├── customers_screen.dart   # Master-detail layout
+│   │       ├── finance_screen.dart
+│   │       └── staff_screen.dart
+│   │
+│   ├── menu/                      # Menu CRUD + daily menus + packages
+│   │   ├── data/menu_repository.dart
+│   │   ├── domain/food_item.dart
+│   │   └── presentation/
+│   │       ├── menu_screen.dart   # Grid + weekly calendar + packages
+│   │       └── widgets/ (food_item_card, add_item_modal)
+│   │
+│   └── saas_admin/                # SaaS owner features (Layer 1)
+│       ├── data/saas_repository.dart
+│       ├── domain/models.dart
+│       └── presentation/
+│           ├── saas_shell.dart
+│           ├── saas_overview_screen.dart
+│           ├── tenants_screen.dart
+│           ├── tenant_detail_screen.dart
+│           ├── plans_screen.dart
+│           └── widgets/ (saas_sidebar, saas_header)
+│
+└── main.dart                      # Entry point, provider setup, session restore
 ```
 
 ### Key Packages
@@ -65,6 +162,7 @@ lib/
 | `flutter_secure_storage` | Encrypted token and session storage       |
 | `equatable`              | Value equality for models                 |
 | `google_fonts`           | Inter font family                         |
+| `intl`                   | Date formatting                           |
 
 ### Authentication Flow
 
@@ -72,7 +170,7 @@ lib/
 2. `TenantService` calls `POST /api/discover/` to resolve the tenant
 3. Tenant info (name, API endpoint) is stored in secure storage
 4. User enters **username** and **password**
-5. `AuthService` calls `POST /api/v1/auth/login/` with tenant headers
+5. `AuthService` calls `POST /api/v1/auth/login/` with `X-Tenant-Slug` header
 6. JWT tokens are stored in secure storage
 7. `AuthProvider` updates state, GoRouter redirects to `/dashboard`
 
@@ -85,19 +183,43 @@ The router's `redirect` function checks `AuthProvider.isLoggedIn`:
 - **Not logged in + accessing protected route** → redirected to `/login`
 - **Logged in + on login page** → redirected to `/dashboard`
 
+---
+
 ## Screens
+
+### SaaS Owner Routes
+
+| Route                  | Screen              | Status     |
+|------------------------|---------------------|------------|
+| `/saas`                | Platform Overview   | Complete   |
+| `/saas/tenants`        | Tenant Management   | Complete   |
+| `/saas/tenants/:id`    | Tenant Detail       | Complete   |
+| `/saas/plans`          | Plan Management     | Complete   |
+
+### Tenant Admin Routes
 
 | Route         | Screen              | Status     |
 |---------------|---------------------|------------|
 | `/login`      | Tenant Login        | Complete   |
 | `/user-login` | Staff Login         | Complete   |
-| `/dashboard`  | Dashboard Overview  | Placeholder|
+| `/dashboard`  | Dashboard Overview  | Complete   |
 | `/menu`       | Menu Management     | Complete   |
-| `/orders`     | Orders              | Placeholder|
-| `/inventory`  | Inventory           | Placeholder|
-| `/delivery`   | Delivery            | Placeholder|
-| `/customers`  | Customers           | Placeholder|
-| `/finance`    | Finance             | Placeholder|
+| `/orders`     | Orders              | Complete   |
+| `/inventory`  | Inventory           | Complete   |
+| `/delivery`   | Delivery            | Complete   |
+| `/customers`  | Customers           | Complete   |
+| `/finance`    | Finance             | Complete   |
+| `/staff`      | Staff               | Complete   |
+
+---
+
+## Design Decisions
+
+- **State Management:** Provider (ChangeNotifier) for simplicity and testability.
+- **Routing:** GoRouter with redirect-based auth guards and nested routes for SaaS/tenant dashboards.
+- **API Client:** Singleton `ApiClient` wrapping Dio with interceptors for auth header injection, tenant slug injection, and transparent token refresh.
+- **Master-Detail Pattern:** Customer management uses responsive master-detail layout (list + detail panel on wide screens).
+- **Inline Creation:** Category creation available directly from menu item dialog without navigating away.
 
 ## Building for Production
 
@@ -110,3 +232,7 @@ flutter build macos --release
 ```
 
 The web build output is in `build/web/` and can be served by any static file server or CDN.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.

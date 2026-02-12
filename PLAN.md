@@ -1,6 +1,6 @@
 # Fun Adventure Kitchen — 3-Layer SaaS Implementation Plan
 
-> **Status:** All backend phases + Phase 5 (SaaS Owner Dashboard) implemented. See below for what was built and the complete API reference.
+> **Status:** All backend phases + Phase 5 (SaaS Owner Dashboard) + Phase 6 (Daily Rotating Menu) + Phase 7 (Customer Management) implemented. See below for what was built and the complete API reference.
 
 ---
 
@@ -15,12 +15,33 @@
 │                    LAYER 2: Tenant Admin                         │
 │  /api/v1/*  (Staff auth + X-Tenant-Slug header)                 │
 │  Orders, Menu, Kitchen KDS, Inventory, Delivery,                │
-│  Staff, Customers, Invoices, Notifications                      │
+│  Staff, Customers, Invoices, Notifications,                     │
+│  Daily Menus, Meal Packages, Addresses                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                    LAYER 3: B2C Customers                       │
 │  /api/v1/customer/*  (Customer JWT auth)                        │
 │  Register, Login, Menu browse, Subscriptions, Orders,           │
 │  Wallet, Invoices, Notifications, Addresses                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Multi-Tenant Database Routing
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     TenantRouter                                 │
+│                                                                  │
+│  SAAS_ONLY_APPS → always route to 'default' DB                  │
+│    organizations, users, admin, sites, axes, django_apscheduler  │
+│                                                                  │
+│  ALL OTHER APPS → follow tenant context (thread-local alias)     │
+│    auth, contenttypes, sessions, main, kitchen, delivery,        │
+│    driver, inventory, account, authtoken                         │
+│                                                                  │
+│  Each tenant DB has its own auth_user table                      │
+│  → DailyMenu.created_by = FK(User) is same-DB                   │
+│  → CustomerProfile.user = OneToOneField(User) is same-DB         │
+│  → No cross-database FK hacks needed                             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -109,57 +130,6 @@ Added to `ServicePlan`:
 | `/api/saas/invoices/` | CRUD | Superuser | Manage invoices |
 | `/api/saas/invoices/{id}/mark_paid/` | POST | Superuser | Mark invoice paid |
 
----
-
-## Files Created / Modified
-
-### New Files
-| File | Purpose |
-|------|---------|
-| `core/permissions/plan_limits.py` | Plan-based permission classes |
-| `apps/main/serializers/__init__.py` | Serializer package init |
-| `apps/main/serializers/admin_serializers.py` | Tenant-admin serializers |
-| `apps/main/serializers/customer_api_serializers.py` | B2C customer serializers |
-| `apps/main/views/admin_views.py` | Tenant-admin ViewSets |
-| `apps/main/views/customer_api_views.py` | B2C customer ViewSets |
-| `apps/main/urls_customer_api.py` | Customer API URL routing |
-| `apps/kitchen/serializers.py` | Kitchen KDS serializers |
-| `apps/delivery/serializers.py` | Delivery serializers |
-| `apps/inventory/serializers.py` | Inventory serializers |
-| `apps/driver/serializers/admin_serializers.py` | Zone/Route/Schedule serializers |
-| `apps/driver/views/admin_views.py` | Delivery management ViewSets |
-| `apps/organizations/models_saas.py` | SaaS owner models |
-| `apps/organizations/serializers.py` | SaaS owner serializers |
-| `apps/organizations/views_saas.py` | SaaS owner ViewSets |
-| `apps/organizations/urls_saas.py` | SaaS owner URL routing |
-
-### Modified Files
-| File | Change |
-|------|--------|
-| `apps/main/models.py` | FK → IntegerField for `CustomerProfile.tenant` |
-| `apps/main/admin.py` | Updated admin for new field |
-| `apps/main/urls_api.py` | Registered new ViewSets |
-| `apps/main/views/__init__.py` | Added new view exports |
-| `apps/organizations/models.py` | Expanded ServicePlan |
-| `apps/organizations/admin.py` | Admin for SaaS models |
-| `apps/inventory/models.py` | FK → IntegerField, added fields |
-| `apps/inventory/admin.py` | Updated admin |
-| `apps/inventory/views.py` | Added ViewSets |
-| `apps/inventory/urls_api.py` | Router-based URLs |
-| `apps/kitchen/views.py` | Added KitchenOrderViewSet |
-| `apps/kitchen/urls_api.py` | Router-based URLs |
-| `apps/delivery/views.py` | Added DeliveryViewSet |
-| `apps/delivery/urls_api.py` | Router-based URLs |
-| `apps/driver/urls_api.py` | Added admin ViewSets |
-| `apps/driver/views/__init__.py` | Added admin view exports |
-| `core/middleware/multi_db_tenant.py` | Attaches `request.tenant_plan` |
-| `core/permissions/__init__.py` | Imports plan_limits |
-| `config/urls.py` | Added customer + SaaS URL routes |
-
----
-
-## Remaining Work (Future Phases)
-
 ### Phase 2 — Flutter Admin Dashboard Screens ✅
 - **Dashboard overview** — summary metric cards (orders, deliveries, revenue, customers, inventory, staff) with recent orders table
 - **Orders screen** — tab-filtered list with status workflow (pending→confirmed→preparing→ready→delivered), cancel support
@@ -175,27 +145,7 @@ Added to `ServicePlan`:
 #### Management Commands
 - `python manage.py migrate_all_tenants` — migrate all tenant databases (supports `--parallel`, `--tenant=<slug>`)
 - `python manage.py provision_tenant` — full tenant provisioning (DB create, migrate, admin user, plan assignment)
-
-#### New Flutter Files (Phase 2)
-| File | Purpose |
-|------|---------|
-| `features/admin/domain/models.dart` | Domain models (DashboardSummary, OrderItem, CustomerItem, InvoiceItem, InventoryItemModel, DeliveryItem, StaffUser) |
-| `features/admin/data/admin_repository.dart` | Repository wrapping all `/api/v1/` tenant admin endpoints |
-| `features/admin/presentation/dashboard_screen.dart` | Dashboard overview with metric cards and recent orders |
-| `features/admin/presentation/orders_screen.dart` | Orders management with status workflow |
-| `features/admin/presentation/inventory_screen.dart` | Inventory management with stock adjustment |
-| `features/admin/presentation/delivery_screen.dart` | Delivery tracking with status filters |
-| `features/admin/presentation/customers_screen.dart` | Customer + registration request management |
-| `features/admin/presentation/finance_screen.dart` | Invoice listing with detail dialog |
-| `features/admin/presentation/staff_screen.dart` | Staff CRUD with role management |
-
-### Phase 4 — Flutter Customer App
-- Customer registration / login
-- Menu browsing
-- Subscription management
-- Order tracking
-- Wallet / payments
-- Push notifications
+- `python manage.py seed_meal_slots` — seed default meal slots (Lunch, Dinner) for a tenant
 
 ### Phase 5 — SaaS Owner Dashboard (Flutter) ✅
 - **Overview screen** — platform-wide analytics cards (total/active/trial tenants, MRR, ARR, pending/overdue invoices)
@@ -206,22 +156,131 @@ Added to `ServicePlan`:
 - **Router integration** — `/saas`, `/saas/tenants`, `/saas/tenants/:id`, `/saas/plans` routes in GoRouter
 - **Tenant sidebar** — "Platform Admin" link to switch between tenant admin and SaaS owner dashboards
 
-#### New Flutter Files (Phase 5)
+### Phase 6 — Daily Rotating Menu System ✅
+
+#### Backend Models
+| Model | Purpose |
+|-------|---------|
+| `MealSlot` | Configurable meal time slots (Lunch, Dinner, Breakfast, etc.) with cutoff times and sort order |
+| `DailyMenu` | A menu for a specific date + meal slot + diet type (veg/nonveg/both), with status (draft/published/archived) |
+| `DailyMenuItem` | Links a `MenuItem` (master item) to a `DailyMenu` with optional price override, portion label, sort order |
+| `MealPackage` | Subscription tiers (e.g. Executive, Economy) with tenant-configurable naming, pricing, duration, and meals per day |
+
+#### Backend Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `CRUD` | `/api/v1/meal-slots/` | Meal slot management |
+| `CRUD` | `/api/v1/daily-menus/` | Daily menu management |
+| `GET` | `/api/v1/daily-menus/week/?start=YYYY-MM-DD` | Get menus for a 7-day window |
+| `POST` | `/api/v1/daily-menus/{id}/publish/` | Publish a draft menu |
+| `POST` | `/api/v1/daily-menus/{id}/archive/` | Archive a menu |
+| `CRUD` | `/api/v1/meal-packages/` | Meal package management |
+
+#### Menu Item Enhancements
+- `diet_type` field on `MenuItem` — veg / nonveg / both
+- Inline category creation from the "Add Menu Item" dialog
+- Calories made optional (not mandatory)
+
+#### Flutter UI
+- Weekly calendar view with meal slot columns
+- Create/edit daily menu dialog with item selection
+- Publish/archive actions on menus
+- Meal package management tab
+- Inline "Add Category" dialog when creating menu items
+
+### Phase 7 — Customer Management System ✅
+
+#### Backend Changes
+| Feature | Description |
+|---------|-------------|
+| `CustomerProfileCreateSerializer` | Admin directly creates User + CustomerProfile + Address in tenant DB |
+| Registration approval creates accounts | `POST /approve/` now creates User + CustomerProfile (was status-only before) |
+| `AddressAdminViewSet` | Admin CRUD for customer addresses at `/api/v1/customer-addresses/` |
+| `AddressAdminSerializer` / `AddressCreateSerializer` | Serializers for structured address management |
+| Structured address fields | `building_name`, `floor_number`, `flat_number`, `street`, `city` (replaces single text blob) |
+| Admin-created addresses auto-approved | Status set to `active` automatically |
+
+#### Flutter UI
+- **Master-detail layout** — customer list on left, detail panel on right (wide screens)
+- **Add Customer dialog** — form with Personal Information (name, phone, email, Emirates ID, preferred contact) and Delivery Address (building, floor, flat, street, city, zone)
+- **Customer detail panel** — Contact, Identity & Location, Delivery Addresses (with Default/Active badges), Account info (wallet, loyalty, tier)
+- **Registration request management** — approve creates account, reject with reason
+- **Search** — by name, email, phone across customer list
+
+### Phase 8 — Multi-Tenant Database Router Overhaul ✅
+
+#### Architecture Changes
+| Change | Description |
+|--------|-------------|
+| `TenantRouter` redesigned | `SAAS_ONLY_APPS` (organizations, users, admin, sites, axes) → always `default`. All other apps (including `auth`, `contenttypes`, `sessions`) → follow tenant context |
+| `auth.User` per tenant | Each tenant DB has its own `auth_user` table. Tenant staff and customers are created in the tenant DB |
+| No cross-DB FK hacks | `DailyMenu.created_by = FK(User)` and `CustomerProfile.user = OneToOneField(User)` are same-database references |
+| SaaS superusers isolated | SaaS-level superusers live in `default` DB only, used through Django admin |
+| `provision_tenant` updated | Admin users now created in tenant DB using thread-local routing context |
+| `setup_tenant_defaults` signal | Creates `kitchen_admin` user and default category in tenant DB |
+
+---
+
+## Files Created / Modified
+
+### New Files
 | File | Purpose |
 |------|---------|
-| `features/saas_admin/domain/models.dart` | Dart domain models (ServicePlan, Tenant, TenantDetail, Subscription, Usage, Analytics) |
-| `features/saas_admin/data/saas_repository.dart` | Repository wrapping all `/api/saas/` endpoints |
-| `features/saas_admin/presentation/saas_shell.dart` | SaaS dashboard layout shell |
-| `features/saas_admin/presentation/saas_overview_screen.dart` | Analytics overview (home) |
-| `features/saas_admin/presentation/tenants_screen.dart` | Tenant management list |
-| `features/saas_admin/presentation/tenant_detail_screen.dart` | Tenant detail view |
-| `features/saas_admin/presentation/plans_screen.dart` | Service plan management |
-| `features/saas_admin/presentation/widgets/saas_sidebar.dart` | Dark sidebar navigation |
-| `features/saas_admin/presentation/widgets/saas_header.dart` | SaaS header bar |
+| `core/permissions/plan_limits.py` | Plan-based permission classes |
+| `apps/main/serializers/__init__.py` | Serializer package init |
+| `apps/main/serializers/admin_serializers.py` | Tenant-admin serializers (orders, customers, addresses, menus, packages) |
+| `apps/main/serializers/customer_api_serializers.py` | B2C customer serializers |
+| `apps/main/views/admin_views.py` | Tenant-admin ViewSets |
+| `apps/main/views/customer_api_views.py` | B2C customer ViewSets |
+| `apps/main/urls_customer_api.py` | Customer API URL routing |
+| `apps/kitchen/serializers.py` | Kitchen KDS serializers |
+| `apps/delivery/serializers.py` | Delivery serializers |
+| `apps/inventory/serializers.py` | Inventory serializers |
+| `apps/driver/serializers/admin_serializers.py` | Zone/Route/Schedule serializers |
+| `apps/driver/views/admin_views.py` | Delivery management ViewSets |
+| `apps/organizations/models_saas.py` | SaaS owner models |
+| `apps/organizations/serializers.py` | SaaS owner serializers |
+| `apps/organizations/views_saas.py` | SaaS owner ViewSets |
+| `apps/organizations/urls_saas.py` | SaaS owner URL routing |
+| `apps/organizations/management/commands/provision_tenant.py` | Full tenant provisioning command |
+| `apps/organizations/management/commands/migrate_all_tenants.py` | Migrate all tenant databases |
+| `apps/organizations/management/commands/seed_meal_slots.py` | Seed meal slots for a tenant |
 
-### Phase 6 — Production Hardening
+### Modified Files
+| File | Change |
+|------|--------|
+| `apps/main/models.py` | FK → IntegerField for tenant refs; MealSlot, DailyMenu, DailyMenuItem, MealPackage models; diet_type field; calories optional |
+| `apps/main/admin.py` | Updated admin for new models |
+| `apps/main/urls_api.py` | Registered meal-slots, daily-menus, meal-packages, customer-addresses |
+| `apps/main/views/__init__.py` | Added new view exports |
+| `apps/organizations/models.py` | Expanded ServicePlan |
+| `core/db/router.py` | Complete TenantRouter redesign — SAAS_ONLY_APPS + tenant-context routing |
+| `core/middleware/multi_db_tenant.py` | Attaches `request.tenant_plan`, dynamic DB registration |
+| `apps/users/signals.py` | setup_tenant_defaults uses thread-local routing |
+| `scripts/provision_tenant.py` | Updated for new router context |
+
+---
+
+## Remaining Work (Future Phases)
+
+### Phase 4 — Flutter Customer App
+- Customer registration / login
+- Menu browsing (daily menus, packages)
+- Subscription management
+- Order tracking
+- Wallet / payments
+- Push notifications
+
+### Phase 9 — Production Hardening
 - Celery tasks for usage collection
 - Payment gateway integration (Stripe / PayTabs)
 - Email / WhatsApp notification service
 - Rate limiting per plan tier
 - Comprehensive test suite
+
+### Phase 10 — Advanced Features
+- Multi-branch support per tenant
+- Customer loyalty program automation
+- Analytics dashboard per tenant
+- Bulk operations (menu copy, customer import)
+- Delivery route optimization

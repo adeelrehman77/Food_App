@@ -1,102 +1,129 @@
-# Fun Adventure Kitchen - Backend & System Architecture
+# Fun Adventure Kitchen — Backend API
 
-A comprehensive, production-ready system for managing Fun Adventure Kitchen's food delivery, kitchen operations, and inventory. This repository houses the Django REST Framework backend that powers the ecosystem, including the Customer Mobile App, Admin Dashboard, and Kitchen Display System (KDS).
+A comprehensive, production-ready Django REST Framework backend powering the Fun Adventure Kitchen multi-tenant food delivery SaaS platform. Manages all three SaaS layers: platform administration, tenant operations, and customer-facing services — with full per-tenant database isolation.
 
-## 🌍 Ecosystem Overview
+## Ecosystem Overview
 
 The system is composed of the following integrated components:
 
-1.  **Backend Core (This Repo)**: The central source of truth, managing data, business logic, and APIs.
-2.  **Customer Mobile App (Android)**: Allows users to view menus, purchase subscriptions, and track deliveries.
-3.  **Kitchen Display System (KDS)**: Interface for kitchen staff to view and manage incoming orders.
-4.  **Admin Dashboard**: Web-based interface for management and reporting.
+1. **Backend Core (This Repo)**: The central source of truth, managing data, business logic, and APIs.
+2. **Flutter Admin Dashboard**: Multi-role dashboard for SaaS owners and tenant administrators.
+3. **Customer Mobile App**: (Planned) Allows customers to view daily menus, subscribe to meal plans, and track deliveries.
+4. **Kitchen Display System (KDS)**: Interface for kitchen staff to view and manage incoming orders.
 
-## 🏗️ Technical Architecture
+## Technical Architecture
 
 ### Backend Stack
--   **Framework**: Django 4.2+
--   **API**: Django REST Framework (DRF) with JWT Authentication.
--   **Database**: PostgreSQL 15+ (Production), SQLite (Test).
--   **Caching**: Redis (7+) used for caching and session storage.
--   **Asynchronous Tasks**: Celery & APScheduler for background jobs (e.g., daily order generation from subscriptions).
--   **Real-time**: Django Channels (WebSocket support for live order updates).
+- **Framework**: Django 4.2+ with Django REST Framework
+- **API**: RESTful JSON APIs with JWT Authentication (SimpleJWT)
+- **Database**: PostgreSQL 15+ with per-tenant database isolation
+- **Caching**: Redis 7+ for caching, session storage, and Celery broker
+- **Asynchronous Tasks**: Celery & APScheduler for background jobs
+- **Real-time**: Django Channels (WebSocket support for live order updates)
+- **Docs**: Swagger/OpenAPI (drf-yasg) and ReDoc
 
 ### Architecture Highlights
--   **Multi-Tenancy**: Built-in support for multiple organizations (`Tenants`) with domain-based routing (`Domain` model) and database isolation.
--   **Hexagonal / Modular Design**: Features are encapsulated in distinct apps (`kitchen`, `driver`, `inventory`) with clear boundaries.
+- **3-Layer SaaS**: Platform admin (L1), Tenant admin (L2), B2C Customer (L3)
+- **Multi-Tenancy**: Per-tenant database isolation via `TenantRouter` and `MultiDbTenantMiddleware`
+- **Hexagonal / Modular Design**: Features encapsulated in distinct apps with clear boundaries
+- **Plan Enforcement**: Subscription-based permission classes enforce limits automatically
 
-### Mobile & Frontend Integration
--   **API Contract**: RESTful JSON APIs served to Android (Kotlin) and Web clients.
--   **Security**:
-    -   **Play Integrity API**: Integration for verifying Android device integrity.
-    -   **JWT**: Secure, stateless authentication for mobile clients.
-    -   **API Keys**: Server-to-server authentication for internal tools.
+### Multi-Tenant Database Strategy
 
-## ✨ Key Features
+```
+TenantRouter
+├── SAAS_ONLY_APPS → always route to 'default' DB
+│   organizations, users, admin, sites, axes, django_apscheduler
+│
+└── ALL OTHER APPS → follow tenant context (thread-local DB alias)
+    auth, contenttypes, sessions, main, kitchen, delivery,
+    driver, inventory, account, authtoken
+```
 
-### 🔐 Authentication & Security
--   **Multi-method Auth**: Support for standard login, social auth (if configured), and API keys.
--   **Role-Based Access Control (RBAC)**: Distinct permissions for `Admin`, `Kitchen Staff`, `Drivers`, and `Customers`.
--   **Security Middleware**: Content Security Policy (CSP), Rate Limiting (via `django-axes` and custom middleware), and SQL Injection protection.
+- **Shared DB (`default`)**: Tenant, Domain, UserProfile, ServicePlan, TenantSubscription, TenantInvoice, TenantUsage
+- **Tenant DBs** (e.g., `tenant_acme`): auth.User, MenuItem, DailyMenu, Order, CustomerProfile, Address, etc.
+- Each tenant has its own `auth_user` table — no cross-database FK hacks
+- `X-Tenant-Slug` header determines which tenant DB to route to
 
-### 🏢 Multi-Tenancy & Organizations
--   **Tenant Isolation**: Data segregation at the database or schema level (configurable).
--   **Subscription Plans**: Tenants can be subscribed to different plans (`SubscriptionPlan`) with varying limits (e.g., `max_orders_per_month`) and feature flags (`has_inventory_management`).
--   **Domain Management**: Custom domains can be mapped to specific tenants.
+## Key Features
 
-### 📦 Core Domain: Sales & Orders
--   **Subscriptions**: Logic for recurring food delivery. Subscriptions allow selecting **Multiple Menus**, specific **Time Slots**, and distinct **Lunch/Dinner Addresses**. Supports flexible scheduling with selected days and payment modes.
--   **Order Lifecycle**:
-    1.  **Pending**: Order generated from active subscription.
-    2.  **Confirmed**: Verified and scheduled.
-    3.  **Preparing**: Kitchen has successfully claimed the order.
-    4.  **Ready**: Food is prepared and packaged.
-    5.  **Delivered**: Driver has completed the drop-off.
--   **Sales History**: Comprehensive tracking of all transactions and order states.
+### Authentication & Security
+- **Multi-method Auth**: JWT (primary), API Keys (service-to-service), Session (admin interface)
+- **Role-Based Access Control (RBAC)**: Distinct permissions for Admin, Kitchen Staff, Drivers, and Customers
+- **Security Middleware**: CSP, Rate Limiting (django-axes + custom), Input Sanitization, SQL Injection protection
+- **Plan-Based Permissions**: PlanLimitMenuItems, PlanLimitStaffUsers, PlanLimitCustomers enforce subscription limits
 
-### 🚚 Driver & Delivery Management
--   **Zone & Route Planning**: logical grouping of deliveries into `Zones` and `Routes` for efficient logistics.
--   **Delivery Assignments**: Automated or manual assignment of `DeliveryStatus` to `DeliveryDriver`.
--   **Real-time Tracking**: Status updates (`pending` -> `picked_up` -> `delivered`) with timestamp logging.
+### Multi-Tenancy & Organizations
+- **Per-Tenant Database Isolation**: Each tenant gets a dedicated PostgreSQL database
+- **Service Plans**: Configurable tiers (free/basic/pro/enterprise) with pricing, limits, and feature flags
+- **Tenant Provisioning**: Management command creates DB, runs migrations, creates admin user, assigns plan
+- **Domain Management**: Custom domains mapped to specific tenants
 
-### 🍳 Kitchen Operations
--   **Ticket Management**: `KitchenOrder` model tracks preparation times and assignments to specific staff.
--   **Digital KDS**: Real-time visibility into what needs to be cooked *now*, filtered by time slots.
+### Menu & Daily Rotating Menus
+- **Master Menu Items**: `MenuItem` with name, description, price, diet type (veg/nonveg/both), optional calories, category
+- **Categories**: Tenant-configurable categories (inline creation supported)
+- **Meal Slots**: Configurable time slots (Breakfast, Lunch, Dinner, etc.) with cutoff times and sort order
+- **Daily Menus**: Date + meal slot + diet type combinations with status workflow (draft → published → archived)
+- **Daily Menu Items**: Link master items to daily menus with optional price overrides, portion labels, sort order
+- **Meal Packages**: Subscription tiers (e.g., Executive, Economy) with tenant-configurable names, pricing, duration
 
-### 📦 Inventory Management
--   **Stock Tracking**: Real-time tracking of ingredients via `InventoryItem`.
--   **Unit Conversion**: Robust `UnitOfMeasure` system handling weight, volume, and unit-based conversions.
--   **Low Stock Alerts**: Configurable `min_stock_level` triggers.
+### Orders & Subscriptions
+- **Order Lifecycle**: Pending → Confirmed → Preparing → Ready → Delivered
+- **Subscriptions**: Recurring meal delivery with multiple menu selections, time slots, and delivery addresses
+- **Wallet System**: Credits, debits, refund processing via WalletTransaction
+- **Invoicing**: Automated Invoice generation linked to wallet transactions
 
-### 👥 User & Customer Management
--   **Detailed Profiles**: `UserProfile` with extended contact info.
--   **Customer Data**: `Customer` model links to `Tenants` and stores critical info like Emirates ID.
--   **Wallet System**: Built-in `WalletTransaction` for handling credits, debits, and refund processing.
--   **Invoicing**: Automated generation of `Invoice` records for subscriptions and services, linked to wallet transactions.
--   **Registration Requests**: `CustomerRegistrationRequest` workflow for managing new manual sign-ups.
--   **Address Book**: Multiple delivery addresses (`Address` model) per customer with "default" address logic.
+### Customer Management
+- **Customer Profiles**: User + CustomerProfile + Address created in tenant DB
+- **Registration Requests**: Admin approval workflow creates User and CustomerProfile upon approval
+- **Address Management**: Structured address fields (building, floor, flat, street, city) with default/active status
+- **Admin Address CRUD**: AddressAdminViewSet with approve/reject actions
 
-## 📁 Project Structure
+### Kitchen Operations (KDS)
+- **Ticket Management**: KitchenOrder tracks preparation times and staff assignments
+- **Digital KDS**: Real-time visibility into cooking queue, filtered by time slots
+
+### Delivery & Driver Management
+- **Zone & Route Planning**: Logical grouping of deliveries into Zones and Routes
+- **Delivery Assignments**: Assignment of DeliveryStatus to DeliveryDriver
+- **Real-time Tracking**: Status updates (pending → picked_up → delivered) with timestamps
+
+### Inventory Management
+- **Stock Tracking**: Real-time tracking via InventoryItem
+- **Unit Conversion**: Robust UnitOfMeasure system (weight, volume, units)
+- **Low Stock Alerts**: Configurable min_stock_level triggers
+
+## Project Structure
 
 ```
 clean_backend/
 ├── apps/                    # Django applications
-│   ├── main/               # Core domain (subscriptions, orders, wallet, addresses)
+│   ├── main/               # Core domain (menus, daily menus, meal packages, orders,
+│   │   ├── models.py       #   subscriptions, customers, addresses, wallet, staff)
+│   │   ├── serializers/    #   Admin + Customer API serializers
+│   │   ├── views/          #   Admin + Customer API viewsets
+│   │   ├── urls_api.py     #   Tenant admin URL routing
+│   │   └── urls_customer_api.py  # Customer API URL routing
 │   ├── kitchen/            # KDS and kitchen workflows
 │   ├── delivery/           # Delivery logistics and planning
 │   ├── inventory/          # Stock and ingredient management
-│   ├── users/              # Auth, Tenants, and Profiles
-│   ├── organizations/      # Subscription plans and tenant configuration
-│   └── driver/             # Driver mobile app API and fleet management
+│   ├── users/              # Tenant model, domain mapping, user profiles, signals
+│   ├── organizations/      # Service plans, SaaS models, management commands
+│   │   └── management/commands/
+│   │       ├── provision_tenant.py
+│   │       ├── migrate_all_tenants.py
+│   │       └── seed_meal_slots.py
+│   └── driver/             # Driver fleet management
 ├── config/                 # Django configuration
-│   ├── settings/           # Settings files (base, dev, prod, test)
-│   └── urls/               # URL configurations
+│   ├── settings/           # base, development, production, test
+│   └── urls.py             # Root URL config (L1 + L2 + L3 routes)
 ├── core/                   # Shared utilities & middleware
-│   ├── middleware/         # Security & Tenant middleware
-│   ├── permissions/        # Custom DRF permissions
+│   ├── middleware/         # Security, MultiDbTenantMiddleware, performance
+│   ├── permissions/        # Custom DRF permissions + plan_limits.py
+│   ├── db/                # TenantRouter (multi-database routing)
 │   └── utils/              # Common helpers
 ├── requirements/           # Python dependencies
-├── scripts/                # Management & setup scripts
+├── scripts/                # Provisioning, migration, API key scripts
 ├── static/                 # Static files
 ├── templates/              # HTML templates
 ├── media/                  # User uploaded files
@@ -104,14 +131,13 @@ clean_backend/
 └── ssl/                    # SSL certificates
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Python 3.11+
 - PostgreSQL 15+
-- Redis 7+
-- Docker & Docker Compose (optional)
+- Redis 7+ (optional in development)
 
 ### Development Setup
 
@@ -129,87 +155,93 @@ clean_backend/
 
 3. **Install dependencies**
    ```bash
-   pip install -r requirements/requirements-dev.txt
+   pip install -r requirements/requirements.txt
    ```
 
 4. **Set up environment variables**
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env — set DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DJANGO_SECRET_KEY
    ```
 
-5. **Run database setup**
+5. **Run migrations (shared database)**
    ```bash
-   python scripts/setup_database.py
+   python manage.py migrate
    ```
 
-6. **Start development server**
+6. **Create SaaS superuser**
+   ```bash
+   python manage.py createsuperuser
+   ```
+
+7. **Provision a tenant**
+   ```bash
+   python manage.py provision_tenant
+   ```
+
+8. **Start development server**
    ```bash
    python manage.py runserver
    ```
 
 ### Docker Setup
 
-1. **Build and start services**
-   ```bash
-   docker-compose up --build
-   ```
+```bash
+docker-compose up --build -d
+docker-compose exec web python manage.py migrate
+docker-compose exec web python manage.py createsuperuser
+docker-compose exec web python manage.py provision_tenant
+```
 
-2. **Run migrations**
-   ```bash
-   docker-compose exec web python manage.py migrate
-   ```
+## Management Commands
 
-3. **Create superuser**
-   ```bash
-   docker-compose exec web python manage.py createsuperuser
-   ```
+| Command | Description |
+|---------|-------------|
+| `python manage.py provision_tenant` | Full tenant provisioning: creates DB, runs migrations, creates admin user, assigns plan |
+| `python manage.py migrate_all_tenants` | Migrate all tenant databases (supports `--parallel`, `--tenant=<slug>`) |
+| `python manage.py seed_meal_slots` | Seed default meal slots (Lunch, Dinner) for a tenant |
+| `python manage.py createsuperuser` | Create SaaS-level superuser (default DB) |
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
-Create a `.env` file with the following variables:
-
-```bash
-# Copy the example and fill in real values:
-cp .env.example .env
-```
-
-See `.env.example` for the full list of variables with descriptions. Key variables:
+See `.env.example` for the full list. Key variables:
 
 ```env
 DJANGO_ENV=development
-DJANGO_SECRET_KEY=          # Generate: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-DATABASE_URL=               # e.g. postgresql://user:pass@localhost:5432/dbname
+DJANGO_SECRET_KEY=          # Generate with Django's get_random_secret_key()
+DB_NAME=food_app            # PostgreSQL database name
+DB_USER=postgres            # PostgreSQL user
+DB_PASSWORD=                # PostgreSQL password
+DB_HOST=localhost           # PostgreSQL host
 REDIS_URL=redis://localhost:6379/0
-SYNC_TOKEN=                 # A strong random token
 ```
 
-> **Important:** Never use default or example passwords. Always generate strong, unique credentials for each environment.
+> **Important:** Never use default or example passwords. Always generate strong, unique credentials.
 
 ### Settings Files
 
-- `config/settings/base.py` - Base settings for all environments
-- `config/settings/development.py` - Development-specific settings
-- `config/settings/production.py` - Production-specific settings
-- `config/settings/test.py` - Test-specific settings
+- `config/settings/base.py` — Base settings for all environments
+- `config/settings/development.py` — Development-specific settings
+- `config/settings/production.py` — Production-specific settings
+- `config/settings/test.py` — Test-specific settings
 
-## 📊 API Documentation
+## API Documentation
 
-Once the server is running, you can access:
+Once the server is running:
 
 - **Swagger UI**: http://localhost:8000/swagger/
 - **ReDoc**: http://localhost:8000/redoc/
 - **Admin Interface**: http://localhost:8000/admin/
 
-## 🔐 Authentication
+## Authentication
 
-The application supports multiple authentication methods:
-
-1. **JWT Authentication** - For API access
-2. **API Key Authentication** - For service-to-service communication
-3. **Session Authentication** - For web interface
+| Method | Header | Use Case |
+|--------|--------|----------|
+| JWT | `Authorization: Bearer <token>` | Primary API access (60min access, 24hr refresh) |
+| API Key | `X-Api-Key: <key>` | Service-to-service communication |
+| Session | Cookie | Django admin interface |
 
 ### Creating API Keys
 
@@ -217,42 +249,30 @@ The application supports multiple authentication methods:
 python scripts/create_api_key.py <username> <key_name> <days_valid>
 ```
 
-Example:
-```bash
-python scripts/create_api_key.py admin production_key 90
-```
+## Security Features
 
-## 🛡️ Security Features
+- **Content Security Policy (CSP)** — Prevents XSS attacks
+- **Rate Limiting** — django-axes (5 failures = 1hr lockout) + custom middleware
+- **Input Validation** — Sanitizes user input
+- **SQL Injection Protection** — Django ORM protection
+- **CSRF Protection** — Cross-site request forgery protection
+- **Session Security** — Secure session management
+- **Password Validation** — Strong password requirements
+- **Plan-Based Limits** — Subscription tier enforcement on create actions
 
-- **Content Security Policy (CSP)** - Prevents XSS attacks
-- **Rate Limiting** - Prevents abuse
-- **Input Validation** - Sanitizes user input
-- **SQL Injection Protection** - Django ORM protection
-- **CSRF Protection** - Cross-site request forgery protection
-- **Session Security** - Secure session management
-- **Password Validation** - Strong password requirements
-
-## 📈 Monitoring
+## Monitoring
 
 ### Health Checks
-
-- **Application Health**: `GET /health/`
-- **Database Health**: `GET /health/db/`
-- **Cache Health**: `GET /health/cache/`
+- **Application Health**: `GET /api/v1/health/`
+- **Dashboard Summary**: `GET /api/v1/dashboard/summary/`
 
 ### Metrics
-
-The application exposes metrics for:
-
-- Request/response times
-- Database query performance
+- Request/response times (performance middleware)
+- Database query performance (N+1 detection)
 - Memory usage
 - Error rates
-- API usage statistics
 
-## 🧪 Testing
-
-### Run Tests
+## Testing
 
 ```bash
 # Run all tests
@@ -266,119 +286,31 @@ coverage run --source='.' manage.py test
 coverage report
 ```
 
-### Test Settings
+## Deployment
 
-Tests use a separate settings file (`config/settings/test.py`) with:
-
-- In-memory SQLite database
-- Disabled security features
-- Fast test execution
-
-## 📝 Logging
-
-Logs are stored in the `logs/` directory:
-
-- `django.log` - General application logs
-- `security.log` - Security-related events
-- `api.log` - API request logs
-
-## 🚀 Deployment
-
-### Production Deployment
-
-1. **Set environment variables**
-   ```bash
-   export DJANGO_SETTINGS_MODULE=config.settings.production
-   export DJANGO_SECRET_KEY=your-production-secret-key
-   export DATABASE_URL=your-production-database-url
-   ```
-
-2. **Collect static files**
-   ```bash
-   python manage.py collectstatic --noinput
-   ```
-
-3. **Run migrations**
-   ```bash
-   python manage.py migrate
-   ```
-
-4. **Start with Gunicorn**
-   ```bash
-   gunicorn --bind 0.0.0.0:8000 --workers 4 config.wsgi:application
-   ```
-
-### Docker Deployment
+### Production
 
 ```bash
-# Build and start production services
-docker-compose -f docker-compose.prod.yml up --build -d
+export DJANGO_SETTINGS_MODULE=config.settings.production
+python manage.py collectstatic --noinput
+python manage.py migrate
+gunicorn --bind 0.0.0.0:8000 --workers 4 config.wsgi:application
+```
 
-# Scale services
+### Docker
+
+```bash
+docker-compose -f docker-compose.prod.yml up --build -d
 docker-compose -f docker-compose.prod.yml up --scale web=3 --scale celery=2 -d
 ```
 
-## 🔧 Management Commands
+## Logging
 
-### Available Commands
+Logs are stored in the `logs/` directory:
+- `django.log` — General application logs
+- `security.log` — Security-related events
+- `api.log` — API request logs
 
-- `python manage.py setup_database` - Initialize database with sample data
-- `python manage.py create_api_key` - Create API keys
-- `python manage.py backup_data` - Backup database and media files
-- `python manage.py restore_data` - Restore from backup
-
-### Custom Commands
-
-```bash
-# Create API key
-python scripts/create_api_key.py admin production_key 90
-
-# Setup database
-python scripts/setup_database.py
-```
-
-## 📚 API Endpoints
-
-### Main Endpoints
-
-- `GET /api/v1/menu/` - Get menu items
-- `GET /api/v1/subscriptions/` - Get user subscriptions
-- `POST /api/v1/subscriptions/` - Create subscription
-- `GET /api/v1/deliveries/` - Get deliveries
-- `POST /api/v1/deliveries/` - Create delivery
-
-### Authentication Endpoints
-
-- `POST /api/v1/auth/login/` - Login
-- `POST /api/v1/auth/logout/` - Logout
-- `POST /api/v1/auth/register/` - Register
-- `POST /api/v1/auth/password/reset/` - Reset password
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run the test suite
-6. Submit a pull request
-
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-For support and questions:
-
-- **Email**: support@kitchen.funadventure.ae
-- **Documentation**: https://docs.kitchen.funadventure.ae
-- **Issues**: GitHub Issues
-
-## 🔄 Changelog
-
-### Version 1.0.0
-- Initial release
-- Core functionality implemented
-- Security features added
-- API documentation complete 

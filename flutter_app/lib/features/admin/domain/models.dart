@@ -528,6 +528,8 @@ class DeliveryItem {
   final int? orderId;
   final int? driverId;
   final String? driverName;
+  final String? customerName;
+  final String? deliveryAddress;
   final String? pickupTime;
   final String? deliveryTime;
   final String status;
@@ -539,6 +541,8 @@ class DeliveryItem {
     this.orderId,
     this.driverId,
     this.driverName,
+    this.customerName,
+    this.deliveryAddress,
     this.pickupTime,
     this.deliveryTime,
     required this.status,
@@ -552,12 +556,152 @@ class DeliveryItem {
       orderId: json['order_id'] ?? json['order'],
       driverId: json['driver'],
       driverName: json['driver_name'],
+      customerName: json['customer_name'],
+      deliveryAddress: json['delivery_address'],
       pickupTime: json['pickup_time'],
       deliveryTime: json['delivery_time'],
       status: json['status'] ?? 'pending',
       notes: json['notes'],
       createdAt: json['created_at'],
     );
+  }
+}
+
+// ─── Delivery Driver ────────────────────────────────────────────────────────
+
+class DeliveryDriver {
+  final int id;
+  final String name;
+  final String phone;
+  final String? email;
+  final String? vehicleNumber;
+  final String? vehicleType;
+  final bool isActive;
+  final String? createdAt;
+
+  DeliveryDriver({
+    required this.id,
+    required this.name,
+    required this.phone,
+    this.email,
+    this.vehicleNumber,
+    this.vehicleType,
+    this.isActive = true,
+    this.createdAt,
+  });
+
+  factory DeliveryDriver.fromJson(Map<String, dynamic> json) {
+    return DeliveryDriver(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      phone: json['phone'] ?? '',
+      email: json['email'],
+      vehicleNumber: json['vehicle_number'],
+      vehicleType: json['vehicle_type'],
+      isActive: json['is_active'] ?? true,
+      createdAt: json['created_at'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'phone': phone,
+      if (email != null && email!.isNotEmpty) 'email': email,
+      if (vehicleNumber != null) 'vehicle_number': vehicleNumber,
+      if (vehicleType != null) 'vehicle_type': vehicleType,
+      'is_active': isActive,
+    };
+  }
+}
+
+// ─── Delivery Zone ──────────────────────────────────────────────────────────
+
+class DeliveryZone {
+  final int id;
+  final String name;
+  final String? description;
+  final double deliveryFee;
+  final int estimatedDeliveryTime;
+  final bool isActive;
+  final int routeCount;
+  final String? createdAt;
+
+  DeliveryZone({
+    required this.id,
+    required this.name,
+    this.description,
+    this.deliveryFee = 0,
+    this.estimatedDeliveryTime = 30,
+    this.isActive = true,
+    this.routeCount = 0,
+    this.createdAt,
+  });
+
+  factory DeliveryZone.fromJson(Map<String, dynamic> json) {
+    return DeliveryZone(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      description: json['description'],
+      deliveryFee: double.tryParse('${json['delivery_fee']}') ?? 0,
+      estimatedDeliveryTime: json['estimated_delivery_time'] ?? 30,
+      isActive: json['is_active'] ?? true,
+      routeCount: json['route_count'] ?? 0,
+      createdAt: json['created_at'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'description': description ?? '',
+      'delivery_fee': deliveryFee.toStringAsFixed(2),
+      'estimated_delivery_time': estimatedDeliveryTime,
+      'is_active': isActive,
+    };
+  }
+}
+
+// ─── Delivery Route ─────────────────────────────────────────────────────────
+
+class DeliveryRoute {
+  final int id;
+  final String name;
+  final int zoneId;
+  final String? zoneName;
+  final String? description;
+  final bool isActive;
+  final String? createdAt;
+
+  DeliveryRoute({
+    required this.id,
+    required this.name,
+    required this.zoneId,
+    this.zoneName,
+    this.description,
+    this.isActive = true,
+    this.createdAt,
+  });
+
+  factory DeliveryRoute.fromJson(Map<String, dynamic> json) {
+    return DeliveryRoute(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      zoneId: json['zone'] ?? 0,
+      zoneName: json['zone_name'],
+      description: json['description'],
+      isActive: json['is_active'] ?? true,
+      createdAt: json['created_at'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'zone': zoneId,
+      'description': description ?? '',
+      'is_active': isActive,
+    };
   }
 }
 
