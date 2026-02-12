@@ -78,6 +78,30 @@ class _CustomersScreenState extends State<CustomersScreen>
     }
   }
 
+  Future<void> _showEditCustomerDialog(CustomerItem customer) async {
+    final result = await showDialog<CustomerItem>(
+      context: context,
+      builder: (ctx) => _EditCustomerDialog(repo: _repo, customer: customer),
+    );
+    if (result != null) {
+      setState(() {
+        _selectedCustomer = result;
+        // Update the list item as well
+        final index = _customers.indexWhere((c) => c.id == result.id);
+        if (index != -1) {
+          _customers[index] = result;
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Customer updated successfully'),
+              backgroundColor: Colors.green),
+        );
+      }
+    }
+  }
+
   Future<void> _approveRequest(RegistrationRequest req) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -630,6 +654,16 @@ class _CustomerDetailPanel extends StatelessWidget {
                 _LoyaltyBadge(tier: c.loyaltyTier),
                 const SizedBox(width: 4),
                 IconButton(
+                    onPressed: () {
+                      // Find the state to call _showEditCustomerDialog
+                      final state =
+                          context.findAncestorStateOfType<_CustomersScreenState>();
+                      state?._showEditCustomerDialog(c);
+                    },
+                    icon: const Icon(Icons.edit, size: 20),
+                    tooltip: 'Edit'),
+                const SizedBox(width: 4),
+                IconButton(
                     onPressed: onClose,
                     icon: const Icon(Icons.close, size: 20),
                     tooltip: 'Close'),
@@ -1162,6 +1196,166 @@ class _RequestStatusChip extends StatelessWidget {
       child: Text(status[0].toUpperCase() + status.substring(1),
           style:
               TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Edit Customer Dialog
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _EditCustomerDialog extends StatefulWidget {
+  final AdminRepository repo;
+  final CustomerItem customer;
+  const _EditCustomerDialog({required this.repo, required this.customer});
+
+  @override
+  State<_EditCustomerDialog> createState() => _EditCustomerDialogState();
+}
+
+class _EditCustomerDialogState extends State<_EditCustomerDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameCtrl;
+  late TextEditingController _phoneCtrl;
+  late TextEditingController _emailCtrl;
+  late TextEditingController _eidCtrl;
+  late TextEditingController _zoneCtrl;
+  late String _prefComm;
+
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.customer.name);
+    _phoneCtrl = TextEditingController(text: widget.customer.phone);
+    _emailCtrl = TextEditingController(text: widget.customer.email);
+    _eidCtrl = TextEditingController(text: widget.customer.emiratesId);
+    _zoneCtrl = TextEditingController(text: widget.customer.zone);
+    _prefComm = widget.customer.preferredCommunication ?? 'whatsapp';
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    _eidCtrl.dispose();
+    _zoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      final names = _nameCtrl.text.trim().split(' ');
+      final firstName = names.isNotEmpty ? names.first : '';
+      final lastName = names.length > 1 ? names.skip(1).join(' ') : '';
+
+      final updated = await widget.repo.updateCustomer(widget.customer.id, {
+        'first_name': firstName,
+        'last_name': lastName,
+        'name': _nameCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
+        'emirates_id': _eidCtrl.text.trim(),
+        'zone': _zoneCtrl.text.trim(),
+        'preferred_communication': _prefComm,
+      });
+      if (mounted) Navigator.pop(context, updated);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Edit Customer'),
+      content: SizedBox(
+        width: 400,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_error != null)
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    color: Colors.red.shade50,
+                    child: Text(_error!,
+                        style: TextStyle(color: Colors.red.shade700)),
+                  ),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Full Name *'),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Name is required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _phoneCtrl,
+                  decoration: const InputDecoration(labelText: 'Phone Number *'),
+                   validator: (v) =>
+                      v == null || v.isEmpty ? 'Phone is required' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _emailCtrl,
+                  decoration: const InputDecoration(labelText: 'Email Address'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _eidCtrl,
+                  decoration: const InputDecoration(labelText: 'Emirates ID'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _zoneCtrl,
+                  decoration: const InputDecoration(labelText: 'Delivery Zone'),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _prefComm,
+                  decoration:
+                      const InputDecoration(labelText: 'Preferred Communication'),
+                  items: const [
+                    DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp')),
+                    DropdownMenuItem(value: 'sms', child: Text('SMS')),
+                    DropdownMenuItem(value: 'email', child: Text('Email')),
+                    DropdownMenuItem(value: 'none', child: Text('None')),
+                  ],
+                  onChanged: (v) => setState(() => _prefComm = v!),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        FilledButton.icon(
+          onPressed: _submitting ? null : _submit,
+          icon: _submitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.check),
+          label: const Text('Save Changes'),
+        ),
+      ],
     );
   }
 }

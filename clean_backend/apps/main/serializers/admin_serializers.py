@@ -107,8 +107,46 @@ class CustomerProfileAdminSerializer(serializers.ModelSerializer):
             'wallet_balance', 'loyalty_points', 'loyalty_tier',
             'preferred_communication', 'addresses',
             'created_at', 'updated_at',
+            'first_name', 'last_name',
         ]
-        read_only_fields = ['wallet_balance', 'loyalty_points', 'created_at', 'updated_at']
+        read_only_fields = ['wallet_balance', 'loyalty_points', 'created_at', 'updated_at', 'username']
+
+    # Explicitly define these fields so they are writable
+    first_name = serializers.CharField(source='user.first_name', required=False)
+    last_name = serializers.CharField(source='user.last_name', required=False)
+    email = serializers.EmailField(source='user.email', required=False)
+
+    def update(self, instance, validated_data):
+        # Extract user data - DRF nests it because of source='user.field'
+        user_data = validated_data.pop('user', {})
+        
+        # Update CustomerProfile fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update User fields if provided
+        user = instance.user
+        if user_data:
+            user_updated = False
+            if 'first_name' in user_data:
+                user.first_name = user_data['first_name']
+                user_updated = True
+            if 'last_name' in user_data:
+                user.last_name = user_data['last_name']
+                user_updated = True
+            if 'email' in user_data:
+                new_email = user_data['email']
+                if new_email and user.email != new_email:
+                    if User.objects.filter(email=new_email).exclude(pk=user.pk).exists():
+                         raise serializers.ValidationError({"email": "This email is already in use."})
+                user.email = new_email
+                user_updated = True
+            
+            if user_updated:
+                user.save()
+
+        return instance
 
 
 class CustomerProfileCreateSerializer(serializers.Serializer):

@@ -113,6 +113,15 @@ class AdminRepository {
     return CustomerItem.fromJson(response.data);
   }
 
+  Future<CustomerItem> updateCustomer(int id, Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.patch(
+      '${base}customers/$id/',
+      data: data,
+    );
+    return CustomerItem.fromJson(response.data);
+  }
+
   Future<Map<String, dynamic>> approveRegistration(int id) async {
     final base = await _baseUrl();
     final response = await _apiClient.dio.post(
