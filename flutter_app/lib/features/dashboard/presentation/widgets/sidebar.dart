@@ -88,6 +88,24 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
+          // Platform Admin link (visible to all for now — backend enforces superuser)
+          const Divider(height: 1),
+          ListTile(
+            leading: Icon(Icons.admin_panel_settings_rounded,
+                color: Theme.of(context).primaryColor, size: 22),
+            title: Text(
+              'Platform Admin',
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+            dense: true,
+            onTap: () => context.go('/saas'),
+          ),
           // Logout button at the bottom
           const Divider(height: 1),
           ListTile(

@@ -1,6 +1,6 @@
 # Fun Adventure Kitchen — 3-Layer SaaS Implementation Plan
 
-> **Status:** All backend phases implemented. See below for what was built and the complete API reference.
+> **Status:** All backend phases + Phase 5 (SaaS Owner Dashboard) implemented. See below for what was built and the complete API reference.
 
 ---
 
@@ -177,11 +177,27 @@ Added to `ServicePlan`:
 - Wallet / payments
 - Push notifications
 
-### Phase 5 — SaaS Owner Dashboard
-- Tenant management UI
-- Plan management
-- Revenue / growth charts
-- Platform health monitoring
+### Phase 5 — SaaS Owner Dashboard (Flutter) ✅
+- **Overview screen** — platform-wide analytics cards (total/active/trial tenants, MRR, ARR, pending/overdue invoices)
+- **Tenants screen** — searchable data table with status badges, suspend/activate actions, create-tenant dialog
+- **Tenant detail screen** — subscription info, plan limits, latest usage metrics
+- **Plans screen** — card-based grid with pricing, feature limits, create/edit/toggle active
+- **SaaS Shell** — dark indigo sidebar, dedicated header, fully responsive with mobile drawer
+- **Router integration** — `/saas`, `/saas/tenants`, `/saas/tenants/:id`, `/saas/plans` routes in GoRouter
+- **Tenant sidebar** — "Platform Admin" link to switch between tenant admin and SaaS owner dashboards
+
+#### New Flutter Files (Phase 5)
+| File | Purpose |
+|------|---------|
+| `features/saas_admin/domain/models.dart` | Dart domain models (ServicePlan, Tenant, TenantDetail, Subscription, Usage, Analytics) |
+| `features/saas_admin/data/saas_repository.dart` | Repository wrapping all `/api/saas/` endpoints |
+| `features/saas_admin/presentation/saas_shell.dart` | SaaS dashboard layout shell |
+| `features/saas_admin/presentation/saas_overview_screen.dart` | Analytics overview (home) |
+| `features/saas_admin/presentation/tenants_screen.dart` | Tenant management list |
+| `features/saas_admin/presentation/tenant_detail_screen.dart` | Tenant detail view |
+| `features/saas_admin/presentation/plans_screen.dart` | Service plan management |
+| `features/saas_admin/presentation/widgets/saas_sidebar.dart` | Dark sidebar navigation |
+| `features/saas_admin/presentation/widgets/saas_header.dart` | SaaS header bar |
 
 ### Phase 6 — Production Hardening
 - Celery tasks for usage collection
