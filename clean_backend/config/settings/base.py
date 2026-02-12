@@ -1,12 +1,10 @@
 import os
 from pathlib import Path
-from django.urls import reverse_lazy
 import logging
 from datetime import timedelta
 import dj_database_url
 import sys
 import dotenv
-from cryptography.fernet import Fernet
 
 # Load environment variables from .env file
 dotenv.load_dotenv()
@@ -44,15 +42,7 @@ if DEBUG:
 
 # CORS Settings
 CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all origins in development
-CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if os.environ.get('CORS_ALLOWED_ORIGINS') else [
-    "https://kitchen.funadventure.ae",
-    "https://staging.kitchen.funadventure.ae",
-]
-if DEBUG:
-    CORS_ALLOWED_ORIGINS += [
-        "http://localhost:3000",
-        "http://localhost:8000",
-    ]
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -116,13 +106,13 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'logs/django.log',
+            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
             'formatter': 'verbose',
         },
         'security_file': {
             'level': 'WARNING',
             'class': 'logging.FileHandler',
-            'filename': 'logs/security.log',
+            'filename': os.path.join(BASE_DIR, 'logs', 'security.log'),
             'formatter': 'security',
         },
         'console': {
@@ -199,7 +189,9 @@ INSTALLED_APPS = [
     'django_user_agents',
     'axes',
     'csp',
-    
+    'drf_yasg',
+    'django_filters',
+
     # Local apps
     'apps.users',
     'apps.organizations',
@@ -215,10 +207,21 @@ DATABASE_ROUTERS = (
 )
 
 # APScheduler configuration
+_db_user = os.environ.get('DB_USER', 'postgres')
+_db_pass = os.environ.get('DB_PASSWORD', '')
+_db_host = os.environ.get('DB_HOST', 'localhost')
+_db_port = os.environ.get('DB_PORT', '5432')
+_db_name = os.environ.get('DB_NAME', 'food_app')
+_db_cred = f"{_db_user}:{_db_pass}@" if _db_pass else f"{_db_user}@"
+_scheduler_db_url = os.environ.get(
+    'DATABASE_URL',
+    f'postgresql://{_db_cred}{_db_host}:{_db_port}/{_db_name}',
+)
+
 SCHEDULER_CONFIG = {
     'apscheduler.jobstores.default': {
         'type': 'sqlalchemy',
-        'url': os.environ.get('DATABASE_URL', 'sqlite:///scheduler.db'),
+        'url': _scheduler_db_url,
     },
     'apscheduler.executors.default': {
         'class': 'apscheduler.executors.pool:ThreadPoolExecutor',
@@ -256,7 +259,6 @@ REST_FRAMEWORK = {
         'anon': '100/hour',
         'user': '1000/hour'
     },
-    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
     'DEFAULT_VERSION': 'v1',
     'ALLOWED_VERSIONS': ['v1'],
@@ -303,7 +305,7 @@ MIDDLEWARE = [
     'django.middleware.cache.FetchFromCacheMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    # 'allauth.account.middleware.AccountMiddleware', # Not available in allauth 0.54.0
+    # 'allauth.account.middleware.AccountMiddleware',  # Required from allauth >=0.56.0 (current: 0.54.0)
     'apps.users.middleware.SecurityMiddleware',
     'apps.users.middleware.SessionTimeoutMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -359,12 +361,15 @@ if not DEBUG:  # In production
     SECURE_HSTS_PRELOAD = True
     X_FRAME_OPTIONS = 'DENY'
     
-    # Strict CORS settings for production
-    CORS_ALLOWED_ORIGINS = [
-        "https://kitchen.funadventure.ae",
-        "https://www.kitchen.funadventure.ae",
-    ]
-    CORS_ALLOW_CREDENTIALS = True
+    # Production CORS — read from env or use defaults
+    CORS_ALLOWED_ORIGINS = (
+        os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+        if os.environ.get('CORS_ALLOWED_ORIGINS')
+        else [
+            "https://kitchen.funadventure.ae",
+            "https://www.kitchen.funadventure.ae",
+        ]
+    )
 else:  # In development
     SECURE_SSL_REDIRECT = False
     SECURE_PROXY_SSL_HEADER = None
@@ -377,15 +382,15 @@ else:  # In development
     SECURE_HSTS_SECONDS = 0
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_PRELOAD = False
-    
-    # Development CORS settings
+
+    # Development CORS — CORS_ALLOW_ALL_ORIGINS=True handles this,
+    # but explicit list is still needed for credentialed requests.
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
-        "http://localhost:3001",
+        "http://localhost:8000",
         "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
+        "http://127.0.0.1:8000",
     ]
-    CORS_ALLOW_CREDENTIALS = True
 
 # Content Security Policy settings
 CSP_DEFAULT_SRC = ("'self'",)
@@ -406,7 +411,7 @@ AXES_COOLOFF_TIME = 1  # Lock out for 1 hour
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_TEMPLATE = 'account_locked.html'
 AXES_LOCKOUT_URL = '/accounts/locked/'
-AXES_ENABLED = not DEBUG if DEBUG else True
+AXES_ENABLED = not DEBUG  # Disabled in development, enabled in production
 
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
@@ -470,7 +475,7 @@ if not DEBUG and os.environ.get('REDIS_URL'):
         },
     }
 
-# Database configuration
+# Database configuration — PostgreSQL only (no SQLite fallback)
 if os.environ.get('DATABASE_URL'):
     DATABASES = {
         'default': dj_database_url.config(
@@ -479,32 +484,18 @@ if os.environ.get('DATABASE_URL'):
             conn_health_checks=True,
         )
     }
-elif all([os.environ.get(env_var) for env_var in ['DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST']]):
+else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME'),
-            'USER': os.environ.get('DB_USER'),
-            'PASSWORD': os.environ.get('DB_PASSWORD'),
-            'HOST': os.environ.get('DB_HOST'),
+            'NAME': os.environ.get('DB_NAME', 'food_app'),
+            'USER': os.environ.get('DB_USER', 'postgres'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
             'PORT': os.environ.get('DB_PORT', '5432'),
             'CONN_MAX_AGE': 600,
         }
     }
-else:
-    if DEBUG:
-        logger.warning("PostgreSQL configuration not found. Using SQLite for development.")
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
-            }
-        }
-    else:
-        raise ValueError(
-            "Production environment requires PostgreSQL. Please set either DATABASE_URL "
-            "or all of the following: DB_NAME, DB_USER, DB_PASSWORD, DB_HOST"
-        )
 
 # Enable query logging in development
 if DEBUG:
@@ -562,7 +553,6 @@ LOGIN_URL = '/login/'
 KITCHEN_LOGIN_URL = '/kitchen/login/'
 KITCHEN_LOGIN_REDIRECT_URL = '/kitchen/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # Email configuration
 if DEBUG:
@@ -588,24 +578,28 @@ if not SYNC_TOKEN:
 
 # Whitenoise configuration for static files in production
 if not DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    WHITENOISE_MAX_AGE = 604800  # 1 week in seconds
-    WHITENOISE_MIMETYPES = {
-        'application/font-woff': 'application/octet-stream',
-        'application/font-woff2': 'application/octet-stream',
-        'application/vnd.ms-fontobject': 'application/octet-stream',
-        'font/ttf': 'application/octet-stream',
-        'font/otf': 'application/octet-stream',
+    # STORAGES replaces the deprecated STATICFILES_STORAGE in Django 4.2+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
     }
+    WHITENOISE_MAX_AGE = 604800  # 1 week in seconds
 
 # Debug toolbar configuration
 if DEBUG:
-    INTERNAL_IPS = []
+    INTERNAL_IPS = ['127.0.0.1']
     if os.environ.get('DOCKER_HOST_IP'):
         INTERNAL_IPS.append(os.environ.get('DOCKER_HOST_IP'))
-    import socket
-    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
-    INTERNAL_IPS += [ip[: ip.rfind(".")] + ".1" for ip in ips]
+    try:
+        import socket
+        _, _, ips = socket.gethostbyname_ex(socket.gethostname())
+        INTERNAL_IPS += [ip[: ip.rfind(".")] + ".1" for ip in ips]
+    except socket.gaierror:
+        pass  # DNS resolution failed — use defaults
 
 # DRF-YASG settings
 SWAGGER_SETTINGS = {
@@ -641,4 +635,16 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 
 # Encryption Settings
-ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', Fernet.generate_key().decode()) 
+ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
+if not ENCRYPTION_KEY:
+    if DEBUG:
+        # Stable dev key so encrypted data survives restarts during development.
+        # NEVER use this in production.
+        ENCRYPTION_KEY = 'dev-only-not-secure-aaaaaaaaaaaaaaaa'
+        logger.warning("Using development ENCRYPTION_KEY. Set ENCRYPTION_KEY env var in production.")
+    else:
+        from cryptography.fernet import Fernet
+        raise ValueError(
+            "ENCRYPTION_KEY environment variable is required in production. "
+            f"Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
