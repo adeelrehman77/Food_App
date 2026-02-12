@@ -15,7 +15,8 @@ class DeliverySerializer(serializers.ModelSerializer):
         model = Delivery
         fields = [
             'id', 'order', 'order_id', 'driver', 'driver_name',
-            'customer_name', 'delivery_address',
+            # 'customer_name', 
+            'delivery_address',
             'pickup_time', 'delivery_time', 'status', 'notes',
             'created_at', 'updated_at',
         ]
