@@ -288,7 +288,8 @@ class DailyMenu(models.Model):
         return f"{self.menu_date} — {self.meal_slot.name} — {self.get_diet_type_display()} ({self.status})"
 
     @property
-    def item_count(self):
+    def computed_item_count(self):
+        """Fallback count when the queryset annotation is not available."""
         return self.items.count()
 
 

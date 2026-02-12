@@ -80,6 +80,74 @@ class CustomerProfileAdminSerializer(serializers.ModelSerializer):
         read_only_fields = ['wallet_balance', 'loyalty_points', 'created_at', 'updated_at']
 
 
+class CustomerProfileCreateSerializer(serializers.Serializer):
+    """
+    Admin-facing serializer to create a new customer.
+    Creates a Django User + CustomerProfile in the tenant database.
+    """
+    name = serializers.CharField(max_length=100)
+    phone = serializers.CharField(max_length=20)
+    email = serializers.EmailField(required=False, allow_blank=True, default='')
+    emirates_id = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
+    zone = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    preferred_communication = serializers.ChoiceField(
+        choices=[('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email'), ('none', 'None')],
+        default='whatsapp',
+        required=False,
+    )
+    address = serializers.CharField(required=False, allow_blank=True, default='')
+
+    def validate_phone(self, value):
+        # Check uniqueness within the tenant DB
+        if CustomerProfile.objects.filter(phone=value).exists():
+            raise serializers.ValidationError("A customer with this phone number already exists.")
+        return value
+
+    def validate_email(self, value):
+        if value and User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def create(self, validated_data):
+        import uuid
+        name = validated_data['name']
+        phone = validated_data['phone']
+        email = validated_data.get('email', '')
+        address = validated_data.pop('address', '')
+
+        # Generate a unique username from the phone number
+        username = f"cust_{phone.replace('+', '').replace(' ', '').replace('-', '')}"
+        # Ensure uniqueness
+        if User.objects.filter(username=username).exists():
+            username = f"{username}_{uuid.uuid4().hex[:6]}"
+
+        # Create User in the tenant DB (router handles this)
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            first_name=name.split()[0] if name else '',
+            last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else '',
+            # No password — customer can't login via admin-created accounts
+            # until they set one (or we send them a link)
+            is_active=True,
+            is_staff=False,
+        )
+        # Set an unusable password for now
+        user.set_unusable_password()
+        user.save()
+
+        # Create CustomerProfile in the tenant DB
+        customer = CustomerProfile.objects.create(
+            user=user,
+            name=name,
+            phone=phone,
+            emirates_id=validated_data.get('emirates_id', ''),
+            zone=validated_data.get('zone', ''),
+            preferred_communication=validated_data.get('preferred_communication', 'whatsapp'),
+        )
+        return customer
+
+
 class CustomerRegistrationRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerRegistrationRequest
@@ -235,7 +303,7 @@ class DailyMenuListSerializer(serializers.ModelSerializer):
     meal_slot_name = serializers.CharField(source='meal_slot.name', read_only=True)
     meal_slot_code = serializers.CharField(source='meal_slot.code', read_only=True)
     diet_type_display = serializers.CharField(source='get_diet_type_display', read_only=True)
-    item_count = serializers.IntegerField(read_only=True)
+    item_count = serializers.SerializerMethodField()
 
     class Meta:
         model = DailyMenu
@@ -247,6 +315,12 @@ class DailyMenuListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at', 'updated_at']
 
+    def get_item_count(self, obj):
+        # Use annotated value if available, otherwise fall back to DB count
+        if hasattr(obj, 'item_count'):
+            return obj.item_count
+        return obj.items.count()
+
 
 class DailyMenuDetailSerializer(serializers.ModelSerializer):
     """Full serializer with nested items for detail view / editing."""
@@ -254,7 +328,12 @@ class DailyMenuDetailSerializer(serializers.ModelSerializer):
     meal_slot_code = serializers.CharField(source='meal_slot.code', read_only=True)
     diet_type_display = serializers.CharField(source='get_diet_type_display', read_only=True)
     items = DailyMenuItemReadSerializer(many=True, read_only=True)
-    item_count = serializers.IntegerField(read_only=True)
+    item_count = serializers.SerializerMethodField()
+
+    def get_item_count(self, obj):
+        if hasattr(obj, 'item_count'):
+            return obj.item_count
+        return obj.items.count()
 
     class Meta:
         model = DailyMenu

@@ -31,7 +31,8 @@ from django.utils import timezone
 
 from apps.organizations.models import ServicePlan
 from apps.organizations.models_saas import TenantSubscription
-from apps.users.models import Tenant, UserProfile
+from apps.users.models import Tenant
+from core.db.router import set_current_db_alias, get_current_db_alias
 
 User = get_user_model()
 
@@ -161,34 +162,35 @@ class Command(BaseCommand):
         else:
             self.stdout.write("3. Skipping migrations (--skip-migrate)")
 
-        # ── Step 4: Create admin user ──
-        self.stdout.write("4. Creating admin user ... ", ending="")
+        # ── Step 4: Create admin user (in the TENANT database) ──
+        self.stdout.write("4. Creating admin user in tenant DB ... ", ending="")
         base_username = (
             admin_email.split("@")[0] if admin_email else subdomain
         )
         username = base_username
-        counter = 1
-        while User.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
-            counter += 1
 
-        admin_user = User.objects.create_user(
-            username=username,
-            email=admin_email,
-            password=admin_password,
-            is_staff=True,
-            is_active=True,
-        )
+        # Switch to tenant DB context so User.objects routes there
+        old_alias = get_current_db_alias()
+        set_current_db_alias(db_alias)
+        try:
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
 
-        # Link admin user to this tenant via UserProfile
-        UserProfile.objects.update_or_create(
-            user=admin_user,
-            defaults={'tenant': tenant},
-        )
+            admin_user = User.objects.create_user(
+                username=username,
+                email=admin_email,
+                password=admin_password,
+                is_staff=True,
+                is_active=True,
+            )
 
-        self.stdout.write(
-            self.style.SUCCESS(f"OK (username={username}, id={admin_user.id})")
-        )
+            self.stdout.write(
+                self.style.SUCCESS(f"OK (username={username}, id={admin_user.id})")
+            )
+        finally:
+            set_current_db_alias(old_alias)
 
         # ── Step 5: Assign plan & create subscription ──
         if plan_id:

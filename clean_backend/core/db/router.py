@@ -3,44 +3,63 @@ import threading
 # Thread-local storage for the current database alias
 _thread_locals = threading.local()
 
+
 def get_current_db_alias():
     """Get the current database alias from thread-local storage."""
     return getattr(_thread_locals, 'db_alias', 'default')
+
 
 def set_current_db_alias(alias):
     """Set the current database alias in thread-local storage."""
     _thread_locals.db_alias = alias
 
+
 class TenantRouter:
     """
-    A router to control all database operations on models for different tenants.
+    Database router for per-tenant-per-database multi-tenancy.
+
+    Routing rules
+    ─────────────
+    1. **SaaS-level apps** always read/write from the ``default`` database.
+       These contain platform-wide data: Tenant records, ServicePlans,
+       SaaS admin sessions, login-throttling, scheduled jobs, etc.
+
+    2. **All other apps** (including ``auth``, ``contenttypes``, ``sessions``,
+       ``account``, ``authtoken``, and every tenant business app) follow the
+       **current tenant context**.  When a request carries a tenant header,
+       the middleware sets the thread-local DB alias to that tenant's database;
+       these apps then read/write there.  When there is no tenant context
+       (e.g. a SaaS admin using Django admin), they fall back to ``default``.
+
+    Why ``auth`` follows tenant context
+    ────────────────────────────────────
+    Each tenant database has its own ``auth_user`` table (``allow_migrate``
+    returns True for all DBs).  Tenant staff / customers are created inside
+    the tenant DB.  This means ``DailyMenu.created_by = FK(User)`` and
+    ``CustomerProfile.user = OneToOneField(User)`` are same-database
+    references — no cross-DB FK hacks needed.
+
+    SaaS-level superusers live in the ``default`` auth_user table and are
+    used only through Django admin (no tenant header → default DB).
     """
 
+    # Apps whose models are platform-wide and must always live in `default`.
+    SAAS_ONLY_APPS = frozenset([
+        'organizations',   # ServicePlan, etc.
+        'users',           # Tenant, Domain, UserProfile (SaaS user-tenant mapping)
+        'admin',           # Django admin (SaaS owner panel)
+        'sites',           # Django sites framework
+        'axes',            # Login throttling (global)
+        'django_apscheduler',  # Scheduled jobs (global)
+    ])
+
     def db_for_read(self, model, **hints):
-        """
-        Attempts to read models go to the tenant's database, 
-        unless it's a shared app that must live in 'default'.
-        """
-        shared_apps = [
-            'users', 'organizations', 'admin', 'auth', 'contenttypes', 
-            'sessions', 'sites', 'account', 'socialaccount', 'authtoken', 
-            'axes', 'django_apscheduler'
-        ]
-        if model._meta.app_label in shared_apps:
+        if model._meta.app_label in self.SAAS_ONLY_APPS:
             return 'default'
         return get_current_db_alias()
 
     def db_for_write(self, model, **hints):
-        """
-        Attempts to write models go to the tenant's database,
-        unless it's a shared app that must live in 'default'.
-        """
-        shared_apps = [
-            'users', 'organizations', 'admin', 'auth', 'contenttypes', 
-            'sessions', 'sites', 'account', 'socialaccount', 'authtoken', 
-            'axes', 'django_apscheduler'
-        ]
-        if model._meta.app_label in shared_apps:
+        if model._meta.app_label in self.SAAS_ONLY_APPS:
             return 'default'
         return get_current_db_alias()
 
@@ -50,7 +69,7 @@ class TenantRouter:
         """
         db1 = getattr(obj1, '_state', None)
         db2 = getattr(obj2, '_state', None)
-        
+
         if db1 and db2 and db1.db and db2.db:
             return db1.db == db2.db
         return None
@@ -59,9 +78,7 @@ class TenantRouter:
         """
         Allow all apps to migrate on all databases.
 
-        The TenantRouter controls read/write routing at runtime, but tenant
-        app models have FK references to shared tables (e.g. main -> users_tenant),
-        so those tables must exist in every database.  Blocking shared-app
-        migrations on tenant DBs would break FK constraints.
+        Every tenant DB gets full schema (including auth_user, etc.)
+        so that ForeignKey constraints are valid within each database.
         """
         return True

@@ -13,6 +13,7 @@ class FoodItem extends Equatable {
   final int calories;
   final List<String> allergens;
   final bool isActive;
+  final int? categoryId;
   final String? categoryName;
   final String dietType; // 'veg', 'nonveg', or 'both'
   final String? dietTypeDisplay;
@@ -27,6 +28,7 @@ class FoodItem extends Equatable {
     required this.calories,
     required this.allergens,
     required this.isActive,
+    this.categoryId,
     this.categoryName,
     this.dietType = 'both',
     this.dietTypeDisplay,
@@ -48,6 +50,7 @@ class FoodItem extends Equatable {
           ? List<String>.from(json['allergens'])
           : <String>[],
       isActive: json['is_available'] ?? true,
+      categoryId: json['category'],
       categoryName: json['category_name'],
       dietType: json['diet_type'] ?? 'both',
       dietTypeDisplay: json['diet_type_display'],
@@ -64,6 +67,7 @@ class FoodItem extends Equatable {
       'price': basePrice.toStringAsFixed(2),
       'calories': calories,
       'allergens': allergens,
+      if (categoryId != null) 'category': categoryId,
       'diet_type': dietType,
       'is_available': isActive,
       if (inventoryItemId != null) 'inventory_item': inventoryItemId,
@@ -78,6 +82,7 @@ class FoodItem extends Equatable {
     int? calories,
     List<String>? allergens,
     bool? isActive,
+    int? categoryId,
     String? categoryName,
     String? dietType,
     String? dietTypeDisplay,
@@ -92,6 +97,7 @@ class FoodItem extends Equatable {
       calories: calories ?? this.calories,
       allergens: allergens ?? this.allergens,
       isActive: isActive ?? this.isActive,
+      categoryId: categoryId ?? this.categoryId,
       categoryName: categoryName ?? this.categoryName,
       dietType: dietType ?? this.dietType,
       dietTypeDisplay: dietTypeDisplay ?? this.dietTypeDisplay,
@@ -109,6 +115,7 @@ class FoodItem extends Equatable {
         calories,
         allergens,
         isActive,
+        categoryId,
         categoryName,
         dietType,
         inventoryItemId,

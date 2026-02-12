@@ -58,4 +58,32 @@ class MenuRepository {
       '${baseUrl}menu-items/$id/toggle_availability/',
     );
   }
+
+  /// Fetch all categories.
+  Future<List<Map<String, dynamic>>> getCategories() async {
+    final baseUrl = await _apiClient.getBaseUrl();
+    final response = await _apiClient.dio.get('${baseUrl}categories/');
+
+    if (response.statusCode == 200) {
+      final data = response.data;
+      final List<dynamic> results =
+          data is Map ? (data['results'] ?? []) : (data as List);
+      return results.cast<Map<String, dynamic>>();
+    }
+    throw Exception('Failed to load categories');
+  }
+
+  /// Create a new category.
+  Future<Map<String, dynamic>> createCategory(String name, {String description = ''}) async {
+    final baseUrl = await _apiClient.getBaseUrl();
+    final response = await _apiClient.dio.post(
+      '${baseUrl}categories/',
+      data: {'name': name, 'description': description},
+    );
+
+    if (response.statusCode == 201) {
+      return response.data as Map<String, dynamic>;
+    }
+    throw Exception('Failed to create category');
+  }
 }

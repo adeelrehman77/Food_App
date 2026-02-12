@@ -60,25 +60,33 @@ def provision_tenant_db(tenant_id):
     from django.utils.crypto import get_random_string
     from apps.main.models import Category
 
+    # Switch routing context to the tenant DB so all ORM calls go there
+    from core.db.router import set_current_db_alias, get_current_db_alias
+    old_alias = get_current_db_alias()
+    set_current_db_alias(db_alias)
+
     print(f"Setting up default data for {tenant.name}...")
-    if not User.objects.using(db_alias).filter(username='kitchen_admin').exists():
-        default_password = os.environ.get(
-            'DEFAULT_TENANT_ADMIN_PASSWORD',
-            get_random_string(length=24),
+    try:
+        if not User.objects.filter(username='kitchen_admin').exists():
+            default_password = os.environ.get(
+                'DEFAULT_TENANT_ADMIN_PASSWORD',
+                get_random_string(length=24),
+            )
+            admin = User.objects.create_user(
+                username='kitchen_admin',
+                email=f'admin@{tenant.subdomain}.com',
+                password=default_password,
+            )
+            admin.is_staff = True
+            admin.save()
+            print(f"- Created 'kitchen_admin' user. Password set from env or generated randomly.")
+
+        Category.objects.get_or_create(
+            name='Inventory',
+            defaults={'description': 'Default category for inventory items'}
         )
-        admin = User.objects.create_user(
-            username='kitchen_admin',
-            email=f'admin@{tenant.subdomain}.com',
-            password=default_password,
-        )
-        admin.is_staff = True
-        admin.save(using=db_alias)
-        print(f"- Created 'kitchen_admin' user. Password set from env or generated randomly.")
-        
-    Category.objects.using(db_alias).get_or_create(
-        name='Inventory',
-        defaults={'description': 'Default category for inventory items'}
-    )
+    finally:
+        set_current_db_alias(old_alias)
     print("- Created 'Inventory' category.")
 
     print(f"Tenant {tenant.name} provisioned successfully.")

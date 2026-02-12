@@ -19,14 +19,14 @@ from apps.main.models import (
 )
 from apps.main.serializers.admin_serializers import (
     OrderListSerializer, OrderDetailSerializer, OrderStatusUpdateSerializer,
-    CustomerProfileAdminSerializer, CustomerRegistrationRequestSerializer,
+    CustomerProfileAdminSerializer, CustomerProfileCreateSerializer,
+    CustomerRegistrationRequestSerializer,
     InvoiceSerializer, NotificationSerializer, CategorySerializer,
     StaffUserSerializer, StaffUserCreateSerializer,
     MealSlotSerializer,
     DailyMenuListSerializer, DailyMenuDetailSerializer, DailyMenuCreateSerializer,
     MealPackageSerializer,
 )
-from apps.users.models import UserProfile
 from core.permissions.plan_limits import PlanLimitStaffUsers
 
 
@@ -186,11 +186,27 @@ class OrderViewSet(viewsets.ModelViewSet):
 class CustomerProfileViewSet(viewsets.ModelViewSet):
     """View and manage customer profiles within the tenant."""
     queryset = CustomerProfile.objects.select_related('user').all()
-    serializer_class = CustomerProfileAdminSerializer
     permission_classes = [permissions.IsAdminUser]
     filterset_fields = ['loyalty_tier', 'preferred_communication']
     search_fields = ['user__username', 'user__email', 'name', 'phone']
     ordering_fields = ['created_at', 'wallet_balance', 'loyalty_points']
+    ordering = ['-created_at']
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CustomerProfileCreateSerializer
+        return CustomerProfileAdminSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Admin directly creates a new customer (User + CustomerProfile)."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        customer = serializer.save()
+        # Return the standard read serializer
+        return Response(
+            CustomerProfileAdminSerializer(customer).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class CustomerRegistrationRequestViewSet(viewsets.ModelViewSet):
@@ -203,17 +219,53 @@ class CustomerRegistrationRequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
+        """
+        Approve a registration request and create User + CustomerProfile
+        in the tenant database.
+        """
+        import uuid
         obj = self.get_object()
         if obj.status != 'pending':
             return Response(
                 {'error': 'Only pending requests can be approved.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Build a unique username from the contact number
+        phone_clean = obj.contact_number.replace('+', '').replace(' ', '').replace('-', '')
+        username = f"cust_{phone_clean}"
+        if User.objects.filter(username=username).exists():
+            username = f"{username}_{uuid.uuid4().hex[:6]}"
+
+        # Create User in the tenant DB
+        user = User.objects.create_user(
+            username=username,
+            first_name=obj.name.split()[0] if obj.name else '',
+            last_name=' '.join(obj.name.split()[1:]) if len(obj.name.split()) > 1 else '',
+            is_active=True,
+            is_staff=False,
+        )
+        user.set_unusable_password()
+        user.save()
+
+        # Create CustomerProfile in the tenant DB
+        customer = CustomerProfile.objects.create(
+            user=user,
+            name=obj.name,
+            phone=obj.contact_number,
+        )
+
+        # Mark the request as approved
         obj.status = 'approved'
         obj.processed_at = timezone.now()
         obj.processed_by = request.user
+        obj.admin_notes = request.data.get('admin_notes', obj.admin_notes or '')
         obj.save()
-        return Response(self.get_serializer(obj).data)
+
+        return Response({
+            'request': self.get_serializer(obj).data,
+            'customer': CustomerProfileAdminSerializer(customer).data,
+        })
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
@@ -274,7 +326,9 @@ class StaffUserViewSet(viewsets.ModelViewSet):
     Manage staff users within the tenant.
     Tenant admins can invite, list, deactivate staff and assign roles.
 
-    Only users whose UserProfile.tenant matches request.tenant are shown.
+    In per-tenant-per-database architecture, ``auth.User`` lives in the
+    tenant's own database.  No cross-DB filtering is needed — every user
+    in this DB already belongs to this tenant.
     """
     serializer_class = StaffUserSerializer
     permission_classes = [permissions.IsAdminUser, PlanLimitStaffUsers]
@@ -282,11 +336,9 @@ class StaffUserViewSet(viewsets.ModelViewSet):
     ordering = ['-date_joined']
 
     def get_queryset(self):
-        qs = User.objects.prefetch_related('groups').filter(is_active=True)
-        tenant = getattr(self.request, 'tenant', None)
-        if tenant:
-            qs = qs.filter(userprofile__tenant=tenant)
-        return qs
+        # Users are already tenant-scoped by the database router.
+        # No need for cross-DB UserProfile filtering.
+        return User.objects.prefetch_related('groups').filter(is_active=True)
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -294,7 +346,7 @@ class StaffUserViewSet(viewsets.ModelViewSet):
         return StaffUserSerializer
 
     def create(self, request, *args, **kwargs):
-        """Create a new staff user, assign role, and link to current tenant."""
+        """Create a new staff user and assign role within the tenant database."""
         serializer = StaffUserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -305,6 +357,7 @@ class StaffUserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # User is created in the current tenant DB (router handles this).
         user = User.objects.create_user(
             username=data['username'],
             email=data['email'],
@@ -314,14 +367,7 @@ class StaffUserViewSet(viewsets.ModelViewSet):
             is_staff=True,
         )
 
-        # Link user to the current tenant via UserProfile
-        tenant = getattr(request, 'tenant', None)
-        UserProfile.objects.update_or_create(
-            user=user,
-            defaults={'tenant': tenant},
-        )
-
-        # Assign role via Django groups
+        # Assign role via Django groups (also in the tenant DB)
         role = data.get('role', 'staff')
         role_group_map = {
             'manager': 'Manager',

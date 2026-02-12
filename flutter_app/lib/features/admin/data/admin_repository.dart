@@ -104,12 +104,21 @@ class AdminRepository {
     return _parseList(response.data, RegistrationRequest.fromJson);
   }
 
-  Future<RegistrationRequest> approveRegistration(int id) async {
+  Future<CustomerItem> createCustomer(Map<String, dynamic> data) async {
+    final base = await _baseUrl();
+    final response = await _apiClient.dio.post(
+      '${base}customers/',
+      data: data,
+    );
+    return CustomerItem.fromJson(response.data);
+  }
+
+  Future<Map<String, dynamic>> approveRegistration(int id) async {
     final base = await _baseUrl();
     final response = await _apiClient.dio.post(
       '${base}registration-requests/$id/approve/',
     );
-    return RegistrationRequest.fromJson(response.data);
+    return response.data as Map<String, dynamic>;
   }
 
   Future<RegistrationRequest> rejectRegistration(int id, String reason) async {
