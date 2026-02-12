@@ -1,4 +1,5 @@
 from decimal import Decimal
+import uuid
 from django.db import models, transaction
 from django.apps import apps
 from django.contrib.auth.models import User
@@ -17,6 +18,8 @@ from apps.main.utils.validators import (
 def cache_model_method(timeout=3600):
     def decorator(func):
         def wrapper(self, *args, **kwargs):
+            if self.pk is None:
+                return func(self, *args, **kwargs)
             cache_key = f"{self.__class__.__name__}:{self.pk}:{func.__name__}"
             result = cache.get(cache_key)
             if result is None:

@@ -280,8 +280,7 @@ class CustomerWalletViewSet(viewsets.ReadOnlyModelViewSet):
 
         amount = serializer.validated_data['amount']
         profile = request.user.customerprofile
-        profile.wallet_balance += amount
-        profile.save(update_fields=['wallet_balance'])
+        # Balance is updated by WalletTransaction signal/save logic
 
         WalletTransaction.objects.create(
             customer=profile,

@@ -22,15 +22,16 @@ class TestKitchenOrderFlow:
         self.package = MealPackage.objects.create(name="Standard", price=500.00)
         self.slot = MealSlot.objects.create(name="Lunch", code="lunch")
         
+        today = timezone.now().date()
         self.sub = Subscription.objects.create(
             customer=self.profile,
             meal_package=self.package,
-            start_date=timezone.now().date(),
-            end_date=timezone.now().date() + timezone.timedelta(days=30),
+            start_date=today + timezone.timedelta(days=1),
+            end_date=today + timezone.timedelta(days=30),
             time_slot=self.slot,
             diet_type='nonveg',
             cost_per_meal=10.00,
-            selected_days=['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            selected_days=['Monday']
         )
         
         self.order = Order.objects.create(

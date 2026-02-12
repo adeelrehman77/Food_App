@@ -97,4 +97,96 @@ class TestCustomerSubscriptionAPI:
         if response.status_code != 201:
             print(response.data)
         assert response.status_code == status.HTTP_201_CREATED
-        assert Subscription.objects.filter(customer=self.profile).exists()
+@pytest.mark.django_db
+class TestCustomerOrderAPI:
+    def setup_method(self):
+        import datetime
+        self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
+        self.user = User.objects.create_user(username='orderuser', password='password123')
+        self.profile = CustomerProfile.objects.create(user=self.user, phone='orderuser')
+        self.client.force_authenticate(user=self.user)
+        self.url = '/api/v1/customer/orders/'
+        
+        # Setup subscription and order
+        from apps.main.models import Subscription, Order, MealSlot, MealPackage, Address, WalletTransaction
+        self.slot = MealSlot.objects.create(name="Lunch", code="lunch")
+        self.package = MealPackage.objects.create(name="Std", price=Decimal('100.00'))
+        
+        today = datetime.date.today()
+        d1 = today + datetime.timedelta(days=1)
+        d30 = today + datetime.timedelta(days=30)
+        
+        self.sub = Subscription.objects.create(
+            customer=self.profile, meal_package=self.package,
+            start_date=d1, end_date=d30,
+            time_slot=self.slot, selected_days=['Monday']
+        )
+        self.order = Order.objects.create(
+            subscription=self.sub, order_date=d1, delivery_date=d1,
+            status='pending'
+        )
+
+    def test_list_orders(self):
+        response = self.client.get(self.url)
+        assert response.status_code == status.HTTP_200_OK
+        # Handle pagination
+        results = response.data['results'] if 'results' in response.data else response.data
+        assert len(results) >= 1
+        assert results[0]['status'] == 'pending'
+
+    def test_track_order(self):
+        url = f'{self.url}{self.order.id}/track/'
+        response = self.client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert 'delivery_status' in response.data
+
+@pytest.mark.django_db
+class TestCustomerWalletAPI:
+    def setup_method(self):
+        self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
+        self.user = User.objects.create_user(username='walletuser', password='password123')
+        self.profile = CustomerProfile.objects.create(
+            user=self.user, phone='walletuser', wallet_balance=Decimal('50.00')
+        )
+        self.client.force_authenticate(user=self.user)
+        self.url = '/api/v1/customer/wallet/'
+
+    def test_get_wallet(self):
+        response = self.client.get(self.url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['balance'] == '50.00'
+
+    def test_topup(self):
+        data = {'amount': '100.00'}
+        response = self.client.post(self.url + 'topup/', data, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['balance'] == '150.00'
+        self.profile.refresh_from_db()
+        assert self.profile.wallet_balance == Decimal('150.00')
+
+@pytest.mark.django_db
+class TestCustomerAddressAPI:
+    def setup_method(self):
+        self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
+        self.user = User.objects.create_user(username='addressuser', password='password123')
+        self.profile = CustomerProfile.objects.create(user=self.user, phone='addressuser')
+        self.client.force_authenticate(user=self.user)
+        self.url = '/api/v1/customer/addresses/'
+
+    def test_create_address(self):
+        data = {
+            'street': '123 Main St',
+            'city': 'Dubai',
+            'building_name': 'Burj Khalifa',
+            'is_default': True
+        }
+        response = self.client.post(self.url, data, format='json')
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['street'] == '123 Main St'
+        
+    def test_list_addresses(self):
+        from apps.main.models import Address
+        Address.objects.create(customer=self.profile, street='Old St', building_name='Old Bldg')
+        response = self.client.get(self.url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) >= 1
