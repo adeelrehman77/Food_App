@@ -52,7 +52,8 @@ class DriverDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
         ).select_related('delivery_status', 'delivery_status__subscription__customer')
 
         # Try to filter by logged in driver
-        if hasattr(user, 'email'):
+        # Fallback: Check if the user object itself has an email that matches a driver
+        if hasattr(user, 'email') and user.email:
              return queryset.filter(driver__email=user.email)
         
         return queryset.none()
