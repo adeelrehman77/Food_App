@@ -97,8 +97,11 @@ class _DeliveriesTabState extends State<_DeliveriesTab> {
   final _repo = AdminRepository();
   List<DeliveryItem> _deliveries = [];
   bool _loading = true;
+  bool _loadingMore = false;
   String? _error;
   String? _statusFilter;
+  String? _nextUrl;
+  int _totalCount = 0;
 
   final _statusOptions = ['All', 'Pending', 'In Transit', 'Delivered', 'Failed'];
   final _statusValues = [null, 'pending', 'in_transit', 'delivered', 'failed'];
@@ -109,18 +112,49 @@ class _DeliveriesTabState extends State<_DeliveriesTab> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool loadMore = false}) async {
+    if (loadMore && (_nextUrl == null || _loadingMore)) return;
+    
     setState(() {
-      _loading = true;
-      _error = null;
+      if (loadMore) {
+        _loadingMore = true;
+      } else {
+        _loading = true;
+        _error = null;
+        _deliveries = [];
+        _nextUrl = null;
+        _totalCount = 0;
+      }
     });
+    
     try {
-      final items = await _repo.getDeliveries(status: _statusFilter);
-      if (mounted) setState(() => _deliveries = items);
+      final response = await _repo.getDeliveriesPaginated(
+        status: _statusFilter,
+        nextUrl: loadMore ? _nextUrl : null,
+      );
+      
+      if (mounted) {
+        setState(() {
+          if (loadMore) {
+            _deliveries.addAll(response['results'] as List<DeliveryItem>);
+          } else {
+            _deliveries = response['results'] as List<DeliveryItem>;
+          }
+          _nextUrl = response['next'] as String?;
+          _totalCount = response['count'] as int? ?? 0;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(() => _error = e.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+        });
+      }
     }
   }
 
@@ -134,43 +168,58 @@ class _DeliveriesTabState extends State<_DeliveriesTab> {
           child: Row(
             children: [
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: List.generate(_statusOptions.length, (i) {
-                      final selected = _statusFilter == _statusValues[i];
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text(_statusOptions[i]),
-                          selected: selected,
-                          onSelected: (_) {
-                            setState(() => _statusFilter = _statusValues[i]);
-                            _load();
-                          },
-                          selectedColor:
-                              Theme.of(context).primaryColor.withValues(alpha: 0.15),
-                          checkmarkColor: Theme.of(context).primaryColor,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(_statusOptions.length, (i) {
+                          final selected = _statusFilter == _statusValues[i];
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(_statusOptions[i]),
+                              selected: selected,
+                              onSelected: (_) {
+                                setState(() => _statusFilter = _statusValues[i]);
+                                _load();
+                              },
+                              selectedColor:
+                                  Theme.of(context).primaryColor.withValues(alpha: 0.15),
+                              checkmarkColor: Theme.of(context).primaryColor,
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    if (_totalCount > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Total: $_totalCount deliveries',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
                         ),
-                      );
-                    }),
-                  ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Refresh',
-                onPressed: _load,
+                onPressed: () => _load(),
               ),
             ],
           ),
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: _loading
+          child: _loading && _deliveries.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? _ErrorView(message: _error!, onRetry: _load)
+                  ? _ErrorView(message: _error!, onRetry: () => _load())
                   : _deliveries.isEmpty
                       ? _EmptyView(
                           icon: Icons.local_shipping,
@@ -179,12 +228,33 @@ class _DeliveriesTabState extends State<_DeliveriesTab> {
                               'Deliveries will appear here when orders are placed',
                         )
                       : RefreshIndicator(
-                          onRefresh: _load,
+                          onRefresh: () => _load(),
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
-                            itemCount: _deliveries.length,
-                            itemBuilder: (_, i) =>
-                                _DeliveryCard(delivery: _deliveries[i], onRefresh: _load),
+                            itemCount: _deliveries.length + (_nextUrl != null ? 1 : 0),
+                            itemBuilder: (_, i) {
+                              if (i == _deliveries.length) {
+                                // Load more button
+                                return Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Center(
+                                    child: _loadingMore
+                                        ? const CircularProgressIndicator()
+                                        : OutlinedButton.icon(
+                                            onPressed: () => _load(loadMore: true),
+                                            icon: const Icon(Icons.expand_more),
+                                            label: Text(
+                                              'Load More (${_totalCount - _deliveries.length} remaining)',
+                                            ),
+                                          ),
+                                  ),
+                                );
+                              }
+                              return _DeliveryCard(
+                                delivery: _deliveries[i],
+                                onRefresh: () => _load(),
+                              );
+                            },
                           ),
                         ),
         ),
@@ -304,20 +374,6 @@ class _DeliveryCard extends StatelessWidget {
     );
   }
 
-  void _showDeliveryDetails(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _DeliveryDetailSheet(
-        delivery: delivery,
-        onRefresh: onRefresh,
-      ),
-    );
-  }
-
   Color get _statusColor => switch (delivery.status) {
         'pending' => Colors.orange,
         'in_transit' => Colors.blue,
@@ -334,6 +390,18 @@ class _DeliveryCard extends StatelessWidget {
         _ => Icons.help_outline,
       };
 
+  void _showDeliveryDetails(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => _DeliveryDetailDialog(
+        delivery: delivery,
+        onRefresh: onRefresh,
+      ),
+    );
+  }
+
+// ... existing code ...
+
   String _fmtTime(String dt) {
     try {
       final parsed = DateTime.parse(dt);
@@ -345,96 +413,114 @@ class _DeliveryCard extends StatelessWidget {
   }
 }
 
-class _DeliveryDetailSheet extends StatelessWidget {
+class _DeliveryDetailDialog extends StatelessWidget {
   final DeliveryItem delivery;
   final VoidCallback onRefresh;
-  const _DeliveryDetailSheet({required this.delivery, required this.onRefresh});
+  const _DeliveryDetailDialog({required this.delivery, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      minChildSize: 0.3,
-      maxChildSize: 0.85,
-      expand: false,
-      builder: (_, ctrl) => ListView(
-        controller: ctrl,
-        padding: const EdgeInsets.all(24),
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 500,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+             // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Delivery #${delivery.id}',
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        _StatusChip(delivery.status),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Delivery #${delivery.id}',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
+            const Divider(height: 1),
+            
+            // Scrollable Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _DetailRow(label: 'Order', value: '#${delivery.orderId ?? '—'}'),
+                    _DetailRow(
+                      label: 'Driver',
+                      value: delivery.driverName?.isNotEmpty == true
+                          ? delivery.driverName!
+                          : 'Unassigned',
+                    ),
+                    if (delivery.customerName?.isNotEmpty == true)
+                      _DetailRow(label: 'Customer', value: delivery.customerName!),
+                    if (delivery.deliveryAddress?.isNotEmpty == true)
+                      _DetailRow(label: 'Address', value: delivery.deliveryAddress!),
+                    if (delivery.pickupTime != null)
+                      _DetailRow(label: 'Pickup Time', value: delivery.pickupTime!),
+                    if (delivery.deliveryTime != null)
+                      _DetailRow(label: 'Delivery Time', value: delivery.deliveryTime!),
+                    if (delivery.notes?.isNotEmpty == true)
+                      _DetailRow(label: 'Notes', value: delivery.notes!),
+                    
+                    if (delivery.status != 'delivered' && delivery.status != 'failed') ...[
+                      const SizedBox(height: 24),
+                      const Text('Update Status',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (delivery.status == 'pending')
+                            _ActionButton(
+                              label: 'Mark In Transit',
+                              color: Colors.blue,
+                              icon: Icons.local_shipping,
+                              onTap: () => _updateStatus(context, 'in_transit'),
+                            ),
+                          if (delivery.status == 'in_transit')
+                            _ActionButton(
+                              label: 'Mark Delivered',
+                              color: Colors.green,
+                              icon: Icons.check_circle,
+                              onTap: () => _updateStatus(context, 'delivered'),
+                            ),
+                          _ActionButton(
+                            label: 'Mark Failed',
+                            color: Colors.red,
+                            icon: Icons.error,
+                            onTap: () => _updateStatus(context, 'failed'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              _StatusChip(delivery.status),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _DetailRow(label: 'Order', value: '#${delivery.orderId ?? '—'}'),
-          _DetailRow(
-            label: 'Driver',
-            value: delivery.driverName?.isNotEmpty == true
-                ? delivery.driverName!
-                : 'Unassigned',
-          ),
-          if (delivery.customerName?.isNotEmpty == true)
-            _DetailRow(label: 'Customer', value: delivery.customerName!),
-          if (delivery.deliveryAddress?.isNotEmpty == true)
-            _DetailRow(label: 'Address', value: delivery.deliveryAddress!),
-          if (delivery.pickupTime != null)
-            _DetailRow(label: 'Pickup Time', value: delivery.pickupTime!),
-          if (delivery.deliveryTime != null)
-            _DetailRow(label: 'Delivery Time', value: delivery.deliveryTime!),
-          if (delivery.notes?.isNotEmpty == true)
-            _DetailRow(label: 'Notes', value: delivery.notes!),
-          const SizedBox(height: 24),
-          if (delivery.status != 'delivered' && delivery.status != 'failed') ...[
-            const Text('Update Status',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (delivery.status == 'pending')
-                  _ActionButton(
-                    label: 'Mark In Transit',
-                    color: Colors.blue,
-                    icon: Icons.local_shipping,
-                    onTap: () => _updateStatus(context, 'in_transit'),
-                  ),
-                if (delivery.status == 'in_transit')
-                  _ActionButton(
-                    label: 'Mark Delivered',
-                    color: Colors.green,
-                    icon: Icons.check_circle,
-                    onTap: () => _updateStatus(context, 'delivered'),
-                  ),
-                _ActionButton(
-                  label: 'Mark Failed',
-                  color: Colors.red,
-                  icon: Icons.error,
-                  onTap: () => _updateStatus(context, 'failed'),
-                ),
-              ],
             ),
           ],
-        ],
+        ),
       ),
     );
   }

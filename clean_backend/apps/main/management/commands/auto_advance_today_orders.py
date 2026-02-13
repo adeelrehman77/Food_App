@@ -145,14 +145,24 @@ class Command(BaseCommand):
 
         # Create Delivery for each order that is now ready (so they appear in Delivery Management)
         from apps.delivery.models import Delivery
+        from apps.main.utils.delivery_utils import assign_driver_to_order
         created_deliveries = 0
         for order_id in ready_ids:
             # get_or_create needs the order instance; we only have id
             order = Order.objects.using(db_alias).get(id=order_id)
-            _, created = Delivery.objects.using(db_alias).get_or_create(
+            # Auto-assign driver based on zone
+            assigned_driver = assign_driver_to_order(order)
+            delivery, created = Delivery.objects.using(db_alias).get_or_create(
                 order=order,
-                defaults={'status': 'pending'},
+                defaults={
+                    'status': 'pending',
+                    'driver': assigned_driver
+                }
             )
+            # Update driver if not set and we have one
+            if not delivery.driver and assigned_driver:
+                delivery.driver = assigned_driver
+                delivery.save(update_fields=['driver'])
             if created:
                 created_deliveries += 1
 

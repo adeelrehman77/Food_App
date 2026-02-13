@@ -192,6 +192,8 @@ class CustomerAddress {
   final String? buildingName;
   final String? floorNumber;
   final String? flatNumber;
+  final int? zoneId;
+  final String? zoneName;
   final bool isDefault;
   final String status;
   final String? createdAt;
@@ -205,6 +207,8 @@ class CustomerAddress {
     this.buildingName,
     this.floorNumber,
     this.flatNumber,
+    this.zoneId,
+    this.zoneName,
     this.isDefault = false,
     this.status = 'active',
     this.createdAt,
@@ -220,6 +224,8 @@ class CustomerAddress {
       buildingName: json['building_name'],
       floorNumber: json['floor_number'],
       flatNumber: json['flat_number'],
+      zoneId: json['zone'],
+      zoneName: json['zone_name'],
       isDefault: json['is_default'] ?? false,
       status: json['status'] ?? 'active',
       createdAt: json['created_at'],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../data/admin_repository.dart';
 import '../domain/models.dart';
 
@@ -35,14 +36,24 @@ class _OrdersScreenState extends State<OrdersScreen>
 
   List<OrderItem> _orders = [];
   bool _loading = true;
+  bool _loadingMore = false;
   String? _error;
+  String? _nextUrl;
+  int _totalCount = 0;
+  
+  // Date filters
+  String? _deliveryDateFilter;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: _tabs.length, vsync: this);
     _tabCtrl.addListener(() {
-      if (!_tabCtrl.indexIsChanging) _load();
+      if (!_tabCtrl.indexIsChanging) {
+        _nextUrl = null;
+        _load();
+      }
     });
     _load();
   }
@@ -53,21 +64,87 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool loadMore = false}) async {
+    if (loadMore && (_nextUrl == null || _loadingMore)) return;
+    
     setState(() {
-      _loading = true;
-      _error = null;
+      if (loadMore) {
+        _loadingMore = true;
+      } else {
+        _loading = true;
+        _error = null;
+        _orders = [];
+        _nextUrl = null;
+        _totalCount = 0;
+      }
     });
+    
     try {
-      final orders = await _repo.getOrders(
+      final response = await _repo.getOrdersPaginated(
         status: _statusFilters[_tabCtrl.index],
+        deliveryDate: _deliveryDateFilter,
+        nextUrl: loadMore ? _nextUrl : null,
       );
-      if (mounted) setState(() => _orders = orders);
+      
+      if (mounted) {
+        setState(() {
+          if (loadMore) {
+            _orders.addAll(response['results'] as List<OrderItem>);
+          } else {
+            _orders = response['results'] as List<OrderItem>;
+          }
+          _nextUrl = response['next'] as String?;
+          _totalCount = response['count'] as int? ?? 0;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(() => _error = e.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+        });
+      }
     }
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _deliveryDateFilter = DateFormat('yyyy-MM-dd').format(picked);
+        _nextUrl = null;
+      });
+      _load();
+    }
+  }
+
+  void _clearDateFilter() {
+    setState(() {
+      _selectedDate = null;
+      _deliveryDateFilter = null;
+      _nextUrl = null;
+    });
+    _load();
+  }
+
+  void _setTodayFilter() {
+    final today = DateTime.now();
+    setState(() {
+      _selectedDate = today;
+      _deliveryDateFilter = DateFormat('yyyy-MM-dd').format(today);
+      _nextUrl = null;
+    });
+    _load();
   }
 
   Future<void> _updateStatus(OrderItem order, String newStatus) async {
@@ -118,13 +195,76 @@ class _OrdersScreenState extends State<OrdersScreen>
                       'Manage and track all customer orders',
                       style: TextStyle(color: Colors.grey[600]),
                     ),
+                    if (_totalCount > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Total: $_totalCount orders',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               IconButton(
-                onPressed: _load,
+                onPressed: () {
+                  _clearDateFilter();
+                },
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Refresh',
+              ),
+            ],
+          ),
+        ),
+        // Date filter bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        label: const Text('Today'),
+                        selected: _deliveryDateFilter != null &&
+                            _selectedDate != null &&
+                            _isToday(_selectedDate!),
+                        onSelected: (_) => _setTodayFilter(),
+                        selectedColor: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.15),
+                        checkmarkColor: Theme.of(context).primaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        avatar: const Icon(Icons.calendar_today, size: 16),
+                        label: Text(
+                          _selectedDate != null
+                              ? DateFormat('MMM dd, yyyy').format(_selectedDate!)
+                              : 'Select Date',
+                        ),
+                        selected: _selectedDate != null,
+                        onSelected: (_) => _selectDate(),
+                        selectedColor: Theme.of(context)
+                            .primaryColor
+                            .withValues(alpha: 0.15),
+                        checkmarkColor: Theme.of(context).primaryColor,
+                      ),
+                      if (_deliveryDateFilter != null) ...[
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          label: const Text('Clear'),
+                          avatar: const Icon(Icons.close, size: 16),
+                          onPressed: _clearDateFilter,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -141,7 +281,7 @@ class _OrdersScreenState extends State<OrdersScreen>
         ),
         const Divider(height: 1),
         Expanded(
-          child: _loading
+          child: _loading && _orders.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : _error != null
                   ? Center(
@@ -150,7 +290,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                         children: [
                           Text(_error!, style: TextStyle(color: Colors.red[700])),
                           const SizedBox(height: 12),
-                          TextButton(onPressed: _load, child: const Text('Retry')),
+                          TextButton(onPressed: () => _load(), child: const Text('Retry')),
                         ],
                       ),
                     )
@@ -169,11 +309,28 @@ class _OrdersScreenState extends State<OrdersScreen>
                           ),
                         )
                       : RefreshIndicator(
-                          onRefresh: _load,
+                          onRefresh: () => _load(),
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
-                            itemCount: _orders.length,
+                            itemCount: _orders.length + (_nextUrl != null ? 1 : 0),
                             itemBuilder: (context, index) {
+                              if (index == _orders.length) {
+                                // Load more button
+                                return Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Center(
+                                    child: _loadingMore
+                                        ? const CircularProgressIndicator()
+                                        : OutlinedButton.icon(
+                                            onPressed: () => _load(loadMore: true),
+                                            icon: const Icon(Icons.expand_more),
+                                            label: Text(
+                                              'Load More (${_totalCount - _orders.length} remaining)',
+                                            ),
+                                          ),
+                                  ),
+                                );
+                              }
                               return _OrderCard(
                                 order: _orders[index],
                                 onUpdateStatus: _updateStatus,
@@ -184,6 +341,13 @@ class _OrdersScreenState extends State<OrdersScreen>
         ),
       ],
     );
+  }
+
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 }
 

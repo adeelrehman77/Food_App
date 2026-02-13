@@ -23,12 +23,12 @@ class DeliveryViewSet(viewsets.ModelViewSet):
 
     Allows listing, assigning drivers, and updating delivery status.
     """
-    queryset = Delivery.objects.select_related('order', 'driver').all()
+    queryset = Delivery.objects.select_related('order', 'driver', 'driver_user').all()
     serializer_class = DeliverySerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['status', 'driver']
     ordering = ['-created_at']
-    search_fields = ['order__id', 'driver__username']
+    search_fields = ['order__id', 'driver__name', 'driver_user__username']
 
     @action(detail=True, methods=['post'])
     def assign_driver(self, request, pk=None):
@@ -40,10 +40,10 @@ class DeliveryViewSet(viewsets.ModelViewSet):
                 {'error': 'driver_id is required'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        from django.contrib.auth.models import User
+        from apps.driver.models import DeliveryDriver
         try:
-            driver = User.objects.get(pk=driver_id)
-        except User.DoesNotExist:
+            driver = DeliveryDriver.objects.get(pk=driver_id)
+        except DeliveryDriver.DoesNotExist:
             return Response(
                 {'error': 'Driver not found'},
                 status=status.HTTP_404_NOT_FOUND,

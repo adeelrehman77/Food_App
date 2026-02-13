@@ -90,4 +90,21 @@ class KitchenOrderViewSet(viewsets.ModelViewSet):
         kitchen_order.order.status = 'ready'
         kitchen_order.order.save(update_fields=['status', 'updated_at'])
         kitchen_order.save(update_fields=['preparation_end_time', 'updated_at'])
+        
+        # Create Delivery with auto-assigned driver
+        from apps.delivery.models import Delivery
+        from apps.main.utils.delivery_utils import assign_driver_to_order
+        
+        assigned_driver = assign_driver_to_order(kitchen_order.order)
+        delivery, created = Delivery.objects.get_or_create(
+            order=kitchen_order.order,
+            defaults={
+                'status': 'pending',
+                'driver': assigned_driver
+            }
+        )
+        if not delivery.driver and assigned_driver:
+            delivery.driver = assigned_driver
+            delivery.save(update_fields=['driver'])
+        
         return Response(self.get_serializer(kitchen_order).data) 

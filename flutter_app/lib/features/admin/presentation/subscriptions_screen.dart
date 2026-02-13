@@ -20,15 +20,21 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
 
   List<SubscriptionItem> _subs = [];
   bool _loading = true;
+  bool _loadingMore = false;
   String? _error;
   SubscriptionItem? _selected;
+  String? _nextUrl;
+  int _totalCount = 0;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: _tabs.length, vsync: this);
     _tabCtrl.addListener(() {
-      if (!_tabCtrl.indexIsChanging) _load();
+      if (!_tabCtrl.indexIsChanging) {
+        _nextUrl = null;
+        _load();
+      }
     });
     _load();
   }
@@ -39,20 +45,49 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool loadMore = false}) async {
+    if (loadMore && (_nextUrl == null || _loadingMore)) return;
+    
     setState(() {
-      _loading = true;
-      _error = null;
+      if (loadMore) {
+        _loadingMore = true;
+      } else {
+        _loading = true;
+        _error = null;
+        _subs = [];
+        _nextUrl = null;
+        _totalCount = 0;
+      }
     });
+    
     try {
-      final subs = await _repo.getSubscriptions(
+      final response = await _repo.getSubscriptionsPaginated(
         status: _statusFilters[_tabCtrl.index],
+        nextUrl: loadMore ? _nextUrl : null,
       );
-      if (mounted) setState(() => _subs = subs);
+      
+      if (mounted) {
+        setState(() {
+          if (loadMore) {
+            _subs.addAll(response['results'] as List<SubscriptionItem>);
+          } else {
+            _subs = response['results'] as List<SubscriptionItem>;
+          }
+          _nextUrl = response['next'] as String?;
+          _totalCount = response['count'] as int? ?? 0;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(() => _error = e.toString());
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadingMore = false;
+        });
+      }
     }
   }
 
@@ -164,14 +199,29 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Subscriptions',
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 2),
-                    Text('Manage customer meal subscriptions',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Subscriptions',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        Text('Manage customer meal subscriptions',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                        if (_totalCount > 0) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Total: $_totalCount subscriptions',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -182,7 +232,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: _load,
+                onPressed: () => _load(),
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Refresh',
               ),
@@ -209,7 +259,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
 
         // Body
         Expanded(
-          child: _loading
+          child: _loading && _subs.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : _error != null
                   ? Center(
@@ -220,7 +270,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
                           const SizedBox(height: 12),
                           Text(_error!, style: TextStyle(color: Colors.grey[600])),
                           const SizedBox(height: 12),
-                          ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                          ElevatedButton(onPressed: () => _load(), child: const Text('Retry')),
                         ],
                       ),
                     )
@@ -243,9 +293,26 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen>
                               width: 420,
                               child: ListView.separated(
                                 padding: const EdgeInsets.all(12),
-                                itemCount: _subs.length,
+                                itemCount: _subs.length + (_nextUrl != null ? 1 : 0),
                                 separatorBuilder: (_, __) => const SizedBox(height: 6),
                                 itemBuilder: (_, i) {
+                                  if (i == _subs.length) {
+                                    // Load more button
+                                    return Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Center(
+                                        child: _loadingMore
+                                            ? const CircularProgressIndicator()
+                                            : OutlinedButton.icon(
+                                                onPressed: () => _load(loadMore: true),
+                                                icon: const Icon(Icons.expand_more),
+                                                label: Text(
+                                                  'Load More (${_totalCount - _subs.length} remaining)',
+                                                ),
+                                              ),
+                                      ),
+                                    );
+                                  }
                                   final s = _subs[i];
                                   final isSelected = _selected?.id == s.id;
                                   return _SubCard(
@@ -886,7 +953,32 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
   Future<void> _loadAddresses() async {
     if (_customerId == null) return;
     final customer = _customers.firstWhere((c) => c.id == _customerId, orElse: () => _customers.first);
-    setState(() => _addresses = customer.addresses);
+    setState(() {
+      _addresses = customer.addresses;
+      // Validate that selected addresses have zones, reset if not
+      if (_lunchAddressId != null) {
+        try {
+          final addr = _addresses.firstWhere((a) => a.id == _lunchAddressId);
+          if (addr.zoneId == null) {
+            _lunchAddressId = null;
+          }
+        } catch (e) {
+          // Address not found in list, reset to null
+          _lunchAddressId = null;
+        }
+      }
+      if (_dinnerAddressId != null) {
+        try {
+          final addr = _addresses.firstWhere((a) => a.id == _dinnerAddressId);
+          if (addr.zoneId == null) {
+            _dinnerAddressId = null;
+          }
+        } catch (e) {
+          // Address not found in list, reset to null
+          _dinnerAddressId = null;
+        }
+      }
+    });
   }
 
   Future<void> _pickDate(bool isStart) async {
@@ -1128,32 +1220,68 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
                           const SizedBox(height: 6),
                           // Lunch / Dinner address
                           if (_addresses.isNotEmpty) ...[
-                            DropdownButtonFormField<int>(
-                              value: _lunchAddressId,
-                              decoration: _inputDeco('Lunch Address', Icons.home),
+                            DropdownButtonFormField<int?>(
+                              value: _lunchAddressId != null && _addresses.any((a) => a.id == _lunchAddressId && a.zoneId != null) 
+                                  ? _lunchAddressId 
+                                  : null,
+                              decoration: _inputDeco('Lunch Address *', Icons.home),
                               isExpanded: true,
                               items: [
-                                const DropdownMenuItem(value: null, child: Text('None', style: TextStyle(fontSize: 13))),
-                                ..._addresses.map((a) => DropdownMenuItem(
+                                const DropdownMenuItem(value: null, child: Text('Select address...', style: TextStyle(fontSize: 13))),
+                                ..._addresses.where((a) => a.zoneId != null).map((a) => DropdownMenuItem(
                                       value: a.id,
-                                      child: Text(a.displayString, style: const TextStyle(fontSize: 13)),
+                                      child: Text(
+                                        a.zoneName != null 
+                                            ? '${a.displayString} (Zone: ${a.zoneName})'
+                                            : a.displayString,
+                                        style: const TextStyle(fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     )),
                               ],
                               onChanged: (v) => setState(() => _lunchAddressId = v),
+                              validator: (value) {
+                                if (_timeSlotId != null) {
+                                  final timeSlot = _timeSlots.firstWhere((ts) => ts['id'] == _timeSlotId, orElse: () => {});
+                                  final slotName = (timeSlot['name'] ?? '').toString().toLowerCase();
+                                  if (slotName.contains('lunch') && value == null) {
+                                    return 'Lunch address with zone is required';
+                                  }
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 8),
-                            DropdownButtonFormField<int>(
-                              value: _dinnerAddressId,
-                              decoration: _inputDeco('Dinner Address', Icons.home_work),
+                            DropdownButtonFormField<int?>(
+                              value: _dinnerAddressId != null && _addresses.any((a) => a.id == _dinnerAddressId && a.zoneId != null) 
+                                  ? _dinnerAddressId 
+                                  : null,
+                              decoration: _inputDeco('Dinner Address *', Icons.home_work),
                               isExpanded: true,
                               items: [
-                                const DropdownMenuItem(value: null, child: Text('None', style: TextStyle(fontSize: 13))),
-                                ..._addresses.map((a) => DropdownMenuItem(
+                                const DropdownMenuItem(value: null, child: Text('Select address...', style: TextStyle(fontSize: 13))),
+                                ..._addresses.where((a) => a.zoneId != null).map((a) => DropdownMenuItem(
                                       value: a.id,
-                                      child: Text(a.displayString, style: const TextStyle(fontSize: 13)),
+                                      child: Text(
+                                        a.zoneName != null 
+                                            ? '${a.displayString} (Zone: ${a.zoneName})'
+                                            : a.displayString,
+                                        style: const TextStyle(fontSize: 13),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     )),
                               ],
                               onChanged: (v) => setState(() => _dinnerAddressId = v),
+                              validator: (value) {
+                                if (_timeSlotId != null) {
+                                  final timeSlot = _timeSlots.firstWhere((ts) => ts['id'] == _timeSlotId, orElse: () => {});
+                                  final slotName = (timeSlot['name'] ?? '').toString().toLowerCase();
+                                  if (slotName.contains('dinner') && value == null) {
+                                    return 'Dinner address with zone is required';
+                                  }
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 8),
                           ] else if (_customerId != null) ...[

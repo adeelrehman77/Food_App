@@ -40,14 +40,23 @@ class MenuSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'price']
 
 class AddressSerializer(serializers.ModelSerializer):
+    zone = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = Address
         fields = [
             'id', 'street', 'city', 'building_name', 
-            'floor_number', 'flat_number', 'is_default', 
-            'status', 'admin_notes', 'reason'
+            'floor_number', 'flat_number', 'zone', 'zone_name',
+            'is_default', 'status', 'admin_notes', 'reason'
         ]
         read_only_fields = ['customer', 'status', 'admin_notes']
+    
+    def get_zone(self, obj):
+        return obj.zone.id if obj.zone else None
+    
+    def get_zone_name(self, obj):
+        return obj.zone.name if obj.zone else None
 
 class SubscriptionSerializer(serializers.ModelSerializer):
     menus = MenuSerializer(many=True, read_only=True)

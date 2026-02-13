@@ -198,7 +198,21 @@ class OrderViewSet(viewsets.ModelViewSet):
         # When order becomes "ready", create a Delivery so it appears in Delivery Management
         if new_status == 'ready':
             from apps.delivery.models import Delivery
-            Delivery.objects.get_or_create(order=order, defaults={'status': 'pending'})
+            from apps.main.utils.delivery_utils import assign_driver_to_order
+            
+            # Auto-assign driver based on zone
+            assigned_driver = assign_driver_to_order(order)
+            delivery, created = Delivery.objects.get_or_create(
+                order=order,
+                defaults={
+                    'status': 'pending',
+                    'driver': assigned_driver  # Now uses DeliveryDriver
+                }
+            )
+            # Update driver if not set and we have one
+            if not delivery.driver and assigned_driver:
+                delivery.driver = assigned_driver
+                delivery.save(update_fields=['driver'])
 
         return Response(OrderDetailSerializer(order).data)
 
@@ -723,8 +737,11 @@ class SubscriptionAdminViewSet(viewsets.ModelViewSet):
     ordering = ['-start_date']
 
     def get_queryset(self):
+        # Use select_related for addresses and zones, but handle None zones gracefully
         return Subscription.objects.select_related(
-            'customer__user', 'time_slot', 'meal_package', 'lunch_address', 'dinner_address',
+            'customer__user', 'time_slot', 'meal_package', 
+            'lunch_address', 'lunch_address__zone',
+            'dinner_address', 'dinner_address__zone',
         ).prefetch_related('menus').annotate(
             order_count=Count('order'),
         ).all()
@@ -735,6 +752,19 @@ class SubscriptionAdminViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return SubscriptionAdminDetailSerializer
         return SubscriptionAdminListSerializer
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to ensure JSON errors instead of HTML."""
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error listing subscriptions: {e}", exc_info=True)
+            return Response(
+                {'error': 'Failed to retrieve subscriptions', 'detail': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):

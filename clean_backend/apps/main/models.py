@@ -436,6 +436,14 @@ class Address(models.Model):
         related_name='addresses', 
         db_index=True
     )
+    zone = models.ForeignKey(
+        'driver.Zone',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='addresses',
+        help_text="Delivery zone for this address"
+    )
     street = models.CharField(max_length=200, blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     building_name = models.CharField(max_length=100, blank=True, null=True)
@@ -708,10 +716,34 @@ class Subscription(models.Model):
                 DeliveryStatus(subscription=self, date=date, status='pending') for date in new_dates
             ])
 
+    def _get_delivery_zone_for_order(self, meal_slot):
+        """
+        Get the delivery zone for an order based on meal slot (lunch/dinner).
+        Returns the zone from the appropriate address (lunch_address or dinner_address).
+        """
+        if meal_slot is None:
+            # Fallback: use lunch address if available, otherwise dinner address
+            address = self.lunch_address or self.dinner_address
+        else:
+            # Check meal slot name/code to determine which address to use
+            meal_slot_name = getattr(meal_slot, 'name', '').lower() if meal_slot else ''
+            meal_slot_code = getattr(meal_slot, 'code', '').lower() if meal_slot else ''
+            
+            if 'lunch' in meal_slot_name or 'lunch' in meal_slot_code:
+                address = self.lunch_address
+            elif 'dinner' in meal_slot_name or 'dinner' in meal_slot_code:
+                address = self.dinner_address
+            else:
+                # Default to lunch if meal slot is ambiguous
+                address = self.lunch_address or self.dinner_address
+        
+        return address.zone if address else None
+
     def generate_orders(self):
         """
         Create Order records for each delivery date in [start_date, end_date]
         that matches selected_days and does not already have an order.
+        Automatically assigns driver based on delivery zone.
         Returns the number of orders created. No-op if subscription is not active.
         """
         if self.status != 'active':
@@ -721,6 +753,10 @@ class Subscription(models.Model):
         selected = self.get_selected_days()
         existing = set(self.order_set.values_list('delivery_date', flat=True))
         created = 0
+        
+        # Get zone for this subscription's meal slot
+        delivery_zone = self._get_delivery_zone_for_order(self.time_slot)
+        
         while current_date <= self.end_date:
             if current_date.strftime('%A') in selected and current_date not in existing:
                 Order.objects.create(

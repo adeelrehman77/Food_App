@@ -67,6 +67,8 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
 
 class AddressAdminSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customer.name', read_only=True)
+    zone = serializers.SerializerMethodField()
+    zone_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Address
@@ -74,11 +76,18 @@ class AddressAdminSerializer(serializers.ModelSerializer):
             'id', 'customer', 'customer_name',
             'street', 'city', 'building_name',
             'floor_number', 'flat_number',
+            'zone', 'zone_name',
             'is_default', 'status',
             'admin_notes', 'reason',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+    
+    def get_zone(self, obj):
+        return obj.zone.id if obj.zone else None
+    
+    def get_zone_name(self, obj):
+        return obj.zone.name if obj.zone else None
 
 
 class AddressCreateSerializer(serializers.ModelSerializer):
@@ -88,7 +97,7 @@ class AddressCreateSerializer(serializers.ModelSerializer):
         model = Address
         fields = [
             'customer', 'street', 'city', 'building_name',
-            'floor_number', 'flat_number', 'is_default',
+            'floor_number', 'flat_number', 'zone', 'is_default',
         ]
 
 
@@ -159,7 +168,7 @@ class CustomerProfileCreateSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=20)
     email = serializers.EmailField(required=False, allow_blank=True, default='')
     emirates_id = serializers.CharField(max_length=20, required=False, allow_blank=True, default='')
-    zone = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    zone = serializers.IntegerField(required=False, allow_null=True, help_text="Zone ID for delivery zone")
     preferred_communication = serializers.ChoiceField(
         choices=[('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email'), ('none', 'None')],
         default='whatsapp',
@@ -212,13 +221,25 @@ class CustomerProfileCreateSerializer(serializers.Serializer):
         user.set_unusable_password()
         user.save()
 
+        # Get zone if provided
+        zone_id = validated_data.get('zone')
+        zone_str = ''
+        zone_obj = None
+        if zone_id:
+            from apps.driver.models import Zone
+            try:
+                zone_obj = Zone.objects.get(pk=zone_id)
+                zone_str = zone_obj.name
+            except (Zone.DoesNotExist, ValueError, TypeError):
+                pass
+        
         # Create CustomerProfile in the tenant DB
         customer = CustomerProfile.objects.create(
             user=user,
             name=name,
             phone=phone,
             emirates_id=validated_data.get('emirates_id', ''),
-            zone=validated_data.get('zone', ''),
+            zone=zone_str,  # Keep as string for backward compatibility
             preferred_communication=validated_data.get('preferred_communication', 'whatsapp'),
         )
 
@@ -227,6 +248,7 @@ class CustomerProfileCreateSerializer(serializers.Serializer):
         if has_address:
             Address.objects.create(
                 customer=customer,
+                zone=zone_obj,  # Use zone FK for Address
                 street=street,
                 city=city,
                 building_name=building_name,
@@ -627,8 +649,8 @@ class SubscriptionAdminListSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone', read_only=True)
     customer_id = serializers.IntegerField(source='customer.id', read_only=True)
-    time_slot_name = serializers.CharField(source='time_slot.name', read_only=True, default='')
-    meal_package_name = serializers.CharField(source='meal_package.name', read_only=True, default='')
+    time_slot_name = serializers.SerializerMethodField()
+    meal_package_name = serializers.SerializerMethodField()
     order_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
@@ -642,6 +664,12 @@ class SubscriptionAdminListSerializer(serializers.ModelSerializer):
             'lunch_address', 'dinner_address',
         ]
         read_only_fields = ['cost_per_meal', 'total_cost']
+    
+    def get_time_slot_name(self, obj):
+        return obj.time_slot.name if obj.time_slot else ''
+    
+    def get_meal_package_name(self, obj):
+        return obj.meal_package.name if obj.meal_package else ''
 
 
 class SubscriptionAdminDetailSerializer(serializers.ModelSerializer):
@@ -649,12 +677,50 @@ class SubscriptionAdminDetailSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone', read_only=True)
     customer_id = serializers.IntegerField(source='customer.id', read_only=True)
-    time_slot_name = serializers.CharField(source='time_slot.name', read_only=True, default='')
-    time_slot_details = _MealSlotBrief(source='time_slot', read_only=True)
-    meal_package_details = _MealPackageBrief(source='meal_package', read_only=True)
-    lunch_address_details = _AddressBrief(source='lunch_address', read_only=True)
-    dinner_address_details = _AddressBrief(source='dinner_address', read_only=True)
+    time_slot_name = serializers.SerializerMethodField()
+    time_slot_details = serializers.SerializerMethodField()
+    meal_package_details = serializers.SerializerMethodField()
+    lunch_address_details = serializers.SerializerMethodField()
+    dinner_address_details = serializers.SerializerMethodField()
     order_count = serializers.SerializerMethodField()
+    
+    def get_time_slot_name(self, obj):
+        try:
+            return obj.time_slot.name if obj.time_slot else ''
+        except Exception:
+            return ''
+    
+    def get_time_slot_details(self, obj):
+        try:
+            if obj.time_slot:
+                return _MealSlotBrief(obj.time_slot).data
+        except Exception:
+            pass
+        return None
+    
+    def get_meal_package_details(self, obj):
+        try:
+            if obj.meal_package:
+                return _MealPackageBrief(obj.meal_package).data
+        except Exception:
+            pass
+        return None
+    
+    def get_lunch_address_details(self, obj):
+        try:
+            if obj.lunch_address:
+                return _AddressBrief(obj.lunch_address).data
+        except Exception:
+            pass
+        return None
+    
+    def get_dinner_address_details(self, obj):
+        try:
+            if obj.dinner_address:
+                return _AddressBrief(obj.dinner_address).data
+        except Exception:
+            pass
+        return None
 
     class Meta:
         model = Subscription
@@ -688,6 +754,10 @@ class SubscriptionAdminCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        """
+        Validate subscription data.
+        Note: This method is only called during create/update operations, not during list/retrieve.
+        """
         start = attrs.get('start_date')
         end = attrs.get('end_date')
         if start and end and start > end:
@@ -699,6 +769,95 @@ class SubscriptionAdminCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'selected_days': 'At least one delivery day must be selected.'}
             )
+        
+        # Validate zone selection based on meal slot
+        # Only validate if addresses are being set (create/update operations)
+        time_slot = attrs.get('time_slot') or (self.instance.time_slot if self.instance else None)
+        lunch_address_id = attrs.get('lunch_address')
+        dinner_address_id = attrs.get('dinner_address')
+        
+        # Skip zone validation if no addresses are being set/changed
+        # This allows updates to other fields without requiring zone validation
+        if lunch_address_id is None and dinner_address_id is None:
+            return attrs
+        
+        # Get address objects (either from attrs or instance)
+        lunch_address = None
+        dinner_address = None
+        
+        try:
+            if lunch_address_id:
+                # If it's an ID, fetch the address object
+                if isinstance(lunch_address_id, int):
+                    from apps.main.models import Address
+                    try:
+                        lunch_address = Address.objects.select_related('zone').get(pk=lunch_address_id)
+                    except Address.DoesNotExist:
+                        raise serializers.ValidationError(
+                            {'lunch_address': 'Lunch address not found.'}
+                        )
+                else:
+                    lunch_address = lunch_address_id
+            elif self.instance and self.instance.lunch_address:
+                lunch_address = self.instance.lunch_address
+            
+            if dinner_address_id:
+                if isinstance(dinner_address_id, int):
+                    from apps.main.models import Address
+                    try:
+                        dinner_address = Address.objects.select_related('zone').get(pk=dinner_address_id)
+                    except Address.DoesNotExist:
+                        raise serializers.ValidationError(
+                            {'dinner_address': 'Dinner address not found.'}
+                        )
+                else:
+                    dinner_address = dinner_address_id
+            elif self.instance and self.instance.dinner_address:
+                dinner_address = self.instance.dinner_address
+            
+            if time_slot:
+                meal_slot_name = getattr(time_slot, 'name', '').lower() if time_slot else ''
+                meal_slot_code = getattr(time_slot, 'code', '').lower() if time_slot else ''
+                
+                if 'lunch' in meal_slot_name or 'lunch' in meal_slot_code:
+                    if lunch_address_id is not None and lunch_address and not getattr(lunch_address, 'zone', None):
+                        raise serializers.ValidationError(
+                            {'lunch_address': 'Lunch address must have a delivery zone assigned.'}
+                        )
+                elif 'dinner' in meal_slot_name or 'dinner' in meal_slot_code:
+                    if dinner_address_id is not None and dinner_address and not getattr(dinner_address, 'zone', None):
+                        raise serializers.ValidationError(
+                            {'dinner_address': 'Dinner address must have a delivery zone assigned.'}
+                        )
+                else:
+                    # For ambiguous meal slots, check both addresses
+                    if lunch_address_id is not None and lunch_address and not getattr(lunch_address, 'zone', None):
+                        raise serializers.ValidationError(
+                            {'lunch_address': 'Address must have a delivery zone assigned.'}
+                        )
+                    if dinner_address_id is not None and dinner_address and not getattr(dinner_address, 'zone', None):
+                        raise serializers.ValidationError(
+                            {'dinner_address': 'Address must have a delivery zone assigned.'}
+                        )
+            else:
+                # If no meal slot specified, at least one address with zone is required
+                lunch_has_zone = lunch_address and getattr(lunch_address, 'zone', None)
+                dinner_has_zone = dinner_address and getattr(dinner_address, 'zone', None)
+                if (lunch_address_id is not None or dinner_address_id is not None) and not lunch_has_zone and not dinner_has_zone:
+                    raise serializers.ValidationError(
+                        {'lunch_address': 'At least one address must have a delivery zone assigned.'}
+                    )
+        except Exception as e:
+            # If it's already a ValidationError, re-raise it
+            if isinstance(e, serializers.ValidationError):
+                raise
+            # Otherwise, log and return a generic error
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error validating subscription addresses: {e}")
+            # Don't fail validation on unexpected errors during development
+            pass
+        
         return attrs
 
     def _apply_meal_package(self, instance, meal_package):

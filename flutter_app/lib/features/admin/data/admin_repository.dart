@@ -52,15 +52,57 @@ class AdminRepository {
 
   // ─── Orders ───────────────────────────────────────────────────────────────
 
-  Future<List<OrderItem>> getOrders({String? status}) async {
+  /// Fetch orders with optional filters and pagination support.
+  /// Returns a paginated response with count, next, previous, and results.
+  Future<Map<String, dynamic>> getOrdersPaginated({
+    String? status,
+    String? deliveryDate,
+    String? orderDate,
+    String? nextUrl,
+  }) async {
     final base = await _baseUrl();
     final params = <String, dynamic>{};
     if (status != null && status.isNotEmpty) params['status'] = status;
+    if (deliveryDate != null && deliveryDate.isNotEmpty) params['delivery_date'] = deliveryDate;
+    if (orderDate != null && orderDate.isNotEmpty) params['order_date'] = orderDate;
+    
+    final url = nextUrl ?? '${base}orders/';
     final response = await _apiClient.dio.get(
-      '${base}orders/',
-      queryParameters: params,
+      url,
+      queryParameters: nextUrl == null ? params : null,
     );
-    return _parseList(response.data, OrderItem.fromJson);
+    
+    final data = response.data as Map<String, dynamic>;
+    return {
+      'count': data['count'] ?? 0,
+      'next': data['next'],
+      'previous': data['previous'],
+      'results': _parseList(data, OrderItem.fromJson),
+    };
+  }
+
+  /// Fetch all orders (handles pagination automatically).
+  /// Use this for simple cases where you want all results.
+  Future<List<OrderItem>> getOrders({
+    String? status,
+    String? deliveryDate,
+    String? orderDate,
+  }) async {
+    final List<OrderItem> allOrders = [];
+    String? nextUrl;
+    
+    do {
+      final response = await getOrdersPaginated(
+        status: status,
+        deliveryDate: deliveryDate,
+        orderDate: orderDate,
+        nextUrl: nextUrl,
+      );
+      allOrders.addAll(response['results'] as List<OrderItem>);
+      nextUrl = response['next'] as String?;
+    } while (nextUrl != null);
+    
+    return allOrders;
   }
 
   Future<OrderItem> getOrder(int id) async {
@@ -256,15 +298,45 @@ class AdminRepository {
 
   // ─── Deliveries ───────────────────────────────────────────────────────────
 
-  Future<List<DeliveryItem>> getDeliveries({String? status}) async {
+  /// Fetch deliveries with pagination support.
+  Future<Map<String, dynamic>> getDeliveriesPaginated({
+    String? status,
+    String? nextUrl,
+  }) async {
     final base = await _baseUrl();
     final params = <String, dynamic>{};
     if (status != null && status.isNotEmpty) params['status'] = status;
+    
+    final url = nextUrl ?? '${base}delivery/deliveries/';
     final response = await _apiClient.dio.get(
-      '${base}delivery/deliveries/',
-      queryParameters: params,
+      url,
+      queryParameters: nextUrl == null ? params : null,
     );
-    return _parseList(response.data, DeliveryItem.fromJson);
+    
+    final data = response.data as Map<String, dynamic>;
+    return {
+      'count': data['count'] ?? 0,
+      'next': data['next'],
+      'previous': data['previous'],
+      'results': _parseList(data, DeliveryItem.fromJson),
+    };
+  }
+
+  /// Fetch all deliveries (handles pagination automatically).
+  Future<List<DeliveryItem>> getDeliveries({String? status}) async {
+    final List<DeliveryItem> allDeliveries = [];
+    String? nextUrl;
+    
+    do {
+      final response = await getDeliveriesPaginated(
+        status: status,
+        nextUrl: nextUrl,
+      );
+      allDeliveries.addAll(response['results'] as List<DeliveryItem>);
+      nextUrl = response['next'] as String?;
+    } while (nextUrl != null);
+    
+    return allDeliveries;
   }
 
   Future<DeliveryItem> updateDeliveryStatus(int id, String newStatus) async {
@@ -475,15 +547,45 @@ class AdminRepository {
 
   // ─── Subscriptions (Admin) ────────────────────────────────────────────────
 
-  Future<List<SubscriptionItem>> getSubscriptions({String? status}) async {
+  /// Fetch subscriptions with pagination support.
+  Future<Map<String, dynamic>> getSubscriptionsPaginated({
+    String? status,
+    String? nextUrl,
+  }) async {
     final base = await _baseUrl();
     final params = <String, dynamic>{};
     if (status != null && status.isNotEmpty) params['status'] = status;
+    
+    final url = nextUrl ?? '${base}subscriptions-admin/';
     final response = await _apiClient.dio.get(
-      '${base}subscriptions-admin/',
-      queryParameters: params,
+      url,
+      queryParameters: nextUrl == null ? params : null,
     );
-    return _parseList(response.data, SubscriptionItem.fromJson);
+    
+    final data = response.data as Map<String, dynamic>;
+    return {
+      'count': data['count'] ?? 0,
+      'next': data['next'],
+      'previous': data['previous'],
+      'results': _parseList(data, SubscriptionItem.fromJson),
+    };
+  }
+
+  /// Fetch all subscriptions (handles pagination automatically).
+  Future<List<SubscriptionItem>> getSubscriptions({String? status}) async {
+    final List<SubscriptionItem> allSubscriptions = [];
+    String? nextUrl;
+    
+    do {
+      final response = await getSubscriptionsPaginated(
+        status: status,
+        nextUrl: nextUrl,
+      );
+      allSubscriptions.addAll(response['results'] as List<SubscriptionItem>);
+      nextUrl = response['next'] as String?;
+    } while (nextUrl != null);
+    
+    return allSubscriptions;
   }
 
   Future<SubscriptionItem> getSubscription(int id) async {

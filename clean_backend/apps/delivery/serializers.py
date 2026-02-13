@@ -7,6 +7,7 @@ from apps.delivery.models import Delivery
 
 class DeliverySerializer(serializers.ModelSerializer):
     driver_name = serializers.SerializerMethodField()
+    driver_id = serializers.IntegerField(source='driver.id', read_only=True)
     order_id = serializers.IntegerField(source='order.id', read_only=True)
     customer_name = serializers.SerializerMethodField()
     delivery_address = serializers.SerializerMethodField()
@@ -14,7 +15,7 @@ class DeliverySerializer(serializers.ModelSerializer):
     class Meta:
         model = Delivery
         fields = [
-            'id', 'order', 'order_id', 'driver', 'driver_name',
+            'id', 'order', 'order_id', 'driver', 'driver_id', 'driver_name',
             'customer_name', 
             'delivery_address',
             'pickup_time', 'delivery_time', 'status', 'notes',
@@ -23,9 +24,12 @@ class DeliverySerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
     def get_driver_name(self, obj):
+        """Get driver name from DeliveryDriver or legacy User."""
         if obj.driver:
-            name = obj.driver.get_full_name()
-            return name if name.strip() else obj.driver.username
+            return obj.driver.name
+        if obj.driver_user:
+            name = obj.driver_user.get_full_name()
+            return name if name.strip() else obj.driver_user.username
         return ''
 
     def get_customer_name(self, obj):

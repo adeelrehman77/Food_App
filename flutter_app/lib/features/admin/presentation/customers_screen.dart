@@ -1580,6 +1580,9 @@ class _AddressFormDialogState extends State<_AddressFormDialog> {
   late bool _isDefault;
   bool _saving = false;
   String? _error;
+  int? _selectedZoneId;
+  List<DeliveryZone> _zones = [];
+  bool _loadingZones = true;
 
   bool get _isEditing => widget.address != null;
 
@@ -1592,6 +1595,18 @@ class _AddressFormDialogState extends State<_AddressFormDialog> {
     _streetCtrl = TextEditingController(text: widget.address?.street ?? '');
     _cityCtrl = TextEditingController(text: widget.address?.city ?? '');
     _isDefault = widget.address?.isDefault ?? false;
+    _selectedZoneId = widget.address?.zoneId;
+    _loadZones();
+  }
+
+  Future<void> _loadZones() async {
+    try {
+      _zones = await _repo.getZones();
+      if (_isEditing && widget.address?.zoneId != null) {
+        _selectedZoneId = widget.address!.zoneId;
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loadingZones = false);
   }
 
   @override
@@ -1620,6 +1635,7 @@ class _AddressFormDialogState extends State<_AddressFormDialog> {
         'street': _streetCtrl.text.trim(),
         'city': _cityCtrl.text.trim(),
         'is_default': _isDefault,
+        if (_selectedZoneId != null) 'zone': _selectedZoneId,
       };
 
       if (_isEditing) {
@@ -1708,6 +1724,36 @@ class _AddressFormDialogState extends State<_AddressFormDialog> {
                           child: _buildField(
                               _cityCtrl, 'City', Icons.location_city)),
                     ]),
+                    const SizedBox(height: 10),
+                    // Zone selection dropdown
+                    DropdownButtonFormField<int>(
+                      value: _selectedZoneId,
+                      decoration: InputDecoration(
+                        labelText: 'Delivery Zone *',
+                        prefixIcon: const Icon(Icons.location_on, size: 18),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: Colors.grey.shade300)),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.fromLTRB(0, 10, 10, 10),
+                      ),
+                      items: _loadingZones
+                          ? [const DropdownMenuItem(value: null, child: Text('Loading zones...'))]
+                          : _zones.map((zone) => DropdownMenuItem(
+                                value: zone.id,
+                                child: Text(zone.name),
+                              )).toList(),
+                      onChanged: _loadingZones
+                          ? null
+                          : (value) => setState(() => _selectedZoneId = value),
+                      validator: (value) {
+                        if (value == null) {
+                          return 'Please select a delivery zone';
+                        }
+                        return null;
+                      },
+                    ),
                     const SizedBox(height: 10),
                     CheckboxListTile(
                       value: _isDefault,
