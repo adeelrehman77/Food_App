@@ -1,0 +1,359 @@
+# Test Environment Stability Fix - Complete Summary
+
+## Executive Summary
+Successfully resolved all test failures and achieved **94 passed, 1 skipped** with **78% code coverage**. The root causes were dependency incompatibilities, improper test isolation, and environment mismatches.
+
+---
+
+## Root Causes Identified
+
+### 1. **Dependency Incompatibility** (Critical)
+**Issue:** `dj-rest-auth` 4.x was incompatible with `django-allauth` 0.63+
+- **Error:** `ImportError: allauth needs to be added to INSTALLED_APPS`
+- **Cause:** `dj-rest-auth` 4.x tried to import `email_address_exists` utility that was removed in newer `django-allauth`
+- **Fix:** Upgraded `dj-rest-auth` from 4.x to 6.0.0
+
+### 2. **Database State Pollution** (Major)
+**Issue:** `--reuse-db` flag caused persistent data between test runs
+- **Error:** `IntegrityError` when creating duplicate users
+- **Cause:** Test database was reused without proper cleanup
+- **Fix:** Removed `--reuse-db` from `pytest.ini` addopts
+
+### 3. **Missing Middleware** (Major)
+**Issue:** `django-allauth` >= 0.56.0 requires specific middleware
+- **Error:** Silent failures or `AccountMiddleware` not found
+- **Cause:** `allauth.account.middleware.AccountMiddleware` was commented out
+- **Fix:** Uncommented the middleware in `config/settings/base.py`
+
+### 4. **Environment Mismatch** (Moderate)
+**Issue:** Using system `coverage` instead of virtual environment `coverage`
+- **Error:** `ModuleNotFoundError` for dependencies installed in venv
+- **Cause:** System Python's coverage tool couldn't see venv packages
+- **Fix:** Used `.venv/bin/coverage` explicitly
+
+### 5. **Test Code Issues** (Minor)
+**Issue:** Hardcoded usernames caused collisions
+- **Error:** `IntegrityError` during user creation
+- **Cause:** Multiple test classes using same username in `setup_method`
+- **Fix:** Made usernames unique per test class
+
+### 6. **Missing Dependencies** (Critical)
+**Issue:** `rest_framework` and `psutil` not installed
+- **Error:** `ModuleNotFoundError`
+- **Fix:** Installed via `pip install djangorestframework psutil --break-system-packages`
+
+### 7. **Django Settings Not Configured** (Critical)
+**Issue:** Incorrect `pytest.ini` format prevented Django initialization
+- **Error:** `ImproperlyConfigured: Requested setting INSTALLED_APPS`
+- **Fix:** Corrected `pytest.ini` to use `[pytest]` section header
+
+---
+
+## Changes Made
+
+### 1. Configuration Files
+
+#### `pytest.ini`
+```ini
+[pytest]
+DJANGO_SETTINGS_MODULE = config.settings.test
+python_files = tests.py test_*.py *_tests.py
+addopts = --nomigrations  # Removed --reuse-db
+testpaths = apps core
+```
+
+**Key Changes:**
+- Removed `--reuse-db` to prevent data pollution
+- Kept `--nomigrations` for speed
+- Ensured proper `[pytest]` section header
+
+#### `requirements/requirements.txt`
+```txt
+dj-rest-auth==6.0.0  # Upgraded from 4.x
+```
+
+#### `config/settings/base.py`
+```python
+MIDDLEWARE = [
+    # ... other middleware ...
+    'allauth.account.middleware.AccountMiddleware',  # Uncommented
+    # ... other middleware ...
+]
+```
+
+### 2. Test Code Improvements
+
+#### `apps/main/tests/test_admin_views.py`
+```python
+class TestCustomerProfileViewSet:
+    def setup_method(self):
+        self.superuser = User.objects.create_superuser(
+            username='admin_customer_profile',  # Made unique
+            # ...
+        )
+
+class TestMealPackageViewSet:
+    def setup_method(self):
+        self.superuser = User.objects.create_superuser(
+            username='admin_meal_package',  # Made unique
+            # ...
+        )
+```
+
+### 3. Delivery and Driver App Fixes
+
+#### Tenant Creation Refactoring
+Split `TenantViewSet.create` into helper methods for better testability:
+- `_create_tenant()`
+- `_create_domain()`
+- `_create_user()`
+
+#### Zone Model Fix
+```python
+class Zone(models.Model):
+    def __str__(self):
+        return f"{self.name}"  # Fixed string representation
+```
+
+#### Decimal Type Handling
+Fixed `Decimal` type mismatches in driver tests
+
+#### Security Middleware Compatibility
+```python
+# In test_views_debug.py
+self.client = APIClient()
+self.client.defaults['HTTP_USER_AGENT'] = 'TestClient'  # Added user agent
+```
+
+---
+
+## Verification & Results
+
+### Environment Setup
+```bash
+# Using Python 3.13.2 (Note: Document mentions 3.14.2 but likely 3.13.2)
+python -m venv venv
+source venv/bin/activate  # On macOS/Linux
+pip install -r requirements/requirements.txt --break-system-packages
+```
+
+### Test Execution
+```bash
+# Correct way to run tests
+.venv/bin/coverage run -m pytest
+
+# Results:
+# ================== 94 passed, 1 skipped ==================
+# Coverage: 78%
+```
+
+### Coverage Breakdown
+- Total statements: 2,990
+- Missed statements: 658
+- Coverage: 78%
+
+---
+
+## Best Practices Going Forward
+
+### 1. **Virtual Environment Usage**
+✅ **Always use venv binaries:**
+```bash
+.venv/bin/coverage run -m pytest  # Good
+coverage run -m pytest             # Bad (uses system Python)
+```
+
+### 2. **Dependency Management**
+✅ **Keep dependencies compatible:**
+- Check compatibility matrix before upgrading
+- Test after each dependency upgrade
+- Document version constraints
+
+### 3. **Test Isolation**
+✅ **Avoid `--reuse-db` unless necessary:**
+- Use fresh database for each test run
+- Only use `--reuse-db` for local development speed
+- Never use in CI/CD pipelines
+
+### 4. **Middleware Configuration**
+✅ **Keep middleware requirements updated:**
+- Review release notes when upgrading packages
+- Ensure all required middleware is uncommented
+- Test middleware interactions
+
+### 5. **Test Data Management**
+✅ **Use unique identifiers:**
+```python
+# Good
+username=f'testuser_{self.__class__.__name__}'
+
+# Bad
+username='testuser'  # Can collide
+```
+
+### 6. **Django Settings**
+✅ **Explicit settings configuration:**
+```bash
+# In pytest.ini
+DJANGO_SETTINGS_MODULE = config.settings.test
+
+# Or via environment
+export DJANGO_SETTINGS_MODULE=config.settings.test
+```
+
+### 7. **Running Tests**
+```bash
+# Full test suite with coverage
+.venv/bin/coverage run -m pytest
+
+# Generate coverage report
+.venv/bin/coverage report
+
+# HTML coverage report
+.venv/bin/coverage html
+
+# Run specific test file
+.venv/bin/pytest apps/main/tests/test_models.py
+
+# Run specific test
+.venv/bin/pytest apps/main/tests/test_models.py::TestOrderModel::test_create_order
+```
+
+---
+
+## Common Pitfalls to Avoid
+
+### ❌ Don't Do This:
+1. Using system Python packages instead of venv
+2. Mixing incompatible package versions
+3. Relying on `--reuse-db` in production test runs
+4. Hardcoding test data that can collide
+5. Forgetting to activate virtual environment
+6. Running tests without Django settings configured
+7. Commenting out required middleware
+
+### ✅ Do This Instead:
+1. Always use venv binaries (`.venv/bin/python`)
+2. Check compatibility before upgrading
+3. Use fresh database for test runs
+4. Generate unique test data
+5. Use activation scripts or explicit paths
+6. Configure `pytest.ini` properly
+7. Keep middleware requirements satisfied
+
+---
+
+## Troubleshooting Guide
+
+### Issue: `ModuleNotFoundError`
+```bash
+# Check which Python is being used
+which python
+which coverage
+
+# Use venv explicitly
+.venv/bin/coverage run -m pytest
+```
+
+### Issue: `ImproperlyConfigured: INSTALLED_APPS`
+```bash
+# Check pytest.ini has correct format
+cat pytest.ini | head -n 1  # Should show [pytest]
+
+# Or set environment variable
+export DJANGO_SETTINGS_MODULE=config.settings.test
+```
+
+### Issue: `IntegrityError` in tests
+```bash
+# Remove --reuse-db from pytest.ini
+# Or manually reset test database
+python manage.py flush --settings=config.settings.test
+```
+
+### Issue: Import errors with allauth
+```bash
+# Check dj-rest-auth version
+pip show dj-rest-auth
+
+# Upgrade if needed
+pip install --upgrade dj-rest-auth==6.0.0
+```
+
+---
+
+## CI/CD Recommendations
+
+For continuous integration pipelines:
+
+```yaml
+# Example GitHub Actions workflow
+- name: Run Tests
+  run: |
+    source .venv/bin/activate
+    export DJANGO_SETTINGS_MODULE=config.settings.test
+    coverage run -m pytest
+    coverage report --fail-under=75
+```
+
+**Key points:**
+- Always use fresh database
+- Never use `--reuse-db` in CI
+- Set coverage thresholds
+- Fail fast on errors
+- Cache dependencies for speed
+
+---
+
+## Conclusion
+
+The test environment is now stable with:
+- ✅ 94 tests passing
+- ✅ 78% code coverage
+- ✅ No dependency conflicts
+- ✅ Proper test isolation
+- ✅ Correct environment setup
+
+**Next Steps:**
+1. Maintain dependency compatibility
+2. Keep coverage above 75%
+3. Add tests for uncovered code
+4. Document new test patterns
+5. Review tests regularly
+
+---
+
+## Quick Reference Commands
+
+```bash
+# Activate virtual environment
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install -r requirements/requirements.txt --break-system-packages
+
+# Run tests with coverage
+.venv/bin/coverage run -m pytest
+
+# Generate coverage report
+.venv/bin/coverage report
+.venv/bin/coverage html
+
+# Run specific tests
+.venv/bin/pytest apps/main/tests/
+.venv/bin/pytest -k "test_create_order"
+
+# Run with verbose output
+.venv/bin/pytest -v
+
+# Run failed tests only
+.venv/bin/pytest --lf
+```
+
+---
+
+**Document Version:** 1.0  
+**Last Updated:** February 13, 2026  
+**Python Version:** 3.13.2  
+**Django Version:** Check requirements.txt
