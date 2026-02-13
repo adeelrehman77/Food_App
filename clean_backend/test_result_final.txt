@@ -1,0 +1,392 @@
+Using development SYNC_TOKEN. Set SYNC_TOKEN environment variable in production.
+Using development ENCRYPTION_KEY. Set ENCRYPTION_KEY env var in production.
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-7.4.4, pluggy-1.6.0
+django: version: 4.2.28, settings: config.settings.test (from ini)
+rootdir: /Users/adeelrehman/Food_App/clean_backend
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-40.4.0, django-4.11.1
+collected 6 items
+
+apps/organizations/tests/test_provision_tenant_command.py 
+1. Creating database 'tenant_test-kitchen-provisioning' ... OK
+2. Creating tenant record ... OK (id=1)
+3. Skipping migrations (--skip-migrate)
+4. Creating admin user in tenant DB ... F
+1. Creating database 'tenant_test-kitchen-admin' ... OK
+2. Creating tenant record ... OK (id=2)
+3. Skipping migrations (--skip-migrate)
+4. Creating admin user in tenant DB ... F
+1. Creating database 'tenant_test-kitchen-plan' ... OK
+2. Creating tenant record ... OK (id=3)
+3. Skipping migrations (--skip-migrate)
+4. Creating admin user in tenant DB ... F...
+
+=================================== FAILURES ===================================
+______ TestProvisionTenantCommand.test_provision_tenant_creates_database _______
+
+self = <organizations.tests.test_provision_tenant_command.TestProvisionTenantCommand object at 0x10cb71590>
+mock_register_jsonb = <MagicMock name='register_default_jsonb' id='4509891760'>
+mock_connect = <MagicMock name='connect' id='4509890080'>
+mock_default_conn = <MagicMock name='default_conn' id='4509888400'>
+
+    @patch('apps.organizations.management.commands.provision_tenant.default_conn')
+    @patch('psycopg2.connect')
+    @patch('psycopg2.extras.register_default_jsonb')
+    def test_provision_tenant_creates_database(self, mock_register_jsonb, mock_connect, mock_default_conn):
+        """Test that provision_tenant creates a new PostgreSQL database."""
+        # Given: No tenant database exists
+        subdomain = "test-kitchen-provisioning"
+    
+        # When: provision_tenant is called
+        # Mock cursor functionality for default_conn (CREATE DATABASE)
+        mock_cursor = MagicMock()
+        mock_default_conn.cursor.return_value.__enter__.return_value = mock_cursor
+    
+>       call_command('provision_tenant',
+                    subdomain=subdomain,
+                    name="Test Kitchen",
+                    skip_migrate=True)
+
+apps/organizations/tests/test_provision_tenant_command.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/core/management/__init__.py:194: in call_command
+    return command.execute(*args, **defaults)
+.venv/lib/python3.14/site-packages/django/core/management/base.py:458: in execute
+    output = self.handle(*args, **options)
+apps/organizations/management/commands/provision_tenant.py:191: in handle
+    while User.objects.filter(username=username).exists():
+.venv/lib/python3.14/site-packages/django/db/models/query.py:1243: in exists
+    return self.query.has_results(using=self.db)
+.venv/lib/python3.14/site-packages/django/db/models/sql/query.py:600: in has_results
+    return compiler.has_results()
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1530: in has_results
+    return bool(self.execute_sql(SINGLE))
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1560: in execute_sql
+    cursor = self.connection.cursor()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:329: in cursor
+    return self._cursor()
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:305: in _cursor
+    self.ensure_connection()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:288: in ensure_connection
+    self.connect()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:271: in connect
+    self.init_connection_state()
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/base.py:309: in init_connection_state
+    super().init_connection_state()
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:238: in init_connection_state
+    self.check_database_version_supported()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <DatabaseWrapper vendor='postgresql' alias='tenant_1'>
+
+    def check_database_version_supported(self):
+        """
+        Raise an error if the database version isn't supported by this
+        version of Django.
+        """
+        if (
+            self.features.minimum_database_version is not None
+>           and self.get_database_version() < self.features.minimum_database_version
+        ):
+E       TypeError: '<' not supported between instances of 'MagicMock' and 'tuple'
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:210: TypeError
+_____ TestProvisionTenantCommand.test_provision_tenant_creates_admin_user ______
+
+self = <organizations.tests.test_provision_tenant_command.TestProvisionTenantCommand object at 0x10cb71d10>
+mock_register_jsonb = <MagicMock name='register_default_jsonb' id='4509882016'>
+mock_connect = <MagicMock name='connect' id='4509881344'>
+mock_default_conn = <MagicMock name='default_conn' id='4509881680'>
+
+    @patch('apps.organizations.management.commands.provision_tenant.default_conn')
+    @patch('psycopg2.connect')
+    @patch('psycopg2.extras.register_default_jsonb')
+    def test_provision_tenant_creates_admin_user(self, mock_register_jsonb, mock_connect, mock_default_conn):
+        """Test that provision_tenant creates an admin user in tenant DB."""
+        # Mock default cursor (CREATE DATABASE)
+        mock_cursor = MagicMock()
+        mock_default_conn.cursor.return_value.__enter__.return_value = mock_cursor
+    
+        # Mock tenant DB connection
+        mock_tenant_conn = MagicMock()
+        mock_connect.return_value = mock_tenant_conn
+        mock_tenant_cursor = MagicMock()
+        mock_tenant_conn.cursor.return_value = mock_tenant_cursor
+    
+        # When: Provision runs
+>       call_command('provision_tenant',
+                    subdomain="test-kitchen-admin",
+                    name="Test Kitchen Admin",
+                    skip_migrate=True)
+
+apps/organizations/tests/test_provision_tenant_command.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/core/management/__init__.py:194: in call_command
+    return command.execute(*args, **defaults)
+.venv/lib/python3.14/site-packages/django/core/management/base.py:458: in execute
+    output = self.handle(*args, **options)
+apps/organizations/management/commands/provision_tenant.py:191: in handle
+    while User.objects.filter(username=username).exists():
+.venv/lib/python3.14/site-packages/django/db/models/query.py:1243: in exists
+    return self.query.has_results(using=self.db)
+.venv/lib/python3.14/site-packages/django/db/models/sql/query.py:600: in has_results
+    return compiler.has_results()
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1530: in has_results
+    return bool(self.execute_sql(SINGLE))
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1560: in execute_sql
+    cursor = self.connection.cursor()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:329: in cursor
+    return self._cursor()
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:305: in _cursor
+    self.ensure_connection()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:288: in ensure_connection
+    self.connect()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:271: in connect
+    self.init_connection_state()
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/base.py:309: in init_connection_state
+    super().init_connection_state()
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:238: in init_connection_state
+    self.check_database_version_supported()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <DatabaseWrapper vendor='postgresql' alias='tenant_2'>
+
+    def check_database_version_supported(self):
+        """
+        Raise an error if the database version isn't supported by this
+        version of Django.
+        """
+        if (
+            self.features.minimum_database_version is not None
+>           and self.get_database_version() < self.features.minimum_database_version
+        ):
+E       TypeError: '<' not supported between instances of 'MagicMock' and 'tuple'
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:210: TypeError
+________ TestProvisionTenantCommand.test_provision_tenant_assigns_plan _________
+
+self = <organizations.tests.test_provision_tenant_command.TestProvisionTenantCommand object at 0x10cacb360>
+mock_register_jsonb = <MagicMock name='register_default_jsonb' id='4512322560'>
+mock_connect = <MagicMock name='connect' id='4512323232'>
+mock_default_conn = <MagicMock name='default_conn' id='4512322224'>
+
+    @patch('apps.organizations.management.commands.provision_tenant.default_conn')
+    @patch('psycopg2.connect')
+    @patch('psycopg2.extras.register_default_jsonb')
+    def test_provision_tenant_assigns_plan(self, mock_register_jsonb, mock_connect, mock_default_conn):
+        """Test that provision_tenant assigns a service plan."""
+        # Given: A plan exists
+        plan = ServicePlan.objects.create(
+            name="Free",
+            tier="free",
+            max_menu_items=10,
+            max_staff_users=3,
+            max_customers=50
+        )
+    
+        # Mock cursor
+        mock_cursor = MagicMock()
+        mock_default_conn.cursor.return_value.__enter__.return_value = mock_cursor
+    
+        # When: Provision is called
+>       call_command('provision_tenant',
+                    subdomain="test-kitchen-plan",
+                    name="Test Kitchen Plan",
+                    plan_id=plan.id,
+                    skip_migrate=True) # Skip migration to avoid DB errors
+
+apps/organizations/tests/test_provision_tenant_command.py:85: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/core/management/__init__.py:194: in call_command
+    return command.execute(*args, **defaults)
+.venv/lib/python3.14/site-packages/django/core/management/base.py:458: in execute
+    output = self.handle(*args, **options)
+apps/organizations/management/commands/provision_tenant.py:191: in handle
+    while User.objects.filter(username=username).exists():
+.venv/lib/python3.14/site-packages/django/db/models/query.py:1243: in exists
+    return self.query.has_results(using=self.db)
+.venv/lib/python3.14/site-packages/django/db/models/sql/query.py:600: in has_results
+    return compiler.has_results()
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1530: in has_results
+    return bool(self.execute_sql(SINGLE))
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1560: in execute_sql
+    cursor = self.connection.cursor()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:329: in cursor
+    return self._cursor()
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:305: in _cursor
+    self.ensure_connection()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:288: in ensure_connection
+    self.connect()
+.venv/lib/python3.14/site-packages/django/utils/asyncio.py:26: in inner
+    return func(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:271: in connect
+    self.init_connection_state()
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/base.py:309: in init_connection_state
+    super().init_connection_state()
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:238: in init_connection_state
+    self.check_database_version_supported()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <DatabaseWrapper vendor='postgresql' alias='tenant_3'>
+
+    def check_database_version_supported(self):
+        """
+        Raise an error if the database version isn't supported by this
+        version of Django.
+        """
+        if (
+            self.features.minimum_database_version is not None
+>           and self.get_database_version() < self.features.minimum_database_version
+        ):
+E       TypeError: '<' not supported between instances of 'MagicMock' and 'tuple'
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/base.py:210: TypeError
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/django/conf/__init__.py:289
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/django/conf/__init__.py:289: RemovedInDjango51Warning: The STATICFILES_STORAGE setting is deprecated. Use STORAGES instead.
+    warnings.warn(STATICFILES_STORAGE_DEPRECATED_MSG, RemovedInDjango51Warning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform darwin, python 3.14.2-final-0 ----------
+Name                                                                                               Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------------------------------------------------------
+apps/delivery/__init__.py                                                                              0      0   100%
+apps/delivery/admin.py                                                                                 9      0   100%
+apps/delivery/apps.py                                                                                  4      0   100%
+apps/delivery/migrations/0001_initial.py                                                               7      0   100%
+apps/delivery/migrations/0002_update_delivery_driver.py                                                6      0   100%
+apps/delivery/migrations/__init__.py                                                                   0      0   100%
+apps/delivery/models.py                                                                               22      6    73%   33, 38-42
+apps/driver/__init__.py                                                                                0      0   100%
+apps/driver/admin.py                                                                                  35      0   100%
+apps/driver/apps.py                                                                                    4      0   100%
+apps/driver/migrations/0001_initial.py                                                                 7      0   100%
+apps/driver/migrations/0002_deliveryassignment_deliverydriver_and_more.py                              7      0   100%
+apps/driver/migrations/0003_add_zones_routes_to_deliverydriver.py                                      4      0   100%
+apps/driver/migrations/0004_deliverydriver_user.py                                                     6      0   100%
+apps/driver/migrations/__init__.py                                                                     0      0   100%
+apps/driver/models.py                                                                                118     21    82%   27, 48, 96, 102-117, 123-132, 174, 201, 237, 276
+apps/inventory/__init__.py                                                                             0      0   100%
+apps/inventory/admin.py                                                                               12      0   100%
+apps/inventory/apps.py                                                                                 4      0   100%
+apps/inventory/migrations/0001_initial.py                                                              6      0   100%
+apps/inventory/migrations/0002_alter_inventoryitem_options_and_more.py                                 4      0   100%
+apps/inventory/migrations/__init__.py                                                                  0      0   100%
+apps/inventory/models.py                                                                              31      3    90%   22, 52, 56
+apps/kitchen/__init__.py                                                                               0      0   100%
+apps/kitchen/admin.py                                                                                 12      0   100%
+apps/kitchen/apps.py                                                                                   4      0   100%
+apps/kitchen/migrations/0001_initial.py                                                                7      0   100%
+apps/kitchen/migrations/__init__.py                                                                    0      0   100%
+apps/kitchen/models.py                                                                                22      2    91%   15, 28
+apps/main/__init__.py                                                                                  0      0   100%
+apps/main/admin.py                                                                                    55      0   100%
+apps/main/apps.py                                                                                      4      0   100%
+apps/main/management/__init__.py                                                                       0      0   100%
+apps/main/migrations/0001_initial.py                                                                   7      0   100%
+apps/main/migrations/0002_wallettransaction_address.py                                                 5      0   100%
+apps/main/migrations/0003_customerprofile_notification_remove_customer_tenant_and_more.py              7      0   100%
+apps/main/migrations/0004_customerregistrationrequest_invoice_invoiceitem_and_more.py                  8      0   100%
+apps/main/migrations/0005_alter_menuitem_options_remove_customerprofile_tenant_and_more.py             5      0   100%
+apps/main/migrations/0006_daily_menu_system.py                                                         6      0   100%
+apps/main/migrations/0007_add_diet_type_and_meal_package.py                                            4      0   100%
+apps/main/migrations/0008_fix_created_by_cross_db.py                                                   4      0   100%
+apps/main/migrations/0009_revert_created_by_to_fk.py                                                   6      0   100%
+apps/main/migrations/0010_subscription_diet_type.py                                                    4      0   100%
+apps/main/migrations/0011_subscription_use_mealslot.py                                                 5      0   100%
+apps/main/migrations/0012_mealpackage_menus_subscription_meal_package.py                               5      0   100%
+apps/main/migrations/0013_invoice_number_optional.py                                                   4      0   100%
+apps/main/migrations/0014_add_zone_to_address.py                                                       5      0   100%
+apps/main/migrations/__init__.py                                                                       0      0   100%
+apps/main/models.py                                                                                  480    185    61%   21-28, 40, 55, 136, 140, 184, 200, 232, 291, 296, 336, 341-343, 428-429, 485-489, 492-510, 513-524, 527-540, 543-556, 619, 623, 626-628, 632-639, 643-660, 663-680, 683-688, 691-715, 724-740, 749-772, 798, 809, 812, 827, 830-834, 845, 863, 877, 880-898, 918, 930, 937
+apps/main/utils/__init__.py                                                                            1      0   100%
+apps/main/utils/validators.py                                                                         20     11    45%   5-7, 10, 13, 16-18, 21, 24, 27
+apps/organizations/__init__.py                                                                         0      0   100%
+apps/organizations/admin.py                                                                           28      0   100%
+apps/organizations/apps.py                                                                             4      0   100%
+apps/organizations/management/__init__.py                                                              0      0   100%
+apps/organizations/management/commands/__init__.py                                                     0      0   100%
+apps/organizations/management/commands/provision_tenant.py                                           106     44    58%   108-113, 135-159, 192-203, 210-258
+apps/organizations/migrations/0001_initial.py                                                          5      0   100%
+apps/organizations/migrations/0002_rename_subscriptionplan_serviceplan.py                              4      0   100%
+apps/organizations/migrations/0003_remove_serviceplan_max_orders_per_month.py                          4      0   100%
+apps/organizations/migrations/0004_alter_serviceplan_options_serviceplan_description_and_more.py       6      0   100%
+apps/organizations/migrations/0005_alter_serviceplan_max_customers_and_more.py                         4      0   100%
+apps/organizations/migrations/__init__.py                                                              0      0   100%
+apps/organizations/models.py                                                                          39     10    74%   75, 80-84, 91-95
+apps/organizations/models_saas.py                                                                     76     16    79%   62, 66, 70, 74-76, 122, 125-135, 166
+apps/organizations/tests/__init__.py                                                                   0      0   100%
+apps/organizations/tests/test_provision_tenant_command.py                                             65     10    85%   32-36, 60-64, 92-97
+apps/users/__init__.py                                                                                 0      0   100%
+apps/users/admin.py                                                                                   15      0   100%
+apps/users/apps.py                                                                                     6      0   100%
+apps/users/migrations/0001_initial.py                                                                  7      0   100%
+apps/users/migrations/0002_rename_subscription_plan_tenant_service_plan.py                             4      0   100%
+apps/users/migrations/0003_add_tenant_to_userprofile.py                                                5      0   100%
+apps/users/migrations/__init__.py                                                                      0      0   100%
+apps/users/models.py                                                                                  31      3    90%   21, 30, 49
+apps/users/signals.py                                                                                 31     14    55%   25, 36-70
+config/__init__.py                                                                                     0      0   100%
+config/asgi.py                                                                                         7      7     0%   10-19
+config/settings/__init__.py                                                                            0      0   100%
+config/settings/base.py                                                                              200     40    80%   32, 336-339, 348-349, 355-368, 467-470, 483, 509, 564-571, 580, 585-593, 599, 604-605, 649-650
+config/settings/development.py                                                                        25     25     0%   1-63
+config/settings/production.py                                                                         45     45     0%   1-85
+config/settings/test.py                                                                               22      0   100%
+config/url_patterns/__init__.py                                                                        0      0   100%
+config/url_patterns/base.py                                                                           14     14     0%   1-57
+config/urls.py                                                                                        13     13     0%   1-64
+config/wsgi.py                                                                                         4      4     0%   10-16
+core/__init__.py                                                                                       0      0   100%
+core/db/router.py                                                                                     24      1    96%   75
+core/middleware/__init__.py                                                                            3      3     0%   2-19
+core/middleware/multi_db_tenant.py                                                                    38     38     0%   1-87
+core/middleware/performance.py                                                                       164    164     0%   1-316
+core/middleware/security.py                                                                          137    137     0%   1-297
+core/middleware/tenant.py                                                                             28     28     0%   1-52
+core/monitoring/__init__.py                                                                           16     16     0%   2-32
+core/permissions/__init__.py                                                                           2      2     0%   2-3
+core/permissions/custom.py                                                                            74     74     0%   1-215
+core/permissions/plan_limits.py                                                                       48     48     0%   11-99
+core/tests/__init__.py                                                                                 0      0   100%
+core/tests/test_middleware.py                                                                         31     31     0%   1-35
+core/tests/test_validators.py                                                                         56     56     0%   1-76
+core/utils/__init__.py                                                                                 0      0   100%
+core/utils/validators.py                                                                             124    124     0%   1-215
+create_tenant_user.py                                                                                 38     38     0%   1-57
+fix_drivers.py                                                                                        58     58     0%   1-100
+fix_tenant.py                                                                                         41     41     0%   5-56
+manage.py                                                                                             11     11     0%   3-22
+scripts/__init__.py                                                                                    0      0   100%
+scripts/create_api_key.py                                                                             47     47     0%   14-87
+scripts/fix_migrations.py                                                                             15     15     0%   1-20
+scripts/inspect_db.py                                                                                 15     15     0%   1-17
+scripts/provision_tenant.py                                                                           49     49     0%   1-98
+scripts/reset_local_schema.py                                                                         29     29     0%   1-54
+scripts/setup_database.py                                                                             45     45     0%   11-120
+--------------------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                                               2829   1543    45%
+
+=========================== short test summary info ============================
+FAILED apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_creates_database
+FAILED apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_creates_admin_user
+FAILED apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_assigns_plan
+==================== 3 failed, 3 passed, 1 warning in 4.58s ====================

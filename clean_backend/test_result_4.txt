@@ -1,0 +1,16 @@
+Using development SYNC_TOKEN. Set SYNC_TOKEN environment variable in production.
+Using development ENCRYPTION_KEY. Set ENCRYPTION_KEY env var in production.
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-7.4.4, pluggy-1.6.0
+django: version: 4.2.28, settings: config.settings.test (from ini)
+rootdir: /Users/adeelrehman/Food_App/clean_backend
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-40.4.0, django-4.11.1
+collected 6 items
+
+apps/organizations/tests/test_provision_tenant_command.py FAILED (0.0s) — '<' not supported between instances of 'MagicMock' and 'tuple'
+  Tenant record was created but migrations failed. Fix the issue and run: python manage.py migrate_all_tenants --tenant=test-kitchen-provisioning
+
+1. Creating database 'tenant_test-kitchen-provisioning' ... OK
+2. Creating tenant record ... OK (id=1)
+3. Running migrations ... 

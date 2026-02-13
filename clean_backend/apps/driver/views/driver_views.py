@@ -12,6 +12,7 @@ class DriverDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        queryset = DeliveryAssignment.objects.all()
         # Filter for the current user's driver profile and today's deliveries
         user = self.request.user
         if hasattr(user, 'driver_profile'):

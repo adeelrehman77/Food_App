@@ -1,0 +1,11 @@
+Using development SYNC_TOKEN. Set SYNC_TOKEN environment variable in production.
+Using development ENCRYPTION_KEY. Set ENCRYPTION_KEY env var in production.
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-7.4.4, pluggy-1.6.0
+django: version: 4.2.28, settings: config.settings.test (from ini)
+rootdir: /Users/adeelrehman/Food_App/clean_backend
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-40.4.0, django-4.11.1
+collected 6 items
+
+apps/organizations/tests/test_provision_tenant_command.py 

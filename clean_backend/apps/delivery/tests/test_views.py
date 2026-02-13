@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
 from apps.delivery.models import Delivery
 from apps.main.models import Order, Subscription, CustomerProfile, MealSlot, MealPackage
+from apps.driver.models import DeliveryDriver
 from core.permissions.plan_limits import PlanFeatureInventory # Just for setup if needed
 
 User = get_user_model()
@@ -35,6 +36,11 @@ class TestDeliveryViewSet:
         )
         self.delivery = Delivery.objects.create(order=self.order, status='pending')
         self.driver_user = User.objects.create_user(username='driver', password='pw', email='driver@test.com')
+        self.driver_profile = DeliveryDriver.objects.create(
+            name='Test Driver',
+            phone='555-0123',
+            user=self.driver_user
+        )
 
     def test_list_deliveries(self):
         response = self.client.get('/api/v1/delivery/deliveries/')
@@ -53,10 +59,10 @@ class TestDeliveryViewSet:
         assert res.status_code == 404
         
         # Valid
-        res = self.client.post(url, {'driver_id': self.driver_user.id}, format='json')
+        res = self.client.post(url, {'driver_id': self.driver_profile.id}, format='json')
         assert res.status_code == 200
         self.delivery.refresh_from_db()
-        assert self.delivery.driver == self.driver_user
+        assert self.delivery.driver == self.driver_profile
 
     def test_update_status(self):
         url = f'/api/v1/delivery/deliveries/{self.delivery.id}/update_status/'

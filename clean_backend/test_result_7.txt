@@ -1,0 +1,1456 @@
+Using development SYNC_TOKEN. Set SYNC_TOKEN environment variable in production.
+Using development ENCRYPTION_KEY. Set ENCRYPTION_KEY env var in production.
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-7.4.4, pluggy-1.6.0
+django: version: 4.2.28, settings: config.settings.test (from ini)
+rootdir: /Users/adeelrehman/Food_App/clean_backend
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-40.4.0, django-4.11.1
+collected 6 items
+
+apps/organizations/tests/test_provision_tenant_command.py Got an error creating the test database: database "test_food_app_test" already exists
+
+Got an error recreating the test database: database "test_food_app_test" is being accessed by other users
+DETAIL:  There is 1 other session using the database.
+
+EGot an error creating the test database: database "test_food_app_test" already exists
+
+Got an error recreating the test database: database "test_food_app_test" is being accessed by other users
+DETAIL:  There is 1 other session using the database.
+
+EGot an error creating the test database: database "test_food_app_test" already exists
+
+Got an error recreating the test database: database "test_food_app_test" is being accessed by other users
+DETAIL:  There are 2 other sessions using the database.
+
+EGot an error creating the test database: database "test_food_app_test" already exists
+
+Got an error recreating the test database: database "test_food_app_test" is being accessed by other users
+DETAIL:  There are 2 other sessions using the database.
+
+EGot an error creating the test database: database "test_food_app_test" already exists
+
+Got an error recreating the test database: database "test_food_app_test" is being accessed by other users
+DETAIL:  There are 2 other sessions using the database.
+
+EGot an error creating the test database: database "test_food_app_test" already exists
+
+Got an error recreating the test database: database "test_food_app_test" is being accessed by other users
+DETAIL:  There are 2 other sessions using the database.
+
+E
+
+==================================== ERRORS ====================================
+_ ERROR at setup of TestProvisionTenantCommand.test_provision_tenant_creates_database _
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a7e6990>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a7e6990>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.DuplicateDatabase: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: DuplicateDatabase
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+>               self._execute_create_test_db(cursor, test_db_params, keepdb)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/creation.py:46: in _execute_create_test_db
+    super()._execute_create_test_db(cursor, parameters, keepdb)
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:187: in _execute_create_test_db
+    cursor.execute("CREATE DATABASE %(dbname)s %(suffix)s" % parameters)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a7e6990>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a7e6990>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.ProgrammingError: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a7e6990>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a7e6990>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.ObjectInUse: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There is 1 other session using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ObjectInUse
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+>                       cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a7e6990>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a7e6990>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.OperationalError: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There is 1 other session using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: OperationalError
+
+During handling of the above exception, another exception occurred:
+
+request = <SubRequest '_django_db_marker' for <Function test_provision_tenant_creates_database>>
+
+    @pytest.fixture(autouse=True)
+    def _django_db_marker(request: pytest.FixtureRequest) -> None:
+        """Implement the django_db marker, internal to pytest-django."""
+        marker = request.node.get_closest_marker("django_db")
+        if marker:
+>           request.getfixturevalue("_django_db_helper")
+
+.venv/lib/python3.14/site-packages/pytest_django/plugin.py:552: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/pytest_django/fixtures.py:198: in django_db_setup
+    db_cfg = setup_databases(
+.venv/lib/python3.14/site-packages/django/test/utils.py:221: in setup_databases
+    connection.creation.create_test_db(
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:62: in create_test_db
+    self._create_test_db(verbosity, autoclobber, keepdb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+                        cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+                        self._execute_create_test_db(cursor, test_db_params, keepdb)
+                    except Exception as e:
+                        self.log("Got an error recreating the test database: %s" % e)
+>                       sys.exit(2)
+E                       SystemExit: 2
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:229: SystemExit
+_ ERROR at setup of TestProvisionTenantCommand.test_provision_tenant_creates_admin_user _
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10aac47d0>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10aac47d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.DuplicateDatabase: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: DuplicateDatabase
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+>               self._execute_create_test_db(cursor, test_db_params, keepdb)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/creation.py:46: in _execute_create_test_db
+    super()._execute_create_test_db(cursor, parameters, keepdb)
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:187: in _execute_create_test_db
+    cursor.execute("CREATE DATABASE %(dbname)s %(suffix)s" % parameters)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10aac47d0>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10aac47d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.ProgrammingError: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10aac47d0>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10aac47d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.ObjectInUse: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There is 1 other session using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ObjectInUse
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+>                       cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10aac47d0>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10aac47d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.OperationalError: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There is 1 other session using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: OperationalError
+
+During handling of the above exception, another exception occurred:
+
+request = <SubRequest '_django_db_marker' for <Function test_provision_tenant_creates_admin_user>>
+
+    @pytest.fixture(autouse=True)
+    def _django_db_marker(request: pytest.FixtureRequest) -> None:
+        """Implement the django_db marker, internal to pytest-django."""
+        marker = request.node.get_closest_marker("django_db")
+        if marker:
+>           request.getfixturevalue("_django_db_helper")
+
+.venv/lib/python3.14/site-packages/pytest_django/plugin.py:552: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/pytest_django/fixtures.py:198: in django_db_setup
+    db_cfg = setup_databases(
+.venv/lib/python3.14/site-packages/django/test/utils.py:221: in setup_databases
+    connection.creation.create_test_db(
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:62: in create_test_db
+    self._create_test_db(verbosity, autoclobber, keepdb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+                        cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+                        self._execute_create_test_db(cursor, test_db_params, keepdb)
+                    except Exception as e:
+                        self.log("Got an error recreating the test database: %s" % e)
+>                       sys.exit(2)
+E                       SystemExit: 2
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:229: SystemExit
+_ ERROR at setup of TestProvisionTenantCommand.test_provision_tenant_assigns_plan _
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a8ee190>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a8ee190>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.DuplicateDatabase: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: DuplicateDatabase
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+>               self._execute_create_test_db(cursor, test_db_params, keepdb)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/creation.py:46: in _execute_create_test_db
+    super()._execute_create_test_db(cursor, parameters, keepdb)
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:187: in _execute_create_test_db
+    cursor.execute("CREATE DATABASE %(dbname)s %(suffix)s" % parameters)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a8ee190>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a8ee190>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.ProgrammingError: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a8ee190>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a8ee190>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.ObjectInUse: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There are 2 other sessions using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ObjectInUse
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+>                       cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a8ee190>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a8ee190>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.OperationalError: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There are 2 other sessions using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: OperationalError
+
+During handling of the above exception, another exception occurred:
+
+request = <SubRequest '_django_db_marker' for <Function test_provision_tenant_assigns_plan>>
+
+    @pytest.fixture(autouse=True)
+    def _django_db_marker(request: pytest.FixtureRequest) -> None:
+        """Implement the django_db marker, internal to pytest-django."""
+        marker = request.node.get_closest_marker("django_db")
+        if marker:
+>           request.getfixturevalue("_django_db_helper")
+
+.venv/lib/python3.14/site-packages/pytest_django/plugin.py:552: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/pytest_django/fixtures.py:198: in django_db_setup
+    db_cfg = setup_databases(
+.venv/lib/python3.14/site-packages/django/test/utils.py:221: in setup_databases
+    connection.creation.create_test_db(
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:62: in create_test_db
+    self._create_test_db(verbosity, autoclobber, keepdb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+                        cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+                        self._execute_create_test_db(cursor, test_db_params, keepdb)
+                    except Exception as e:
+                        self.log("Got an error recreating the test database: %s" % e)
+>                       sys.exit(2)
+E                       SystemExit: 2
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:229: SystemExit
+_ ERROR at setup of TestProvisionTenantCommand.test_provision_tenant_error_handling_invalid_slug _
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a8eefd0>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a8eefd0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.DuplicateDatabase: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: DuplicateDatabase
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+>               self._execute_create_test_db(cursor, test_db_params, keepdb)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/creation.py:46: in _execute_create_test_db
+    super()._execute_create_test_db(cursor, parameters, keepdb)
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:187: in _execute_create_test_db
+    cursor.execute("CREATE DATABASE %(dbname)s %(suffix)s" % parameters)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a8eefd0>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a8eefd0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.ProgrammingError: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a8eefd0>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a8eefd0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.ObjectInUse: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There are 2 other sessions using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ObjectInUse
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+>                       cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a8eefd0>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a8eefd0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.OperationalError: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There are 2 other sessions using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: OperationalError
+
+During handling of the above exception, another exception occurred:
+
+request = <SubRequest '_django_db_marker' for <Function test_provision_tenant_error_handling_invalid_slug>>
+
+    @pytest.fixture(autouse=True)
+    def _django_db_marker(request: pytest.FixtureRequest) -> None:
+        """Implement the django_db marker, internal to pytest-django."""
+        marker = request.node.get_closest_marker("django_db")
+        if marker:
+>           request.getfixturevalue("_django_db_helper")
+
+.venv/lib/python3.14/site-packages/pytest_django/plugin.py:552: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/pytest_django/fixtures.py:198: in django_db_setup
+    db_cfg = setup_databases(
+.venv/lib/python3.14/site-packages/django/test/utils.py:221: in setup_databases
+    connection.creation.create_test_db(
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:62: in create_test_db
+    self._create_test_db(verbosity, autoclobber, keepdb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+                        cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+                        self._execute_create_test_db(cursor, test_db_params, keepdb)
+                    except Exception as e:
+                        self.log("Got an error recreating the test database: %s" % e)
+>                       sys.exit(2)
+E                       SystemExit: 2
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:229: SystemExit
+_ ERROR at setup of TestProvisionTenantCommand.test_provision_tenant_error_handling_duplicate_slug _
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10aaaa8d0>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10aaaa8d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.DuplicateDatabase: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: DuplicateDatabase
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+>               self._execute_create_test_db(cursor, test_db_params, keepdb)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/creation.py:46: in _execute_create_test_db
+    super()._execute_create_test_db(cursor, parameters, keepdb)
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:187: in _execute_create_test_db
+    cursor.execute("CREATE DATABASE %(dbname)s %(suffix)s" % parameters)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10aaaa8d0>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10aaaa8d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.ProgrammingError: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10aaaa8d0>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10aaaa8d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.ObjectInUse: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There are 2 other sessions using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ObjectInUse
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+>                       cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10aaaa8d0>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10aaaa8d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.OperationalError: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There are 2 other sessions using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: OperationalError
+
+During handling of the above exception, another exception occurred:
+
+request = <SubRequest '_django_db_marker' for <Function test_provision_tenant_error_handling_duplicate_slug>>
+
+    @pytest.fixture(autouse=True)
+    def _django_db_marker(request: pytest.FixtureRequest) -> None:
+        """Implement the django_db marker, internal to pytest-django."""
+        marker = request.node.get_closest_marker("django_db")
+        if marker:
+>           request.getfixturevalue("_django_db_helper")
+
+.venv/lib/python3.14/site-packages/pytest_django/plugin.py:552: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/pytest_django/fixtures.py:198: in django_db_setup
+    db_cfg = setup_databases(
+.venv/lib/python3.14/site-packages/django/test/utils.py:221: in setup_databases
+    connection.creation.create_test_db(
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:62: in create_test_db
+    self._create_test_db(verbosity, autoclobber, keepdb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+                        cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+                        self._execute_create_test_db(cursor, test_db_params, keepdb)
+                    except Exception as e:
+                        self.log("Got an error recreating the test database: %s" % e)
+>                       sys.exit(2)
+E                       SystemExit: 2
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:229: SystemExit
+_ ERROR at setup of TestProvisionTenantCommand.test_provision_tenant_idempotent _
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a856cf0>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a856cf0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.DuplicateDatabase: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: DuplicateDatabase
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+>               self._execute_create_test_db(cursor, test_db_params, keepdb)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/postgresql/creation.py:46: in _execute_create_test_db
+    super()._execute_create_test_db(cursor, parameters, keepdb)
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:187: in _execute_create_test_db
+    cursor.execute("CREATE DATABASE %(dbname)s %(suffix)s" % parameters)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a856cf0>
+sql = 'CREATE DATABASE "test_food_app_test" ', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a856cf0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.ProgrammingError: database "test_food_app_test" already exists
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ProgrammingError
+
+During handling of the above exception, another exception occurred:
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a856cf0>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a856cf0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               psycopg2.errors.ObjectInUse: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There are 2 other sessions using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: ObjectInUse
+
+The above exception was the direct cause of the following exception:
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+>                       cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10a856cf0>
+sql = 'DROP DATABASE "test_food_app_test"', params = None
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='__no_db__'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10a856cf0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+>               return self.cursor.execute(sql)
+E               django.db.utils.OperationalError: database "test_food_app_test" is being accessed by other users
+E               DETAIL:  There are 2 other sessions using the database.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:87: OperationalError
+
+During handling of the above exception, another exception occurred:
+
+request = <SubRequest '_django_db_marker' for <Function test_provision_tenant_idempotent>>
+
+    @pytest.fixture(autouse=True)
+    def _django_db_marker(request: pytest.FixtureRequest) -> None:
+        """Implement the django_db marker, internal to pytest-django."""
+        marker = request.node.get_closest_marker("django_db")
+        if marker:
+>           request.getfixturevalue("_django_db_helper")
+
+.venv/lib/python3.14/site-packages/pytest_django/plugin.py:552: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/pytest_django/fixtures.py:198: in django_db_setup
+    db_cfg = setup_databases(
+.venv/lib/python3.14/site-packages/django/test/utils.py:221: in setup_databases
+    connection.creation.create_test_db(
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:62: in create_test_db
+    self._create_test_db(verbosity, autoclobber, keepdb)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.postgresql.creation.DatabaseCreation object at 0x1092e8c20>
+verbosity = 0, autoclobber = True, keepdb = False
+
+    def _create_test_db(self, verbosity, autoclobber, keepdb=False):
+        """
+        Internal implementation - create the test db tables.
+        """
+        test_database_name = self._get_test_db_name()
+        test_db_params = {
+            "dbname": self.connection.ops.quote_name(test_database_name),
+            "suffix": self.sql_table_creation_suffix(),
+        }
+        # Create the test database and connect to it.
+        with self._nodb_cursor() as cursor:
+            try:
+                self._execute_create_test_db(cursor, test_db_params, keepdb)
+            except Exception as e:
+                # if we want to keep the db, then no need to do any of the below,
+                # just return and skip it all.
+                if keepdb:
+                    return test_database_name
+    
+                self.log("Got an error creating the test database: %s" % e)
+                if not autoclobber:
+                    confirm = input(
+                        "Type 'yes' if you would like to try deleting the test "
+                        "database '%s', or 'no' to cancel: " % test_database_name
+                    )
+                if autoclobber or confirm == "yes":
+                    try:
+                        if verbosity >= 1:
+                            self.log(
+                                "Destroying old test database for alias %s..."
+                                % (
+                                    self._get_database_display_str(
+                                        verbosity, test_database_name
+                                    ),
+                                )
+                            )
+                        cursor.execute("DROP DATABASE %(dbname)s" % test_db_params)
+                        self._execute_create_test_db(cursor, test_db_params, keepdb)
+                    except Exception as e:
+                        self.log("Got an error recreating the test database: %s" % e)
+>                       sys.exit(2)
+E                       SystemExit: 2
+
+.venv/lib/python3.14/site-packages/django/db/backends/base/creation.py:229: SystemExit
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/django/conf/__init__.py:289
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/django/conf/__init__.py:289: RemovedInDjango51Warning: The STATICFILES_STORAGE setting is deprecated. Use STORAGES instead.
+    warnings.warn(STATICFILES_STORAGE_DEPRECATED_MSG, RemovedInDjango51Warning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform darwin, python 3.14.2-final-0 ----------
+Name                                                        Stmts   Miss  Cover   Missing
+-----------------------------------------------------------------------------------------
+apps/delivery/__init__.py                                       0      0   100%
+apps/delivery/admin.py                                          9      0   100%
+apps/delivery/apps.py                                           4      0   100%
+apps/delivery/models.py                                        22      6    73%   33, 38-42
+apps/driver/__init__.py                                         0      0   100%
+apps/driver/admin.py                                           35      0   100%
+apps/driver/apps.py                                             4      0   100%
+apps/driver/models.py                                         118     21    82%   27, 48, 96, 102-117, 123-132, 174, 201, 237, 276
+apps/inventory/__init__.py                                      0      0   100%
+apps/inventory/admin.py                                        12      0   100%
+apps/inventory/apps.py                                          4      0   100%
+apps/inventory/models.py                                       31      3    90%   22, 52, 56
+apps/kitchen/__init__.py                                        0      0   100%
+apps/kitchen/admin.py                                          12      0   100%
+apps/kitchen/apps.py                                            4      0   100%
+apps/kitchen/models.py                                         22      2    91%   15, 28
+apps/main/__init__.py                                           0      0   100%
+apps/main/admin.py                                             55      0   100%
+apps/main/apps.py                                               4      0   100%
+apps/main/models.py                                           480    185    61%   21-28, 40, 55, 136, 140, 184, 200, 232, 291, 296, 336, 341-343, 428-429, 485-489, 492-510, 513-524, 527-540, 543-556, 619, 623, 626-628, 632-639, 643-660, 663-680, 683-688, 691-715, 724-740, 749-772, 798, 809, 812, 827, 830-834, 845, 863, 877, 880-898, 918, 930, 937
+apps/main/utils/__init__.py                                     1      0   100%
+apps/main/utils/validators.py                                  20     11    45%   5-7, 10, 13, 16-18, 21, 24, 27
+apps/organizations/__init__.py                                  0      0   100%
+apps/organizations/admin.py                                    28      0   100%
+apps/organizations/apps.py                                      4      0   100%
+apps/organizations/models.py                                   39     10    74%   75, 80-84, 91-95
+apps/organizations/models_saas.py                              76     16    79%   62, 66, 70, 74-76, 122, 125-135, 166
+apps/organizations/tests/__init__.py                            0      0   100%
+apps/organizations/tests/test_provision_tenant_command.py      65     33    49%   18-36, 44-64, 72-97, 106, 114-123, 133
+apps/users/__init__.py                                          0      0   100%
+apps/users/admin.py                                            15      0   100%
+apps/users/apps.py                                              6      0   100%
+apps/users/models.py                                           31      3    90%   21, 30, 49
+apps/users/signals.py                                          31     19    39%   24-70
+config/__init__.py                                              0      0   100%
+config/asgi.py                                                  7      7     0%   10-19
+config/settings/__init__.py                                     0      0   100%
+config/settings/base.py                                       200     40    80%   32, 336-339, 348-349, 355-368, 467-470, 483, 509, 564-571, 580, 585-593, 599, 604-605, 649-650
+config/settings/development.py                                 25     25     0%   1-63
+config/settings/production.py                                  45     45     0%   1-85
+config/settings/test.py                                        22      0   100%
+config/url_patterns/__init__.py                                 0      0   100%
+config/url_patterns/base.py                                    14     14     0%   1-57
+config/urls.py                                                 13     13     0%   1-64
+config/wsgi.py                                                  4      4     0%   10-16
+core/__init__.py                                                0      0   100%
+core/db/router.py                                              24     14    42%   9, 14, 57-59, 62-64, 70-75, 84
+core/middleware/__init__.py                                     3      3     0%   2-19
+core/middleware/multi_db_tenant.py                             38     38     0%   1-87
+core/middleware/performance.py                                164    164     0%   1-316
+core/middleware/security.py                                   137    137     0%   1-297
+core/middleware/tenant.py                                      28     28     0%   1-52
+core/monitoring/__init__.py                                    16     16     0%   2-32
+core/permissions/__init__.py                                    2      2     0%   2-3
+core/permissions/custom.py                                     74     74     0%   1-215
+core/permissions/plan_limits.py                                48     48     0%   11-99
+core/tests/__init__.py                                          0      0   100%
+core/tests/test_middleware.py                                  31     31     0%   1-35
+core/tests/test_validators.py                                  56     56     0%   1-76
+core/utils/__init__.py                                          0      0   100%
+core/utils/validators.py                                      124    124     0%   1-215
+create_tenant_user.py                                          38     38     0%   1-57
+fix_drivers.py                                                 58     58     0%   1-100
+fix_tenant.py                                                  41     41     0%   5-56
+manage.py                                                      11     11     0%   3-22
+scripts/__init__.py                                             0      0   100%
+scripts/create_api_key.py                                      47     47     0%   14-87
+scripts/fix_migrations.py                                      15     15     0%   1-20
+scripts/inspect_db.py                                          15     15     0%   1-17
+scripts/provision_tenant.py                                    49     49     0%   1-98
+scripts/reset_local_schema.py                                  29     29     0%   1-54
+scripts/setup_database.py                                      45     45     0%   11-120
+-----------------------------------------------------------------------------------------
+TOTAL                                                        2555   1540    40%
+
+=========================== short test summary info ============================
+ERROR apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_creates_database
+ERROR apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_creates_admin_user
+ERROR apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_assigns_plan
+ERROR apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_error_handling_invalid_slug
+ERROR apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_error_handling_duplicate_slug
+ERROR apps/organizations/tests/test_provision_tenant_command.py::TestProvisionTenantCommand::test_provision_tenant_idempotent
+=================== 1 warning, 6 errors in 80.17s (0:01:20) ====================

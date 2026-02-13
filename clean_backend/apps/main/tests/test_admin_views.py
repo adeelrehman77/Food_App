@@ -27,6 +27,59 @@ class TestAdminDashboard:
         assert 'orders' in response.data
         assert 'revenue' in response.data
 
+    def test_dashboard_metrics(self):
+        """
+        Verify that dashboard numbers are accurate, including timezone-sensitive
+        'today' calculations.
+        """
+        # Setup specific data
+        today = timezone.localdate()
+        
+        # 1. Orders
+        # Today's order
+        d1_sub = Subscription.objects.create(
+             customer=CustomerProfile.objects.create(user=User.objects.create_user('c1'), phone='1'),
+             meal_package=MealPackage.objects.create(name="P1", price=10),
+             start_date=today, end_date=today + datetime.timedelta(days=30),
+             time_slot=MealSlot.objects.create(name="S1", code="s1"),
+             selected_days=['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        )
+        Order.objects.create(subscription=d1_sub, order_date=today, delivery_date=today, status='pending')
+        
+        # Tomorrow's order (should not count for today)
+        tomorrow = today + datetime.timedelta(days=1)
+        Order.objects.create(subscription=d1_sub, order_date=today, delivery_date=tomorrow, status='pending')
+        
+        # 2. Customers (created in setup + 1 here) -> Total should be existing + 1
+        # 3. Inventory Low Stock
+        from apps.inventory.models import InventoryItem, UnitOfMeasure
+        u = UnitOfMeasure.objects.create(name="kg", abbreviation="kg", category='weight')
+        InventoryItem.objects.create(name="LowItem", current_stock=2, min_stock_level=5, is_active=True, unit=u)
+        InventoryItem.objects.create(name="OkItem", current_stock=10, min_stock_level=5, is_active=True, unit=u)
+        
+        # 4. Deliveries
+        from apps.delivery.models import Delivery
+        # Delivery for today's order
+        order_today = Order.objects.get(delivery_date=today)
+        Delivery.objects.create(order=order_today, status='pending')
+        
+        # Get Dashboard
+        response = self.client.get(self.url)
+        assert response.status_code == 200
+        data = response.data
+        
+        # Assertions
+        # Orders: 1 today
+        assert data['orders']['today'] == 1
+        # Pending: 2 (both today's and tomorrow's are pending)
+        assert data['orders']['pending'] == 2
+        
+        # Inventory: 1 low stock
+        assert data['inventory']['low_stock_count'] == 1
+        
+        # Deliveries: 1 today
+        assert data['deliveries']['today'] == 1
+
 @pytest.mark.django_db
 class TestOrderAdmin:
     def setup_method(self):
