@@ -797,7 +797,31 @@ class Order(models.Model):
     def __str__(self):
         return f"Order {self.id} - {self.subscription.customer.user.get_full_name()}"
 
-
+    def clean(self):
+        if self.status in ['preparing', 'ready'] and self.delivery_date > timezone.localdate():
+            raise ValidationError(f"Cannot prepare/ready order before delivery date ({self.delivery_date}).")
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        
+        # Check if status changed to 'ready'
+        is_becoming_ready = False
+        if self.pk:
+            old_status = Order.objects.get(pk=self.pk).status
+            if old_status != 'ready' and self.status == 'ready':
+                is_becoming_ready = True
+        elif self.status == 'ready':
+            is_becoming_ready = True
+            
+        super().save(*args, **kwargs)
+        
+        if is_becoming_ready:
+            try:
+                Delivery = apps.get_model('delivery', 'Delivery')
+                if not Delivery.objects.filter(order=self).exists():
+                    Delivery.objects.create(order=self, status='pending')
+            except LookupError:
+                pass  # delivery app might not be installed
 class SubscriptionEditRequest(models.Model):
     customer = models.ForeignKey(CustomerProfile, on_delete=models.CASCADE)
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE)
