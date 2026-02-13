@@ -1,0 +1,119 @@
+Using development SYNC_TOKEN. Set SYNC_TOKEN environment variable in production.
+Using development ENCRYPTION_KEY. Set ENCRYPTION_KEY env var in production.
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-7.4.4, pluggy-1.6.0
+django: version: 4.2.28, settings: config.settings.test (from ini)
+rootdir: /Users/adeelrehman/Food_App/clean_backend
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-40.4.0, django-4.11.1
+collected 4 items
+
+apps/main/tests/test_seed_meal_slots_command.py   [default] Created: <MagicMock name='mock.name' id='4459654048'> (code=<MagicMock name='mock.code' id='4459654720'>)
+  [default] Created: <MagicMock name='mock.name' id='4459654048'> (code=<MagicMock name='mock.code' id='4459654720'>)
+  [default] MealSlot seeding complete.
+.  [default] Created: <MagicMock name='mock.name' id='4459657744'> (code=<MagicMock name='mock.code' id='4459658416'>)
+  [default] Created: <MagicMock name='mock.name' id='4459657744'> (code=<MagicMock name='mock.code' id='4459658416'>)
+  [default] MealSlot seeding complete.
+
+  Seeding tenant: test-kitchen (test_db)
+  [tenant_1] Created: <MagicMock name='mock.name' id='4459657744'> (code=<MagicMock name='mock.code' id='4459658416'>)
+  [tenant_1] Created: <MagicMock name='mock.name' id='4459657744'> (code=<MagicMock name='mock.code' id='4459658416'>)
+  [tenant_1] MealSlot seeding complete.
+.  [default] Exists: <MagicMock name='mock.name' id='4460611968'> (code=<MagicMock name='mock.code' id='4460612640'>)
+  [default] Exists: <MagicMock name='mock.name' id='4460611968'> (code=<MagicMock name='mock.code' id='4460612640'>)
+  [default] MealSlot seeding complete.
+.  [default] Created: <MagicMock name='mock.name' id='4459658752'> (code=<MagicMock name='mock.code' id='4459655392'>)
+  [default] Created: <MagicMock name='mock.name' id='4459658752'> (code=<MagicMock name='mock.code' id='4459655392'>)
+  [default] MealSlot seeding complete.
+  SKIP test-kitchen — no db_name
+.
+
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/django/conf/__init__.py:289
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/django/conf/__init__.py:289: RemovedInDjango51Warning: The STATICFILES_STORAGE setting is deprecated. Use STORAGES instead.
+    warnings.warn(STATICFILES_STORAGE_DEPRECATED_MSG, RemovedInDjango51Warning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform darwin, python 3.14.2-final-0 ----------
+Name                                               Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------
+apps/delivery/__init__.py                              0      0   100%
+apps/delivery/admin.py                                 9      0   100%
+apps/delivery/apps.py                                  4      0   100%
+apps/delivery/models.py                               22      6    73%   33, 38-42
+apps/driver/__init__.py                                0      0   100%
+apps/driver/admin.py                                  35      0   100%
+apps/driver/apps.py                                    4      0   100%
+apps/driver/models.py                                118     21    82%   27, 48, 96, 102-117, 123-132, 174, 201, 237, 276
+apps/inventory/__init__.py                             0      0   100%
+apps/inventory/admin.py                               12      0   100%
+apps/inventory/apps.py                                 4      0   100%
+apps/inventory/models.py                              31      3    90%   22, 52, 56
+apps/kitchen/__init__.py                               0      0   100%
+apps/kitchen/admin.py                                 12      0   100%
+apps/kitchen/apps.py                                   4      0   100%
+apps/kitchen/models.py                                22      2    91%   15, 28
+apps/main/__init__.py                                  0      0   100%
+apps/main/admin.py                                    55      0   100%
+apps/main/apps.py                                      4      0   100%
+apps/main/management/__init__.py                       0      0   100%
+apps/main/management/commands/__init__.py              0      0   100%
+apps/main/management/commands/seed_meal_slots.py      35      0   100%
+apps/main/models.py                                  480    185    61%   21-28, 40, 55, 136, 140, 184, 200, 232, 291, 296, 336, 341-343, 428-429, 485-489, 492-510, 513-524, 527-540, 543-556, 619, 623, 626-628, 632-639, 643-660, 663-680, 683-688, 691-715, 724-740, 749-772, 798, 809, 812, 827, 830-834, 845, 863, 877, 880-898, 918, 930, 937
+apps/main/tests/__init__.py                            0      0   100%
+apps/main/tests/test_seed_meal_slots_command.py       62      0   100%
+apps/main/utils/__init__.py                            1      0   100%
+apps/main/utils/validators.py                         20     11    45%   5-7, 10, 13, 16-18, 21, 24, 27
+apps/organizations/__init__.py                         0      0   100%
+apps/organizations/admin.py                           28      0   100%
+apps/organizations/apps.py                             4      0   100%
+apps/organizations/models.py                          39     10    74%   75, 80-84, 91-95
+apps/organizations/models_saas.py                     76     16    79%   62, 66, 70, 74-76, 122, 125-135, 166
+apps/users/__init__.py                                 0      0   100%
+apps/users/admin.py                                   15      0   100%
+apps/users/apps.py                                     6      0   100%
+apps/users/models.py                                  31      3    90%   21, 30, 49
+apps/users/signals.py                                 31     19    39%   24-70
+config/__init__.py                                     0      0   100%
+config/asgi.py                                         7      7     0%   10-19
+config/settings/__init__.py                            0      0   100%
+config/settings/base.py                              200     40    80%   32, 336-339, 348-349, 355-368, 467-470, 483, 509, 564-571, 580, 585-593, 599, 604-605, 649-650
+config/settings/development.py                        25     25     0%   1-63
+config/settings/production.py                         45     45     0%   1-85
+config/settings/test.py                               22      0   100%
+config/url_patterns/__init__.py                        0      0   100%
+config/url_patterns/base.py                           14     14     0%   1-57
+config/urls.py                                        13     13     0%   1-64
+config/wsgi.py                                         4      4     0%   10-16
+core/__init__.py                                       0      0   100%
+core/db/router.py                                     24     14    42%   9, 14, 57-59, 62-64, 70-75, 84
+core/middleware/__init__.py                            3      3     0%   2-19
+core/middleware/multi_db_tenant.py                    38     38     0%   1-87
+core/middleware/performance.py                       164    164     0%   1-316
+core/middleware/security.py                          137    137     0%   1-297
+core/middleware/tenant.py                             28     28     0%   1-52
+core/monitoring/__init__.py                           16     16     0%   2-32
+core/permissions/__init__.py                           2      2     0%   2-3
+core/permissions/custom.py                            74     74     0%   1-215
+core/permissions/plan_limits.py                       48     48     0%   11-99
+core/tests/__init__.py                                 0      0   100%
+core/tests/test_middleware.py                         31     31     0%   1-35
+core/tests/test_validators.py                         56     56     0%   1-76
+core/utils/__init__.py                                 0      0   100%
+core/utils/validators.py                             124    124     0%   1-215
+create_tenant_user.py                                 38     38     0%   1-57
+fix_drivers.py                                        58     58     0%   1-100
+fix_tenant.py                                         41     41     0%   5-56
+manage.py                                             11     11     0%   3-22
+scripts/__init__.py                                    0      0   100%
+scripts/create_api_key.py                             47     47     0%   14-87
+scripts/fix_migrations.py                             15     15     0%   1-20
+scripts/inspect_db.py                                 15     15     0%   1-17
+scripts/provision_tenant.py                           49     49     0%   1-98
+scripts/reset_local_schema.py                         29     29     0%   1-54
+scripts/setup_database.py                             45     45     0%   11-120
+--------------------------------------------------------------------------------
+TOTAL                                               2587   1507    42%
+
+========================= 4 passed, 1 warning in 0.35s =========================
