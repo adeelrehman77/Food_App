@@ -1,0 +1,652 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-7.4.4, pluggy-1.6.0
+django: version: 4.2.28, settings: config.settings.test (from ini)
+rootdir: /Users/adeelrehman/Food_App/clean_backend
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-40.4.0, django-4.11.1
+collected 119 items
+
+apps/delivery/tests/test_models.py .                                     [  0%]
+apps/delivery/tests/test_views.py EEEE                                   [  4%]
+apps/delivery/tests/test_views_debug.py .                                [  5%]
+apps/driver/tests/test_admin_views.py ...                                [  7%]
+apps/driver/tests/test_models.py .....                                   [ 11%]
+apps/driver/tests/test_views.py ...                                      [ 14%]
+apps/inventory/tests/test_models.py ..                                   [ 15%]
+apps/inventory/tests/test_views.py ...                                   [ 18%]
+apps/kitchen/tests/test_kitchen_orders.py .....                          [ 22%]
+apps/main/tests/test_admin_serializers.py .......                        [ 28%]
+apps/main/tests/test_admin_views.py .............                        [ 39%]
+apps/main/tests/test_commands.py ...s                                    [ 42%]
+apps/main/tests/test_models.py .....                                     [ 47%]
+apps/main/tests/test_order_status_transitions.py ....                    [ 50%]
+apps/main/tests/test_views.py ..........                                 [ 58%]
+apps/organizations/tests/test_debug_import.py .                          [ 59%]
+apps/organizations/tests/test_migrate_all_tenants_command.py ......      [ 64%]
+apps/organizations/tests/test_models.py ..                               [ 66%]
+apps/organizations/tests/test_provision_tenant_command.py ......         [ 71%]
+apps/organizations/tests/test_saas_views.py ......                       [ 76%]
+apps/users/tests/test_models.py ....                                     [ 79%]
+apps/users/tests/test_views.py .....                                     [ 84%]
+apps/main/tests/test_cleanup_commands.py ...                             [ 86%]
+apps/main/tests/test_seed_meal_slots_command.py ....                     [ 89%]
+core/tests/test_middleware.py ...                                        [ 92%]
+core/tests/test_validators.py .........                                  [100%]
+
+==================================== ERRORS ====================================
+__________ ERROR at setup of TestDeliveryViewSet.test_list_deliveries __________
+
+self = <django.db.backends.utils.CursorWrapper object at 0x1101e2b10>
+sql = 'INSERT INTO "delivery_delivery" ("order_id", "driver_id", "driver_user_id", "pickup_time", "delivery_time", "status", "notes", "created_at", "updated_at") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "delivery_delivery"."id"'
+params = (2, None, None, None, None, 'pending', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x1101e2b10>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+E               psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "delivery_delivery_order_id_key"
+E               DETAIL:  Key (order_id)=(2) already exists.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:89: UniqueViolation
+
+The above exception was the direct cause of the following exception:
+
+self = <delivery.tests.test_views.TestDeliveryViewSet object at 0x10a8dae90>
+
+    def setup_method(self):
+        self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
+        self.user = User.objects.create_superuser(username='admin', password='password', email='admin@test.com')
+        self.client.force_authenticate(user=self.user)
+    
+        # Setup data
+        self.customer_user = User.objects.create_user(username='cust', password='pw')
+        self.profile = CustomerProfile.objects.create(user=self.customer_user)
+        self.slot = MealSlot.objects.create(name="Lunch", code="lunch")
+        self.package = MealPackage.objects.create(name="Std", price=100)
+        self.sub = Subscription.objects.create(
+            customer=self.profile, meal_package=self.package,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timezone.timedelta(days=30),
+            time_slot=self.slot,
+            selected_days=['Monday']
+        )
+        self.order = Order.objects.create(
+            subscription=self.sub,
+            order_date=timezone.now().date(),
+            delivery_date=timezone.now().date(),
+            status='ready'
+        )
+>       self.delivery = Delivery.objects.create(order=self.order, status='pending')
+
+apps/delivery/tests/test_views.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/models/query.py:660: in create
+    obj.save(force_insert=True, using=self.db)
+.venv/lib/python3.14/site-packages/django/db/models/base.py:814: in save
+    self.save_base(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:877: in save_base
+    updated = self._save_table(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:1020: in _save_table
+    results = self._do_insert(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:1061: in _do_insert
+    return manager._insert(
+.venv/lib/python3.14/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/models/query.py:1810: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1822: in execute_sql
+    cursor.execute(sql, params)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x1101e2b10>
+sql = 'INSERT INTO "delivery_delivery" ("order_id", "driver_id", "driver_user_id", "pickup_time", "delivery_time", "status", "notes", "created_at", "updated_at") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "delivery_delivery"."id"'
+params = (2, None, None, None, None, 'pending', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x1101e2b10>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+E               django.db.utils.IntegrityError: duplicate key value violates unique constraint "delivery_delivery_order_id_key"
+E               DETAIL:  Key (order_id)=(2) already exists.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:89: IntegrityError
+___________ ERROR at setup of TestDeliveryViewSet.test_assign_driver ___________
+
+self = <django.db.backends.utils.CursorWrapper object at 0x1104806b0>
+sql = 'INSERT INTO "delivery_delivery" ("order_id", "driver_id", "driver_user_id", "pickup_time", "delivery_time", "status", "notes", "created_at", "updated_at") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "delivery_delivery"."id"'
+params = (3, None, None, None, None, 'pending', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x1104806b0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+E               psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "delivery_delivery_order_id_key"
+E               DETAIL:  Key (order_id)=(3) already exists.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:89: UniqueViolation
+
+The above exception was the direct cause of the following exception:
+
+self = <delivery.tests.test_views.TestDeliveryViewSet object at 0x10a8dafd0>
+
+    def setup_method(self):
+        self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
+        self.user = User.objects.create_superuser(username='admin', password='password', email='admin@test.com')
+        self.client.force_authenticate(user=self.user)
+    
+        # Setup data
+        self.customer_user = User.objects.create_user(username='cust', password='pw')
+        self.profile = CustomerProfile.objects.create(user=self.customer_user)
+        self.slot = MealSlot.objects.create(name="Lunch", code="lunch")
+        self.package = MealPackage.objects.create(name="Std", price=100)
+        self.sub = Subscription.objects.create(
+            customer=self.profile, meal_package=self.package,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timezone.timedelta(days=30),
+            time_slot=self.slot,
+            selected_days=['Monday']
+        )
+        self.order = Order.objects.create(
+            subscription=self.sub,
+            order_date=timezone.now().date(),
+            delivery_date=timezone.now().date(),
+            status='ready'
+        )
+>       self.delivery = Delivery.objects.create(order=self.order, status='pending')
+
+apps/delivery/tests/test_views.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/models/query.py:660: in create
+    obj.save(force_insert=True, using=self.db)
+.venv/lib/python3.14/site-packages/django/db/models/base.py:814: in save
+    self.save_base(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:877: in save_base
+    updated = self._save_table(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:1020: in _save_table
+    results = self._do_insert(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:1061: in _do_insert
+    return manager._insert(
+.venv/lib/python3.14/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/models/query.py:1810: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1822: in execute_sql
+    cursor.execute(sql, params)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x1104806b0>
+sql = 'INSERT INTO "delivery_delivery" ("order_id", "driver_id", "driver_user_id", "pickup_time", "delivery_time", "status", "notes", "created_at", "updated_at") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "delivery_delivery"."id"'
+params = (3, None, None, None, None, 'pending', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x1104806b0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+E               django.db.utils.IntegrityError: duplicate key value violates unique constraint "delivery_delivery_order_id_key"
+E               DETAIL:  Key (order_id)=(3) already exists.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:89: IntegrityError
+___________ ERROR at setup of TestDeliveryViewSet.test_update_status ___________
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10f388b90>
+sql = 'INSERT INTO "delivery_delivery" ("order_id", "driver_id", "driver_user_id", "pickup_time", "delivery_time", "status", "notes", "created_at", "updated_at") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "delivery_delivery"."id"'
+params = (4, None, None, None, None, 'pending', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10f388b90>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+E               psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "delivery_delivery_order_id_key"
+E               DETAIL:  Key (order_id)=(4) already exists.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:89: UniqueViolation
+
+The above exception was the direct cause of the following exception:
+
+self = <delivery.tests.test_views.TestDeliveryViewSet object at 0x10a8b7ce0>
+
+    def setup_method(self):
+        self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
+        self.user = User.objects.create_superuser(username='admin', password='password', email='admin@test.com')
+        self.client.force_authenticate(user=self.user)
+    
+        # Setup data
+        self.customer_user = User.objects.create_user(username='cust', password='pw')
+        self.profile = CustomerProfile.objects.create(user=self.customer_user)
+        self.slot = MealSlot.objects.create(name="Lunch", code="lunch")
+        self.package = MealPackage.objects.create(name="Std", price=100)
+        self.sub = Subscription.objects.create(
+            customer=self.profile, meal_package=self.package,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timezone.timedelta(days=30),
+            time_slot=self.slot,
+            selected_days=['Monday']
+        )
+        self.order = Order.objects.create(
+            subscription=self.sub,
+            order_date=timezone.now().date(),
+            delivery_date=timezone.now().date(),
+            status='ready'
+        )
+>       self.delivery = Delivery.objects.create(order=self.order, status='pending')
+
+apps/delivery/tests/test_views.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/models/query.py:660: in create
+    obj.save(force_insert=True, using=self.db)
+.venv/lib/python3.14/site-packages/django/db/models/base.py:814: in save
+    self.save_base(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:877: in save_base
+    updated = self._save_table(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:1020: in _save_table
+    results = self._do_insert(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:1061: in _do_insert
+    return manager._insert(
+.venv/lib/python3.14/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/models/query.py:1810: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1822: in execute_sql
+    cursor.execute(sql, params)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10f388b90>
+sql = 'INSERT INTO "delivery_delivery" ("order_id", "driver_id", "driver_user_id", "pickup_time", "delivery_time", "status", "notes", "created_at", "updated_at") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "delivery_delivery"."id"'
+params = (4, None, None, None, None, 'pending', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10f388b90>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+E               django.db.utils.IntegrityError: duplicate key value violates unique constraint "delivery_delivery_order_id_key"
+E               DETAIL:  Key (order_id)=(4) already exists.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:89: IntegrityError
+_______________ ERROR at setup of TestDeliveryViewSet.test_stats _______________
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10f38b7d0>
+sql = 'INSERT INTO "delivery_delivery" ("order_id", "driver_id", "driver_user_id", "pickup_time", "delivery_time", "status", "notes", "created_at", "updated_at") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "delivery_delivery"."id"'
+params = (5, None, None, None, None, 'pending', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10f38b7d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+E               psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "delivery_delivery_order_id_key"
+E               DETAIL:  Key (order_id)=(5) already exists.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:89: UniqueViolation
+
+The above exception was the direct cause of the following exception:
+
+self = <delivery.tests.test_views.TestDeliveryViewSet object at 0x10a8b7e10>
+
+    def setup_method(self):
+        self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
+        self.user = User.objects.create_superuser(username='admin', password='password', email='admin@test.com')
+        self.client.force_authenticate(user=self.user)
+    
+        # Setup data
+        self.customer_user = User.objects.create_user(username='cust', password='pw')
+        self.profile = CustomerProfile.objects.create(user=self.customer_user)
+        self.slot = MealSlot.objects.create(name="Lunch", code="lunch")
+        self.package = MealPackage.objects.create(name="Std", price=100)
+        self.sub = Subscription.objects.create(
+            customer=self.profile, meal_package=self.package,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timezone.timedelta(days=30),
+            time_slot=self.slot,
+            selected_days=['Monday']
+        )
+        self.order = Order.objects.create(
+            subscription=self.sub,
+            order_date=timezone.now().date(),
+            delivery_date=timezone.now().date(),
+            status='ready'
+        )
+>       self.delivery = Delivery.objects.create(order=self.order, status='pending')
+
+apps/delivery/tests/test_views.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/models/query.py:660: in create
+    obj.save(force_insert=True, using=self.db)
+.venv/lib/python3.14/site-packages/django/db/models/base.py:814: in save
+    self.save_base(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:877: in save_base
+    updated = self._save_table(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:1020: in _save_table
+    results = self._do_insert(
+.venv/lib/python3.14/site-packages/django/db/models/base.py:1061: in _do_insert
+    return manager._insert(
+.venv/lib/python3.14/site-packages/django/db/models/manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+.venv/lib/python3.14/site-packages/django/db/models/query.py:1810: in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+.venv/lib/python3.14/site-packages/django/db/models/sql/compiler.py:1822: in execute_sql
+    cursor.execute(sql, params)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:67: in execute
+    return self._execute_with_wrappers(
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:80: in _execute_with_wrappers
+    return executor(sql, params, many, context)
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:84: in _execute
+    with self.db.wrap_database_errors:
+.venv/lib/python3.14/site-packages/django/db/utils.py:91: in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <django.db.backends.utils.CursorWrapper object at 0x10f38b7d0>
+sql = 'INSERT INTO "delivery_delivery" ("order_id", "driver_id", "driver_user_id", "pickup_time", "delivery_time", "status", "notes", "created_at", "updated_at") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING "delivery_delivery"."id"'
+params = (5, None, None, None, None, 'pending', ...)
+ignored_wrapper_args = (False, {'connection': <DatabaseWrapper vendor='postgresql' alias='default'>, 'cursor': <django.db.backends.utils.CursorWrapper object at 0x10f38b7d0>})
+
+    def _execute(self, sql, params, *ignored_wrapper_args):
+        self.db.validate_no_broken_transaction()
+        with self.db.wrap_database_errors:
+            if params is None:
+                # params default might be backend specific.
+                return self.cursor.execute(sql)
+            else:
+>               return self.cursor.execute(sql, params)
+E               django.db.utils.IntegrityError: duplicate key value violates unique constraint "delivery_delivery_order_id_key"
+E               DETAIL:  Key (order_id)=(5) already exists.
+
+.venv/lib/python3.14/site-packages/django/db/backends/utils.py:89: IntegrityError
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/django/conf/__init__.py:289
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/django/conf/__init__.py:289: RemovedInDjango51Warning: The STATICFILES_STORAGE setting is deprecated. Use STORAGES instead.
+    warnings.warn(STATICFILES_STORAGE_DEPRECATED_MSG, RemovedInDjango51Warning)
+
+apps/delivery/tests/test_views_debug.py::TestDeliveryDebug::test_simple_list
+apps/delivery/tests/test_views_debug.py::TestDeliveryDebug::test_simple_list
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/swagger_spec_validator/validator12.py:18: DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, in favor of the https://github.com/python-jsonschema/referencing library, which provides more compliant referencing behavior as well as more flexible APIs for customization. A future release will remove RefResolver. Please file a feature request (on referencing) if you are missing an API for the kind of customization you need.
+    from jsonschema import RefResolver
+
+apps/delivery/tests/test_views_debug.py::TestDeliveryDebug::test_simple_list
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/swagger_spec_validator/ref_validators.py:14: DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, in favor of the https://github.com/python-jsonschema/referencing library, which provides more compliant referencing behavior as well as more flexible APIs for customization. A future release will remove RefResolver. Please file a feature request (on referencing) if you are missing an API for the kind of customization you need.
+    from jsonschema.validators import RefResolver
+
+apps/delivery/tests/test_views_debug.py::TestDeliveryDebug::test_simple_list
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/swagger_spec_validator/validator20.py:18: DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, in favor of the https://github.com/python-jsonschema/referencing library, which provides more compliant referencing behavior as well as more flexible APIs for customization. A future release will remove RefResolver. Please file a feature request (on referencing) if you are missing an API for the kind of customization you need.
+    from jsonschema.validators import RefResolver
+
+apps/delivery/tests/test_views_debug.py::TestDeliveryDebug::test_simple_list
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/drf_yasg/views.py:100: DeprecationWarning: SwaggerJSONRenderer & SwaggerYAMLRenderer's `format` has changed to not include a `.` prefix, please silence this warning by setting `SWAGGER_USE_COMPAT_RENDERERS = False` in your Django settings and ensure your application works (check your URLCONF and swagger/redoc URLs).
+    warnings.warn(
+
+apps/driver/tests/test_views.py::TestDriverViews::test_list_deliveries
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/rest_framework/pagination.py:207: UnorderedObjectListWarning: Pagination may yield inconsistent results with an unordered object_list: <class 'apps.driver.models.DeliveryAssignment'> QuerySet.
+    paginator = self.django_paginator_class(queryset, page_size)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform darwin, python 3.14.2-final-0 ----------
+Name                                                                                               Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------------------------------------------------------
+apps/delivery/__init__.py                                                                              0      0   100%
+apps/delivery/admin.py                                                                                 9      0   100%
+apps/delivery/apps.py                                                                                  4      0   100%
+apps/delivery/migrations/0001_initial.py                                                               7      0   100%
+apps/delivery/migrations/0002_update_delivery_driver.py                                                6      0   100%
+apps/delivery/migrations/__init__.py                                                                   0      0   100%
+apps/delivery/models.py                                                                               22      5    77%   38-42
+apps/delivery/serializers.py                                                                          33      5    85%   29, 31-32, 41, 48
+apps/delivery/tests/__init__.py                                                                        0      0   100%
+apps/delivery/tests/test_models.py                                                                    19      0   100%
+apps/delivery/tests/test_views.py                                                                     57     31    46%   38-39, 46-48, 51-65, 68-86, 89-92
+apps/delivery/tests/test_views_debug.py                                                               23      0   100%
+apps/delivery/urls_api.py                                                                              7      0   100%
+apps/delivery/views.py                                                                                62     32    48%   16, 20, 41, 50, 57-74, 79-93, 98-101
+apps/driver/__init__.py                                                                                0      0   100%
+apps/driver/admin.py                                                                                  35      0   100%
+apps/driver/apps.py                                                                                    4      0   100%
+apps/driver/migrations/0001_initial.py                                                                 7      0   100%
+apps/driver/migrations/0002_deliveryassignment_deliverydriver_and_more.py                              7      0   100%
+apps/driver/migrations/0003_add_zones_routes_to_deliverydriver.py                                      4      0   100%
+apps/driver/migrations/0004_deliverydriver_user.py                                                     6      0   100%
+apps/driver/migrations/__init__.py                                                                     0      0   100%
+apps/driver/models.py                                                                                118      4    97%   125, 174, 237, 276
+apps/driver/permissions.py                                                                             8      2    75%   12, 16
+apps/driver/serializers/__init__.py                                                                    2      0   100%
+apps/driver/serializers/admin_serializers.py                                                          88     35    60%   41, 84-126, 129-136
+apps/driver/serializers/driver_serializers.py                                                         19      0   100%
+apps/driver/tests/__init__.py                                                                          0      0   100%
+apps/driver/tests/test_admin_views.py                                                                 27      0   100%
+apps/driver/tests/test_models.py                                                                      36      0   100%
+apps/driver/tests/test_views.py                                                                       49      3    94%   57-59
+apps/driver/urls.py                                                                                    4      0   100%
+apps/driver/urls_api.py                                                                               12      0   100%
+apps/driver/views/__init__.py                                                                          3      0   100%
+apps/driver/views/admin_views.py                                                                      73     23    68%   33-35, 49-51, 65-68, 73-77, 82-86, 91-93
+apps/driver/views/base.py                                                                              6      2    67%   5, 8
+apps/driver/views/driver_views.py                                                                     40      5    88%   19, 25, 43-44, 59
+apps/inventory/__init__.py                                                                             0      0   100%
+apps/inventory/admin.py                                                                               12      0   100%
+apps/inventory/apps.py                                                                                 4      0   100%
+apps/inventory/migrations/0001_initial.py                                                              6      0   100%
+apps/inventory/migrations/0002_alter_inventoryitem_options_and_more.py                                 4      0   100%
+apps/inventory/migrations/__init__.py                                                                  0      0   100%
+apps/inventory/models.py                                                                              31      1    97%   52
+apps/inventory/serializers.py                                                                         18      0   100%
+apps/inventory/tests/__init__.py                                                                       0      0   100%
+apps/inventory/tests/test_models.py                                                                   19      0   100%
+apps/inventory/tests/test_views.py                                                                    42      0   100%
+apps/inventory/urls_api.py                                                                             8      0   100%
+apps/inventory/views.py                                                                               43      2    95%   17, 21
+apps/kitchen/__init__.py                                                                               0      0   100%
+apps/kitchen/admin.py                                                                                 12      0   100%
+apps/kitchen/apps.py                                                                                   4      0   100%
+apps/kitchen/middleware.py                                                                             7      0   100%
+apps/kitchen/migrations/0001_initial.py                                                                7      0   100%
+apps/kitchen/migrations/__init__.py                                                                    0      0   100%
+apps/kitchen/models.py                                                                                22      2    91%   15, 28
+apps/kitchen/serializers.py                                                                           12      0   100%
+apps/kitchen/tests/__init__.py                                                                         0      0   100%
+apps/kitchen/tests/test_kitchen_orders.py                                                             56      0   100%
+apps/kitchen/urls.py                                                                                   4      0   100%
+apps/kitchen/urls_api.py                                                                               7      0   100%
+apps/kitchen/views.py                                                                                 61      7    89%   14, 18, 46, 53, 75, 107-108
+apps/main/__init__.py                                                                                  0      0   100%
+apps/main/admin.py                                                                                    55      0   100%
+apps/main/apps.py                                                                                      4      0   100%
+apps/main/management/__init__.py                                                                       0      0   100%
+apps/main/management/commands/__init__.py                                                              0      0   100%
+apps/main/management/commands/auto_advance_today_orders.py                                            69     44    36%   55-58, 60-63, 73-76, 80-81, 87-169
+apps/main/management/commands/clean_tenant_orders.py                                                  51     16    69%   42-45, 47-50, 59-62, 66-67, 75-80, 98-101, 104-109
+apps/main/management/commands/clean_tenant_subscriptions.py                                           51     21    59%   47-50, 52-55, 64-72, 80-85, 90-99, 103-106, 109-115
+apps/main/management/commands/seed_meal_slots.py                                                      35      3    91%   66-75
+apps/main/migrations/0001_initial.py                                                                   7      0   100%
+apps/main/migrations/0002_wallettransaction_address.py                                                 5      0   100%
+apps/main/migrations/0003_customerprofile_notification_remove_customer_tenant_and_more.py              7      0   100%
+apps/main/migrations/0004_customerregistrationrequest_invoice_invoiceitem_and_more.py                  8      0   100%
+apps/main/migrations/0005_alter_menuitem_options_remove_customerprofile_tenant_and_more.py             5      0   100%
+apps/main/migrations/0006_daily_menu_system.py                                                         6      0   100%
+apps/main/migrations/0007_add_diet_type_and_meal_package.py                                            4      0   100%
+apps/main/migrations/0008_fix_created_by_cross_db.py                                                   4      0   100%
+apps/main/migrations/0009_revert_created_by_to_fk.py                                                   6      0   100%
+apps/main/migrations/0010_subscription_diet_type.py                                                    4      0   100%
+apps/main/migrations/0011_subscription_use_mealslot.py                                                 5      0   100%
+apps/main/migrations/0012_mealpackage_menus_subscription_meal_package.py                               5      0   100%
+apps/main/migrations/0013_invoice_number_optional.py                                                   4      0   100%
+apps/main/migrations/0014_add_zone_to_address.py                                                       5      0   100%
+apps/main/migrations/__init__.py                                                                       0      0   100%
+apps/main/models.py                                                                                  500     85    83%   40, 55, 140, 200, 232, 291, 296, 336, 342, 428-429, 485-489, 493, 495, 497, 510, 517-519, 527-540, 543-556, 626-628, 632-639, 657, 670, 674, 677, 680, 693-695, 711, 729-738, 750, 798, 823-824, 833, 836, 851, 854-858, 869, 887, 901, 942, 954, 961
+apps/main/serializers/__init__.py                                                                      3      0   100%
+apps/main/serializers/admin_serializers.py                                                           495    136    73%   87, 90, 135, 146-147, 152, 186, 191, 210, 229-234, 343-349, 378-380, 442-444, 458, 503-504, 517-526, 536, 568-574, 608-614, 629, 669, 672, 690-691, 697-699, 705-707, 712-714, 720-722, 769, 785-861, 866, 870, 889-902, 905
+apps/main/serializers/customer_api_serializers.py                                                     56      9    84%   72-85
+apps/main/serializers/customer_serializers.py                                                         49      1    98%   34
+apps/main/tests/__init__.py                                                                            0      0   100%
+apps/main/tests/test_admin_serializers.py                                                             75      0   100%
+apps/main/tests/test_admin_views.py                                                                  171      0   100%
+apps/main/tests/test_cleanup_commands.py                                                              48      0   100%
+apps/main/tests/test_commands.py                                                                      54     23    57%   36, 44-79
+apps/main/tests/test_models.py                                                                        60      0   100%
+apps/main/tests/test_order_status_transitions.py                                                      43      0   100%
+apps/main/tests/test_seed_meal_slots_command.py                                                       62      0   100%
+apps/main/tests/test_views.py                                                                        125      1    99%   99
+apps/main/urls.py                                                                                      4      0   100%
+apps/main/urls_api.py                                                                                 23      0   100%
+apps/main/urls_customer_api.py                                                                        12      0   100%
+apps/main/utils/__init__.py                                                                            1      0   100%
+apps/main/utils/delivery_utils.py                                                                     24     11    54%   18-32, 52-57, 62
+apps/main/utils/validators.py                                                                         20     11    45%   5-7, 10, 13, 16-18, 21, 24, 27
+apps/main/views/__init__.py                                                                            4      0   100%
+apps/main/views/admin_views.py                                                                       405    146    64%   82-83, 94-96, 156, 185, 200-215, 233, 238-242, 265, 274, 310, 332-334, 338, 345-348, 355-359, 378-383, 393-401, 424-426, 448, 451-453, 462, 496-504, 509-529, 546-548, 587, 589, 591, 593, 595, 600-604, 610, 619, 621, 626, 642, 653-656, 664-680, 701-703, 721-723, 750-754, 758-764, 772-798, 810, 824, 836-843
+apps/main/views/base.py                                                                               12      4    67%   7, 12, 19, 26
+apps/main/views/customer_api_views.py                                                                131     21    84%   56, 62, 120, 126, 163, 167, 179-181, 192, 205, 235, 306, 319, 326-330, 335-338
+apps/main/views/customer_views.py                                                                     40     12    70%   17-19, 35-37, 42-45, 63-64
+apps/organizations/__init__.py                                                                         0      0   100%
+apps/organizations/admin.py                                                                           28      0   100%
+apps/organizations/apps.py                                                                             4      0   100%
+apps/organizations/management/__init__.py                                                              0      0   100%
+apps/organizations/management/commands/__init__.py                                                     0      0   100%
+apps/organizations/management/commands/migrate_all_tenants.py                                         75      6    92%   58-63, 65, 70-71, 110
+apps/organizations/management/commands/provision_tenant.py                                           106     23    78%   108-113, 135-159, 192-193, 233-234, 257
+apps/organizations/migrations/0001_initial.py                                                          5      0   100%
+apps/organizations/migrations/0002_rename_subscriptionplan_serviceplan.py                              4      0   100%
+apps/organizations/migrations/0003_remove_serviceplan_max_orders_per_month.py                          4      0   100%
+apps/organizations/migrations/0004_alter_serviceplan_options_serviceplan_description_and_more.py       6      0   100%
+apps/organizations/migrations/0005_alter_serviceplan_max_customers_and_more.py                         4      0   100%
+apps/organizations/migrations/__init__.py                                                              0      0   100%
+apps/organizations/models.py                                                                          39      1    97%   75
+apps/organizations/models_saas.py                                                                     76      6    92%   62, 66, 70, 75, 122, 166
+apps/organizations/serializers.py                                                                     80      9    89%   52-55, 78, 83, 96-98
+apps/organizations/tests/__init__.py                                                                   0      0   100%
+apps/organizations/tests/test_debug_import.py                                                          7      0   100%
+apps/organizations/tests/test_migrate_all_tenants_command.py                                          57      0   100%
+apps/organizations/tests/test_models.py                                                               18      0   100%
+apps/organizations/tests/test_provision_tenant_command.py                                             78      0   100%
+apps/organizations/tests/test_saas_views.py                                                           74      1    99%   57
+apps/organizations/urls.py                                                                             3      0   100%
+apps/organizations/urls_saas.py                                                                       10      0   100%
+apps/organizations/views.py                                                                           20     12    40%   13-15, 18-39
+apps/organizations/views_saas.py                                                                     179     45    75%   82-88, 92-102, 106-128, 173-174, 216-217, 234, 238-242, 253-256
+apps/users/__init__.py                                                                                 0      0   100%
+apps/users/admin.py                                                                                   15      0   100%
+apps/users/apps.py                                                                                     6      0   100%
+apps/users/middleware.py                                                                              16      1    94%   27
+apps/users/migrations/0001_initial.py                                                                  7      0   100%
+apps/users/migrations/0002_rename_subscription_plan_tenant_service_plan.py                             4      0   100%
+apps/users/migrations/0003_add_tenant_to_userprofile.py                                                5      0   100%
+apps/users/migrations/__init__.py                                                                      0      0   100%
+apps/users/models.py                                                                                  31      0   100%
+apps/users/serializers.py                                                                              6      0   100%
+apps/users/signals.py                                                                                 31     13    58%   36-70
+apps/users/tests/__init__.py                                                                           0      0   100%
+apps/users/tests/test_models.py                                                                       33      0   100%
+apps/users/tests/test_views.py                                                                        34      0   100%
+apps/users/urls_api.py                                                                                 4      0   100%
+apps/users/views.py                                                                                   35      7    80%   21, 25, 55-59
+config/__init__.py                                                                                     0      0   100%
+config/asgi.py                                                                                         7      7     0%   10-19
+config/settings/__init__.py                                                                            0      0   100%
+config/settings/base.py                                                                              200     40    80%   32, 336-339, 348-349, 355-368, 467-470, 483, 509, 564-571, 580, 585-593, 599, 604-605, 649-650
+config/settings/development.py                                                                        25     25     0%   1-63
+config/settings/production.py                                                                         45     45     0%   1-85
+config/settings/test.py                                                                               22      0   100%
+config/url_patterns/__init__.py                                                                        0      0   100%
+config/url_patterns/base.py                                                                           14     14     0%   1-57
+config/urls.py                                                                                        13      2    85%   63-64
+config/wsgi.py                                                                                         4      4     0%   10-16
+core/__init__.py                                                                                       0      0   100%
+core/db/router.py                                                                                     24      1    96%   75
+core/middleware/__init__.py                                                                            3      0   100%
+core/middleware/multi_db_tenant.py                                                                    38     13    66%   43, 46-77
+core/middleware/performance.py                                                                       164     43    74%   26-27, 32-33, 43-44, 48-49, 53, 60, 101-102, 109, 115-147, 173, 189, 202, 229, 305-316
+core/middleware/security.py                                                                          137     34    75%   44-55, 106, 112, 119, 132, 138-144, 182-186, 197, 204, 235, 252, 260, 264-277, 281-297
+core/middleware/tenant.py                                                                             28     28     0%   1-52
+core/monitoring/__init__.py                                                                           16     16     0%   2-32
+core/permissions/__init__.py                                                                           2      0   100%
+core/permissions/custom.py                                                                            74     40    46%   12-16, 25-34, 42, 54, 66, 78, 93-97, 106-110, 119-123, 132-136, 145-149, 157, 169, 181, 194-198, 207-215
+core/permissions/plan_limits.py                                                                       48     17    65%   29, 38-56, 64-65, 73-74, 82-83
+core/tests/__init__.py                                                                                 0      0   100%
+core/tests/test_middleware.py                                                                         31      0   100%
+core/tests/test_validators.py                                                                         56      0   100%
+core/utils/__init__.py                                                                                 0      0   100%
+core/utils/validators.py                                                                             124     48    61%   38-43, 83, 86, 95-98, 109, 121, 131-137, 141-164, 189-193, 197-215
+create_tenant_user.py                                                                                 38     38     0%   1-57
+fix_drivers.py                                                                                        58     58     0%   1-100
+fix_tenant.py                                                                                         41     41     0%   5-56
+manage.py                                                                                             11     11     0%   3-22
+scripts/__init__.py                                                                                    0      0   100%
+scripts/create_api_key.py                                                                             47     47     0%   14-87
+scripts/fix_migrations.py                                                                             15     15     0%   1-20
+scripts/inspect_db.py                                                                                 15     15     0%   1-17
+scripts/provision_tenant.py                                                                           49     49     0%   1-98
+scripts/reset_local_schema.py                                                                         29     29     0%   1-54
+scripts/setup_database.py                                                                             45     45     0%   11-120
+--------------------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                                               6460   1552    76%
+
+=========================== short test summary info ============================
+ERROR apps/delivery/tests/test_views.py::TestDeliveryViewSet::test_list_deliveries
+ERROR apps/delivery/tests/test_views.py::TestDeliveryViewSet::test_assign_driver
+ERROR apps/delivery/tests/test_views.py::TestDeliveryViewSet::test_update_status
+ERROR apps/delivery/tests/test_views.py::TestDeliveryViewSet::test_stats - dj...
+============ 114 passed, 1 skipped, 7 warnings, 4 errors in 18.08s =============

@@ -34,7 +34,7 @@ class TestDeliveryViewSet:
             delivery_date=timezone.now().date(),
             status='ready'
         )
-        self.delivery = Delivery.objects.create(order=self.order, status='pending')
+        self.delivery = Delivery.objects.get(order=self.order)
         self.driver_user = User.objects.create_user(username='driver', password='pw', email='driver@test.com')
         self.driver_profile = DeliveryDriver.objects.create(
             name='Test Driver',
