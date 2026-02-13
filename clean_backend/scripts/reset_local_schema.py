@@ -21,7 +21,7 @@ def reset_schema():
         
         # 2. Identify and drop tables for these apps
         # We look for tables starting with the app labels
-        cursor.execute("""
+        cursor.execute(r"""
             SELECT table_name 
             FROM information_schema.tables 
             WHERE table_schema = 'public' 

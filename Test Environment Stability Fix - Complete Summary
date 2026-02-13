@@ -131,7 +131,7 @@ self.client.defaults['HTTP_USER_AGENT'] = 'TestClient'  # Added user agent
 
 ### Environment Setup
 ```bash
-# Using Python 3.13.2 (Note: Document mentions 3.14.2 but likely 3.13.2)
+# Using Python 3.14.2
 python -m venv venv
 source venv/bin/activate  # On macOS/Linux
 pip install -r requirements/requirements.txt --break-system-packages
