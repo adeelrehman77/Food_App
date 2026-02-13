@@ -127,10 +127,12 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(f"OK (id={tenant.id})"))
 
+        # DB alias for tenant DB (id can be None in test/transaction before flush)
+        db_alias = f"tenant_{tenant.id}" if tenant.id is not None else f"tenant_{subdomain}"
+
         # ── Step 3: Run migrations ──
         if not options["skip_migrate"]:
             self.stdout.write("3. Running migrations ... ", ending="")
-            db_alias = f"tenant_{tenant.id}"
             db_config = copy.deepcopy(default_db)
             db_config.update(
                 {
@@ -161,6 +163,18 @@ class Command(BaseCommand):
                 )
         else:
             self.stdout.write("3. Skipping migrations (--skip-migrate)")
+            db_config = copy.deepcopy(default_db)
+            db_config.update(
+                {
+                    "NAME": db_name,
+                    "USER": db_user,
+                    "PASSWORD": db_password,
+                    "HOST": db_host,
+                    "PORT": db_port,
+                    "ATOMIC_REQUESTS": False,
+                }
+            )
+            settings.DATABASES[db_alias] = db_config
 
         # ── Step 4: Create admin user (in the TENANT database) ──
         self.stdout.write("4. Creating admin user in tenant DB ... ", ending="")

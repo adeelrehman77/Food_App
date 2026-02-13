@@ -87,6 +87,46 @@ class TenantViewSet(viewsets.ModelViewSet):
             return TenantUpdateSerializer
         return TenantListSerializer
 
+    def _provision_tenant_db(self, subdomain):
+        """Create the tenant's database. Isolated for mocking."""
+        db_name = f"tenant_{subdomain}"
+        try:
+            from django.db import connection as default_conn
+            with default_conn.cursor() as cursor:
+                # CREATE DATABASE cannot run inside a transaction
+                cursor.execute("COMMIT")
+                cursor.execute(f'CREATE DATABASE "{db_name}"')
+        except Exception as db_err:
+            # Database may already exist (e.g. re-provisioning)
+            logger.warning("Could not create DB %s: %s", db_name, db_err)
+        return db_name
+
+    def _migrate_tenant_db(self, tenant, db_name):
+        """Run migrations on the tenant's database. Isolated for mocking."""
+        try:
+            import copy
+            from django.core.management import call_command
+            tenant_db_alias = f"tenant_{tenant.id}"
+            default_db = settings.DATABASES['default']
+            db_user = default_db.get('USER', '')
+            db_password = default_db.get('PASSWORD', '')
+            db_host = default_db.get('HOST', 'localhost')
+            db_port = default_db.get('PORT', '5432')
+
+            db_config = copy.deepcopy(default_db)
+            db_config.update({
+                'NAME': db_name,
+                'USER': db_user,
+                'PASSWORD': db_password,
+                'HOST': db_host,
+                'PORT': db_port,
+                'ATOMIC_REQUESTS': False,
+            })
+            settings.DATABASES[tenant_db_alias] = db_config
+            call_command('migrate', database=tenant_db_alias, verbosity=0)
+        except Exception as mig_err:
+            logger.warning("Migration on %s failed: %s", db_name, mig_err)
+
     def create(self, request, *args, **kwargs):
         """
         Provision a new tenant.
@@ -99,22 +139,12 @@ class TenantViewSet(viewsets.ModelViewSet):
         data = serializer.validated_data
 
         # ── Create the PostgreSQL database for this tenant ──
-        db_name = f"tenant_{data['subdomain']}"
+        db_name = self._provision_tenant_db(data['subdomain'])
         default_db = settings.DATABASES['default']
         db_user = default_db.get('USER', '')
         db_password = default_db.get('PASSWORD', '')
         db_host = default_db.get('HOST', 'localhost')
         db_port = default_db.get('PORT', '5432')
-
-        try:
-            from django.db import connection as default_conn
-            with default_conn.cursor() as cursor:
-                # CREATE DATABASE cannot run inside a transaction
-                cursor.execute("COMMIT")
-                cursor.execute(f'CREATE DATABASE "{db_name}"')
-        except Exception as db_err:
-            # Database may already exist (e.g. re-provisioning)
-            logger.warning("Could not create DB %s: %s", db_name, db_err)
 
         # Create tenant record
         tenant = Tenant.objects.create(
@@ -130,23 +160,7 @@ class TenantViewSet(viewsets.ModelViewSet):
         )
 
         # Run migrations on the new tenant database
-        try:
-            import copy
-            from django.core.management import call_command
-            tenant_db_alias = f"tenant_{tenant.id}"
-            db_config = copy.deepcopy(default_db)
-            db_config.update({
-                'NAME': db_name,
-                'USER': db_user,
-                'PASSWORD': db_password,
-                'HOST': db_host,
-                'PORT': db_port,
-                'ATOMIC_REQUESTS': False,
-            })
-            settings.DATABASES[tenant_db_alias] = db_config
-            call_command('migrate', database=tenant_db_alias, verbosity=0)
-        except Exception as mig_err:
-            logger.warning("Migration on %s failed: %s", db_name, mig_err)
+        self._migrate_tenant_db(tenant, db_name)
 
         # ── Create tenant admin user ──
         admin_email = data.get('admin_email', '')

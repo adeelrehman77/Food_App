@@ -308,7 +308,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    # 'allauth.account.middleware.AccountMiddleware',  # Required from allauth >=0.56.0 (current: 0.54.0)
+    'allauth.account.middleware.AccountMiddleware',  # Required from allauth >=0.56.0
     'apps.users.middleware.SecurityMiddleware',
     'apps.users.middleware.SessionTimeoutMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

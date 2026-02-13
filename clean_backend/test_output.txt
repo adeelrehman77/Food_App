@@ -1,0 +1,581 @@
+Using development SYNC_TOKEN. Set SYNC_TOKEN environment variable in production.
+Using development ENCRYPTION_KEY. Set ENCRYPTION_KEY env var in production.
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-7.4.4, pluggy-1.6.0
+django: version: 4.2.28, settings: config.settings.base (from ini)
+rootdir: /Users/adeelrehman/Food_App/clean_backend
+configfile: pytest.ini
+plugins: cov-4.1.0, Faker-40.4.0, django-4.11.1
+collected 1 item
+
+apps/main/tests/test_views.py ERROR 2026-02-13 06:56:58,053 log 90934 8791354432 Internal Server Error: /api/v1/customer/orders/
+DEBUG: INSTALLED_APPS=['channels', 'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes', 'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles', 'corsheaders', 'import_export', 'rest_framework', 'rest_framework.authtoken', 'django.contrib.sites', 'allauth', 'allauth.account', 'allauth.socialaccount', 'dj_rest_auth', 'dj_rest_auth.registration', 'django_user_agents', 'axes', 'csp', 'drf_yasg', 'django_filters', 'apps.users', 'apps.organizations', 'apps.main', 'apps.kitchen', 'apps.delivery', 'apps.inventory', 'apps.driver']
+F<unknown>:29: SyntaxWarning: "\_" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\_"? A raw string is also an option.
+/Users/adeelrehman/Food_App/clean_backend/scripts/reset_local_schema.py:29: SyntaxWarning: "\_" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\_"? A raw string is also an option.
+  table_name LIKE 'users\_%' OR
+
+
+=================================== FAILURES ===================================
+____________________ TestCustomerOrderAPI.test_list_orders _____________________
+
+    from allauth.socialaccount.providers.oauth2.client import OAuth2Error
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.http import HttpRequest, HttpResponseBadRequest
+    from django.urls.exceptions import NoReverseMatch
+    from django.utils.translation import gettext_lazy as _
+    from requests.exceptions import HTTPError
+    from rest_framework import serializers
+    from rest_framework.reverse import reverse
+    
+    try:
+        from allauth.account import app_settings as allauth_account_settings
+        from allauth.account.adapter import get_adapter
+        from allauth.account.utils import setup_user_email
+        from allauth.socialaccount.helpers import complete_social_login
+        from allauth.socialaccount.models import SocialAccount
+        from allauth.socialaccount.providers.base import AuthProcess
+>       from allauth.utils import email_address_exists, get_username_max_length
+E       ImportError: cannot import name 'email_address_exists' from 'allauth.utils' (/Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/allauth/utils.py)
+
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/serializers.py:18: ImportError
+
+During handling of the above exception, another exception occurred:
+
+request = <WSGIRequest: GET '/api/v1/customer/orders/'>
+
+    @wraps(get_response)
+    def inner(request):
+        try:
+>           response = get_response(request)
+
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/core/handlers/base.py:181: in _get_response
+    callback, callback_args, callback_kwargs = self.resolve_request(request)
+.venv/lib/python3.14/site-packages/django/core/handlers/base.py:313: in resolve_request
+    resolver_match = resolver.resolve(request.path_info)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:663: in resolve
+    for pattern in self.url_patterns:
+.venv/lib/python3.14/site-packages/django/utils/functional.py:57: in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:715: in url_patterns
+    patterns = getattr(self.urlconf_module, "urlpatterns", self.urlconf_module)
+.venv/lib/python3.14/site-packages/django/utils/functional.py:57: in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:708: in urlconf_module
+    return import_module(self.urlconf_name)
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+config/urls.py:46: in <module>
+    path('api/v1/auth/registration/', include('dj_rest_auth.registration.urls')),
+.venv/lib/python3.14/site-packages/django/urls/conf.py:38: in include
+    urlconf_module = import_module(urlconf_module)
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/urls.py:4: in <module>
+    from .views import RegisterView, VerifyEmailView, ResendEmailVerificationView
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/views.py:21: in <module>
+    from dj_rest_auth.registration.serializers import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    from allauth.socialaccount.providers.oauth2.client import OAuth2Error
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.http import HttpRequest, HttpResponseBadRequest
+    from django.urls.exceptions import NoReverseMatch
+    from django.utils.translation import gettext_lazy as _
+    from requests.exceptions import HTTPError
+    from rest_framework import serializers
+    from rest_framework.reverse import reverse
+    
+    try:
+        from allauth.account import app_settings as allauth_account_settings
+        from allauth.account.adapter import get_adapter
+        from allauth.account.utils import setup_user_email
+        from allauth.socialaccount.helpers import complete_social_login
+        from allauth.socialaccount.models import SocialAccount
+        from allauth.socialaccount.providers.base import AuthProcess
+        from allauth.utils import email_address_exists, get_username_max_length
+    except ImportError:
+>       raise ImportError('allauth needs to be added to INSTALLED_APPS.')
+E       ImportError: allauth needs to be added to INSTALLED_APPS.
+
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/serializers.py:20: ImportError
+
+During handling of the above exception, another exception occurred:
+
+    from allauth.socialaccount.providers.oauth2.client import OAuth2Error
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.http import HttpRequest, HttpResponseBadRequest
+    from django.urls.exceptions import NoReverseMatch
+    from django.utils.translation import gettext_lazy as _
+    from requests.exceptions import HTTPError
+    from rest_framework import serializers
+    from rest_framework.reverse import reverse
+    
+    try:
+        from allauth.account import app_settings as allauth_account_settings
+        from allauth.account.adapter import get_adapter
+        from allauth.account.utils import setup_user_email
+        from allauth.socialaccount.helpers import complete_social_login
+        from allauth.socialaccount.models import SocialAccount
+        from allauth.socialaccount.providers.base import AuthProcess
+>       from allauth.utils import email_address_exists, get_username_max_length
+E       ImportError: cannot import name 'email_address_exists' from 'allauth.utils' (/Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/allauth/utils.py)
+
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/serializers.py:18: ImportError
+
+During handling of the above exception, another exception occurred:
+
+request = <WSGIRequest: GET '/api/v1/customer/orders/'>
+
+    @wraps(get_response)
+    def inner(request):
+        try:
+>           response = get_response(request)
+
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/django/utils/deprecation.py:134: in __call__
+    response = response or self.get_response(request)
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:57: in inner
+    response = response_for_exception(request, exc)
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:141: in response_for_exception
+    response = handle_uncaught_exception(
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:185: in handle_uncaught_exception
+    callback = resolver.resolve_error_handler(500)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:729: in resolve_error_handler
+    callback = getattr(self.urlconf_module, "handler%s" % view_type, None)
+.venv/lib/python3.14/site-packages/django/utils/functional.py:57: in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:708: in urlconf_module
+    return import_module(self.urlconf_name)
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+config/urls.py:46: in <module>
+    path('api/v1/auth/registration/', include('dj_rest_auth.registration.urls')),
+.venv/lib/python3.14/site-packages/django/urls/conf.py:38: in include
+    urlconf_module = import_module(urlconf_module)
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/urls.py:4: in <module>
+    from .views import RegisterView, VerifyEmailView, ResendEmailVerificationView
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/views.py:21: in <module>
+    from dj_rest_auth.registration.serializers import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    from allauth.socialaccount.providers.oauth2.client import OAuth2Error
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.http import HttpRequest, HttpResponseBadRequest
+    from django.urls.exceptions import NoReverseMatch
+    from django.utils.translation import gettext_lazy as _
+    from requests.exceptions import HTTPError
+    from rest_framework import serializers
+    from rest_framework.reverse import reverse
+    
+    try:
+        from allauth.account import app_settings as allauth_account_settings
+        from allauth.account.adapter import get_adapter
+        from allauth.account.utils import setup_user_email
+        from allauth.socialaccount.helpers import complete_social_login
+        from allauth.socialaccount.models import SocialAccount
+        from allauth.socialaccount.providers.base import AuthProcess
+        from allauth.utils import email_address_exists, get_username_max_length
+    except ImportError:
+>       raise ImportError('allauth needs to be added to INSTALLED_APPS.')
+E       ImportError: allauth needs to be added to INSTALLED_APPS.
+
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/serializers.py:20: ImportError
+
+During handling of the above exception, another exception occurred:
+
+    from allauth.socialaccount.providers.oauth2.client import OAuth2Error
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.http import HttpRequest, HttpResponseBadRequest
+    from django.urls.exceptions import NoReverseMatch
+    from django.utils.translation import gettext_lazy as _
+    from requests.exceptions import HTTPError
+    from rest_framework import serializers
+    from rest_framework.reverse import reverse
+    
+    try:
+        from allauth.account import app_settings as allauth_account_settings
+        from allauth.account.adapter import get_adapter
+        from allauth.account.utils import setup_user_email
+        from allauth.socialaccount.helpers import complete_social_login
+        from allauth.socialaccount.models import SocialAccount
+        from allauth.socialaccount.providers.base import AuthProcess
+>       from allauth.utils import email_address_exists, get_username_max_length
+E       ImportError: cannot import name 'email_address_exists' from 'allauth.utils' (/Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/allauth/utils.py)
+
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/serializers.py:18: ImportError
+
+During handling of the above exception, another exception occurred:
+
+request = <WSGIRequest: GET '/api/v1/customer/orders/'>
+
+    @wraps(get_response)
+    def inner(request):
+        try:
+>           response = get_response(request)
+
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+core/middleware/performance.py:207: in __call__
+    response = self.get_response(request)
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:57: in inner
+    response = response_for_exception(request, exc)
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:141: in response_for_exception
+    response = handle_uncaught_exception(
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:185: in handle_uncaught_exception
+    callback = resolver.resolve_error_handler(500)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:729: in resolve_error_handler
+    callback = getattr(self.urlconf_module, "handler%s" % view_type, None)
+.venv/lib/python3.14/site-packages/django/utils/functional.py:57: in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:708: in urlconf_module
+    return import_module(self.urlconf_name)
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+config/urls.py:46: in <module>
+    path('api/v1/auth/registration/', include('dj_rest_auth.registration.urls')),
+.venv/lib/python3.14/site-packages/django/urls/conf.py:38: in include
+    urlconf_module = import_module(urlconf_module)
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/urls.py:4: in <module>
+    from .views import RegisterView, VerifyEmailView, ResendEmailVerificationView
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/views.py:21: in <module>
+    from dj_rest_auth.registration.serializers import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    from allauth.socialaccount.providers.oauth2.client import OAuth2Error
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.http import HttpRequest, HttpResponseBadRequest
+    from django.urls.exceptions import NoReverseMatch
+    from django.utils.translation import gettext_lazy as _
+    from requests.exceptions import HTTPError
+    from rest_framework import serializers
+    from rest_framework.reverse import reverse
+    
+    try:
+        from allauth.account import app_settings as allauth_account_settings
+        from allauth.account.adapter import get_adapter
+        from allauth.account.utils import setup_user_email
+        from allauth.socialaccount.helpers import complete_social_login
+        from allauth.socialaccount.models import SocialAccount
+        from allauth.socialaccount.providers.base import AuthProcess
+        from allauth.utils import email_address_exists, get_username_max_length
+    except ImportError:
+>       raise ImportError('allauth needs to be added to INSTALLED_APPS.')
+E       ImportError: allauth needs to be added to INSTALLED_APPS.
+
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/serializers.py:20: ImportError
+
+During handling of the above exception, another exception occurred:
+
+    from allauth.socialaccount.providers.oauth2.client import OAuth2Error
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.http import HttpRequest, HttpResponseBadRequest
+    from django.urls.exceptions import NoReverseMatch
+    from django.utils.translation import gettext_lazy as _
+    from requests.exceptions import HTTPError
+    from rest_framework import serializers
+    from rest_framework.reverse import reverse
+    
+    try:
+        from allauth.account import app_settings as allauth_account_settings
+        from allauth.account.adapter import get_adapter
+        from allauth.account.utils import setup_user_email
+        from allauth.socialaccount.helpers import complete_social_login
+        from allauth.socialaccount.models import SocialAccount
+        from allauth.socialaccount.providers.base import AuthProcess
+>       from allauth.utils import email_address_exists, get_username_max_length
+E       ImportError: cannot import name 'email_address_exists' from 'allauth.utils' (/Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/allauth/utils.py)
+
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/serializers.py:18: ImportError
+
+During handling of the above exception, another exception occurred:
+
+self = <main.tests.test_views.TestCustomerOrderAPI object at 0x10e0fc2d0>
+
+    def test_list_orders(self):
+>       response = self.client.get(self.url)
+
+apps/main/tests/test_views.py:132: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/rest_framework/test.py:292: in get
+    response = super().get(path, data=data, **extra)
+.venv/lib/python3.14/site-packages/rest_framework/test.py:209: in get
+    return self.generic('GET', path, **r)
+.venv/lib/python3.14/site-packages/rest_framework/test.py:237: in generic
+    return super().generic(
+.venv/lib/python3.14/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+.venv/lib/python3.14/site-packages/rest_framework/test.py:289: in request
+    return super().request(**kwargs)
+.venv/lib/python3.14/site-packages/rest_framework/test.py:241: in request
+    request = super().request(**kwargs)
+.venv/lib/python3.14/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+.venv/lib/python3.14/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+core/middleware/security.py:148: in __call__
+    return self.get_response(request)
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:57: in inner
+    response = response_for_exception(request, exc)
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:141: in response_for_exception
+    response = handle_uncaught_exception(
+.venv/lib/python3.14/site-packages/django/core/handlers/exception.py:185: in handle_uncaught_exception
+    callback = resolver.resolve_error_handler(500)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:729: in resolve_error_handler
+    callback = getattr(self.urlconf_module, "handler%s" % view_type, None)
+.venv/lib/python3.14/site-packages/django/utils/functional.py:57: in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+.venv/lib/python3.14/site-packages/django/urls/resolvers.py:708: in urlconf_module
+    return import_module(self.urlconf_name)
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1398: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1371: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1342: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:938: in _load_unlocked
+    ???
+<frozen importlib._bootstrap_external>:759: in exec_module
+    ???
+<frozen importlib._bootstrap>:491: in _call_with_frames_removed
+    ???
+config/urls.py:46: in <module>
+    path('api/v1/auth/registration/', include('dj_rest_auth.registration.urls')),
+.venv/lib/python3.14/site-packages/django/urls/conf.py:38: in include
+    urlconf_module = import_module(urlconf_module)
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1398: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1371: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1342: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:938: in _load_unlocked
+    ???
+<frozen importlib._bootstrap_external>:759: in exec_module
+    ???
+<frozen importlib._bootstrap>:491: in _call_with_frames_removed
+    ???
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/urls.py:4: in <module>
+    from .views import RegisterView, VerifyEmailView, ResendEmailVerificationView
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/views.py:21: in <module>
+    from dj_rest_auth.registration.serializers import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    from allauth.socialaccount.providers.oauth2.client import OAuth2Error
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.http import HttpRequest, HttpResponseBadRequest
+    from django.urls.exceptions import NoReverseMatch
+    from django.utils.translation import gettext_lazy as _
+    from requests.exceptions import HTTPError
+    from rest_framework import serializers
+    from rest_framework.reverse import reverse
+    
+    try:
+        from allauth.account import app_settings as allauth_account_settings
+        from allauth.account.adapter import get_adapter
+        from allauth.account.utils import setup_user_email
+        from allauth.socialaccount.helpers import complete_social_login
+        from allauth.socialaccount.models import SocialAccount
+        from allauth.socialaccount.providers.base import AuthProcess
+        from allauth.utils import email_address_exists, get_username_max_length
+    except ImportError:
+>       raise ImportError('allauth needs to be added to INSTALLED_APPS.')
+E       ImportError: allauth needs to be added to INSTALLED_APPS.
+
+.venv/lib/python3.14/site-packages/dj_rest_auth/registration/serializers.py:20: ImportError
+------------------------------ Captured log call -------------------------------
+ERROR    core.middleware.performance:performance.py:306 Unhandled exception in /api/v1/customer/orders/: allauth needs to be added to INSTALLED_APPS.
+ERROR    django.request:log.py:246 Internal Server Error: /api/v1/customer/orders/
+=============================== warnings summary ===============================
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/swagger_spec_validator/validator12.py:18: DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, in favor of the https://github.com/python-jsonschema/referencing library, which provides more compliant referencing behavior as well as more flexible APIs for customization. A future release will remove RefResolver. Please file a feature request (on referencing) if you are missing an API for the kind of customization you need.
+    from jsonschema import RefResolver
+
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/swagger_spec_validator/ref_validators.py:14: DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, in favor of the https://github.com/python-jsonschema/referencing library, which provides more compliant referencing behavior as well as more flexible APIs for customization. A future release will remove RefResolver. Please file a feature request (on referencing) if you are missing an API for the kind of customization you need.
+    from jsonschema.validators import RefResolver
+
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/swagger_spec_validator/validator20.py:18: DeprecationWarning: jsonschema.RefResolver is deprecated as of v4.18.0, in favor of the https://github.com/python-jsonschema/referencing library, which provides more compliant referencing behavior as well as more flexible APIs for customization. A future release will remove RefResolver. Please file a feature request (on referencing) if you are missing an API for the kind of customization you need.
+    from jsonschema.validators import RefResolver
+
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+  /Users/adeelrehman/Food_App/clean_backend/.venv/lib/python3.14/site-packages/drf_yasg/views.py:100: DeprecationWarning: SwaggerJSONRenderer & SwaggerYAMLRenderer's `format` has changed to not include a `.` prefix, please silence this warning by setting `SWAGGER_USE_COMPAT_RENDERERS = False` in your Django settings and ensure your application works (check your URLCONF and swagger/redoc URLs).
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform darwin, python 3.14.2-final-0 ----------
+Name                                                                                               Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------------------------------------------------------------------
+apps/delivery/__init__.py                                                                              0      0   100%
+apps/delivery/admin.py                                                                                 9      0   100%
+apps/delivery/apps.py                                                                                  4      0   100%
+apps/delivery/migrations/0001_initial.py                                                               7      0   100%
+apps/delivery/migrations/__init__.py                                                                   0      0   100%
+apps/delivery/models.py                                                                               14      1    93%   17
+apps/delivery/serializers.py                                                                          30     16    47%   26-29, 32-37, 40-45
+apps/delivery/urls_api.py                                                                              7      0   100%
+apps/delivery/views.py                                                                                53     30    43%   13, 17, 36-53, 58-72, 77-80
+apps/driver/__init__.py                                                                                0      0   100%
+apps/driver/admin.py                                                                                  35      0   100%
+apps/driver/apps.py                                                                                    4      0   100%
+apps/driver/migrations/0001_initial.py                                                                 7      0   100%
+apps/driver/migrations/0002_deliveryassignment_deliverydriver_and_more.py                              7      0   100%
+apps/driver/migrations/0003_add_zones_routes_to_deliverydriver.py                                      4      0   100%
+apps/driver/migrations/__init__.py                                                                     0      0   100%
+apps/driver/models.py                                                                                117     21    82%   27, 48, 96, 102-117, 123-132, 166, 193, 229, 268
+apps/driver/serializers/__init__.py                                                                    2      0   100%
+apps/driver/serializers/admin_serializers.py                                                          70     18    74%   25, 41, 84-91, 94-101
+apps/driver/serializers/driver_serializers.py                                                         19      1    95%   12
+apps/driver/urls_api.py                                                                               12      0   100%
+apps/driver/views/__init__.py                                                                          3      0   100%
+apps/driver/views/admin_views.py                                                                      72     23    68%   32-34, 48-50, 64-67, 72-76, 81-85, 90-92
+apps/driver/views/base.py                                                                              6      2    67%   5, 8
+apps/driver/views/driver_views.py                                                                     40     27    32%   16-59, 63-80, 84-98
+apps/inventory/__init__.py                                                                             0      0   100%
+apps/inventory/admin.py                                                                               12      0   100%
+apps/inventory/apps.py                                                                                 4      0   100%
+apps/inventory/migrations/0001_initial.py                                                              6      0   100%
+apps/inventory/migrations/0002_alter_inventoryitem_options_and_more.py                                 4      0   100%
+apps/inventory/migrations/__init__.py                                                                  0      0   100%
+apps/inventory/models.py                                                                              31      3    90%   22, 52, 56
+apps/inventory/serializers.py                                                                         18      0   100%
+apps/inventory/urls_api.py                                                                             8      0   100%
+apps/inventory/views.py                                                                               43     15    65%   17, 21, 51-66, 71-75
+apps/kitchen/__init__.py                                                                               0      0   100%
+apps/kitchen/admin.py                                                                                 12      0   100%
+apps/kitchen/apps.py                                                                                   4      0   100%
+apps/kitchen/middleware.py                                                                             7      0   100%
+apps/kitchen/migrations/0001_initial.py                                                                7      0   100%
+apps/kitchen/migrations/__init__.py                                                                    0      0   100%
+apps/kitchen/models.py                                                                                22      2    91%   15, 28
+apps/kitchen/serializers.py                                                                           12      0   100%
+apps/kitchen/urls_api.py                                                                               7      0   100%
+apps/kitchen/views.py                                                                                 54     31    43%   14, 18, 40-55, 60-68, 73-83, 88-93
+apps/main/__init__.py                                                                                  0      0   100%
+apps/main/admin.py                                                                                    55      0   100%
+apps/main/apps.py                                                                                      4      0   100%
+apps/main/management/__init__.py                                                                       0      0   100%
+apps/main/migrations/0001_initial.py                                                                   7      0   100%
+apps/main/migrations/0002_wallettransaction_address.py                                                 5      0   100%
+apps/main/migrations/0003_customerprofile_notification_remove_customer_tenant_and_more.py              7      0   100%
+apps/main/migrations/0004_customerregistrationrequest_invoice_invoiceitem_and_more.py                  8      0   100%
+apps/main/migrations/0005_alter_menuitem_options_remove_customerprofile_tenant_and_more.py             5      0   100%
+apps/main/migrations/0006_daily_menu_system.py                                                         6      0   100%
+apps/main/migrations/0007_add_diet_type_and_meal_package.py                                            4      0   100%
+apps/main/migrations/0008_fix_created_by_cross_db.py                                                   4      0   100%
+apps/main/migrations/0009_revert_created_by_to_fk.py                                                   6      0   100%
+apps/main/migrations/0010_subscription_diet_type.py                                                    4      0   100%
+apps/main/migrations/0011_subscription_use_mealslot.py                                                 5      0   100%
+apps/main/migrations/0012_mealpackage_menus_subscription_meal_package.py                               5      0   100%
+apps/main/migrations/0013_invoice_number_optional.py                                                   4      0   100%
+apps/main/migrations/__init__.py                                                                       0      0   100%
+apps/main/models.py                                                                                  467    144    69%   23-28, 40, 55, 136, 140, 184, 200, 232, 291, 296, 336, 341-343, 428-429, 477-481, 484-502, 505-516, 519-532, 535-548, 611, 618-620, 624-631, 649, 656, 658, 662, 666, 669, 672, 680, 683-707, 717-736, 762, 773, 776, 791, 794-798, 809, 827, 841, 844-862, 882, 894, 901
+apps/main/serializers/__init__.py                                                                      3      0   100%
+apps/main/serializers/admin_serializers.py                                                           390    164    58%   122-150, 176-178, 181-183, 186-241, 318-327, 356-358, 420-422, 434-436, 471-485, 488-492, 495-504, 508-510, 514, 539-543, 546-552, 579-583, 586-592, 606-608, 675, 691-702, 706-712, 715-727, 730-743, 746
+apps/main/serializers/customer_api_serializers.py                                                     56      9    84%   72-85
+apps/main/serializers/customer_serializers.py                                                         43      3    93%   33-35
+apps/main/tests/__init__.py                                                                            0      0   100%
+apps/main/tests/test_views.py                                                                        127     75    41%   16-18, 21-31, 34-43, 48-55, 60-63, 68-77, 83-99, 133-137, 140-143, 148-154, 157-159, 162-167, 172-176, 179-187, 190-194
+apps/main/urls_api.py                                                                                 23      0   100%
+apps/main/urls_customer_api.py                                                                        12      0   100%
+apps/main/utils/__init__.py                                                                            1      0   100%
+apps/main/utils/validators.py                                                                         20     11    45%   5-7, 10, 13, 16-18, 21, 24, 27
+apps/main/views/__init__.py                                                                            4      0   100%
+apps/main/views/admin_views.py                                                                       392    250    36%   45-104, 155-157, 162-203, 218-220, 224-228, 248-287, 294-305, 318-320, 324, 331-334, 341-345, 364-369, 379-387, 410-412, 434, 437-439, 443-474, 482-490, 495-515, 532-534, 561-583, 586-590, 593-596, 603-618, 626-631, 639-642, 650-666, 687-689, 707-709, 726, 733-737, 742-768, 777-786, 791-801, 806-813
+apps/main/views/base.py                                                                               12      4    67%   7, 12, 19, 26
+apps/main/views/customer_api_views.py                                                                131     68    48%   51-88, 110-135, 159-172, 179-181, 192, 205, 210-211, 224, 231-243, 261, 267-273, 278-292, 306, 319, 326-330, 335-338, 349, 352-353
+apps/main/views/customer_views.py                                                                     40     12    70%   17-19, 35-37, 42-45, 63-64
+apps/organizations/__init__.py                                                                         0      0   100%
+apps/organizations/admin.py                                                                           28      0   100%
+apps/organizations/apps.py                                                                             4      0   100%
+apps/organizations/management/__init__.py                                                              0      0   100%
+apps/organizations/migrations/0001_initial.py                                                          5      0   100%
+apps/organizations/migrations/0002_rename_subscriptionplan_serviceplan.py                              4      0   100%
+apps/organizations/migrations/0003_remove_serviceplan_max_orders_per_month.py                          4      0   100%
+apps/organizations/migrations/0004_alter_serviceplan_options_serviceplan_description_and_more.py       6      0   100%
+apps/organizations/migrations/0005_alter_serviceplan_max_customers_and_more.py                         4      0   100%
+apps/organizations/migrations/__init__.py                                                              0      0   100%
+apps/organizations/models.py                                                                          39     10    74%   75, 80-84, 91-95
+apps/organizations/models_saas.py                                                                     76     16    79%   62, 66, 70, 74-76, 122, 125-135, 166
+apps/users/__init__.py                                                                                 0      0   100%
+apps/users/admin.py                                                                                   15      0   100%
+apps/users/apps.py                                                                                     6      0   100%
+apps/users/middleware.py                                                                              16      1    94%   27
+apps/users/migrations/0001_initial.py                                                                  7      0   100%
+apps/users/migrations/0002_rename_subscription_plan_tenant_service_plan.py                             4      0   100%
+apps/users/migrations/0003_add_tenant_to_userprofile.py                                                5      0   100%
+apps/users/migrations/__init__.py                                                                      0      0   100%
+apps/users/models.py                                                                                  31      3    90%   21, 30, 49
+apps/users/signals.py                                                                                 31     19    39%   24-70
+apps/users/urls_api.py                                                                                 4      0   100%
+apps/users/views.py                                                                                   35     21    40%   15-17, 21, 25, 34-59
+config/__init__.py                                                                                     0      0   100%
+config/asgi.py                                                                                         7      7     0%   10-19
+config/settings/__init__.py                                                                            0      0   100%
+config/settings/base.py                                                                              200     40    80%   32, 336-339, 348-349, 355-368, 467-470, 483, 509, 564-571, 580, 585-593, 599, 604-605, 649-650
+config/settings/development.py                                                                        25     25     0%   1-63
+config/settings/production.py                                                                         45     45     0%   1-85
+config/settings/test.py                                                                               22     22     0%   1-64
+config/url_patterns/__init__.py                                                                        0      0   100%
+config/url_patterns/base.py                                                                           14     14     0%   1-57
+config/urls.py                                                                                        13      3    77%   62-64
+config/wsgi.py                                                                                         4      4     0%   10-16
+core/__init__.py                                                                                       0      0   100%
+core/db/router.py                                                                                     24      3    88%   58, 63, 75
+core/middleware/__init__.py                                                                            3      0   100%
+core/middleware/multi_db_tenant.py                                                                    38     13    66%   43, 46-77
+core/middleware/performance.py                                                                       164     59    64%   26-27, 32-33, 43-44, 48-49, 53, 60, 74-79, 83-87, 101-102, 109, 115-147, 172-177, 189, 202, 210-224, 227-230, 234-235, 304, 316
+core/middleware/security.py                                                                          137     73    47%   44-55, 106, 112, 118-119, 125-126, 132, 138-144, 152-158, 162-192, 196-211, 216-227, 235, 252, 260, 264-277, 281-297
+core/middleware/tenant.py                                                                             28     28     0%   1-52
+core/monitoring/__init__.py                                                                           16     16     0%   2-32
+core/permissions/__init__.py                                                                           2      0   100%
+core/permissions/custom.py                                                                            74     40    46%   12-16, 25-34, 42, 54, 66, 78, 93-97, 106-110, 119-123, 132-136, 145-149, 157, 169, 181, 194-198, 207-215
+core/permissions/plan_limits.py                                                                       48     21    56%   28-56, 64-65, 73-74, 82-83
+core/tests/__init__.py                                                                                 0      0   100%
+core/tests/test_middleware.py                                                                         31     31     0%   1-35
+core/tests/test_validators.py                                                                         56     56     0%   1-76
+core/utils/__init__.py                                                                                 0      0   100%
+core/utils/validators.py                                                                             124    124     0%   1-215
+create_tenant_user.py                                                                                 38     38     0%   1-57
+fix_tenant.py                                                                                         41     41     0%   5-56
+manage.py                                                                                             11     11     0%   3-22
+scripts/__init__.py                                                                                    0      0   100%
+scripts/create_api_key.py                                                                             47     47     0%   14-87
+scripts/fix_migrations.py                                                                             15     15     0%   1-20
+scripts/inspect_db.py                                                                                 15     15     0%   1-17
+scripts/provision_tenant.py                                                                           49     49     0%   1-98
+scripts/reset_local_schema.py                                                                         29     29     0%   1-54
+scripts/setup_database.py                                                                             45     45     0%   11-120
+--------------------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                                               4312   1914    56%
+
+=========================== short test summary info ============================
+FAILED apps/main/tests/test_views.py::TestCustomerOrderAPI::test_list_orders
+======================== 1 failed, 9 warnings in 4.86s =========================

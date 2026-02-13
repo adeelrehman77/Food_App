@@ -17,7 +17,7 @@ User = get_user_model()
 class TestAdminDashboard:
     def setup_method(self):
         self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
-        self.admin = User.objects.create_superuser(username='admin', password='password')
+        self.admin = User.objects.create_superuser(username='admin_dash', password='password')
         self.client.force_authenticate(user=self.admin)
         self.url = '/api/v1/dashboard/summary/'
 
@@ -31,7 +31,7 @@ class TestAdminDashboard:
 class TestOrderAdmin:
     def setup_method(self):
         self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
-        self.admin = User.objects.create_superuser(username='admin', password='password')
+        self.admin = User.objects.create_superuser(username='admin_order', password='password')
         self.client.force_authenticate(user=self.admin)
         
         # Create dependencies
@@ -74,7 +74,7 @@ class TestOrderAdmin:
 class TestDailyMenuAdmin:
     def setup_method(self):
         self.client = APIClient(HTTP_USER_AGENT='Mozilla/5.0')
-        self.admin = User.objects.create_superuser(username='admin', password='password')
+        self.admin = User.objects.create_superuser(username='admin_menu', password='password')
         self.client.force_authenticate(user=self.admin)
         self.slot = MealSlot.objects.create(name="Lunch", code="lunch")
         self.menu_date = timezone.now().date()

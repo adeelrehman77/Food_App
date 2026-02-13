@@ -31,16 +31,18 @@ class TestSaaSViews:
         assert len(res.data['results']) >= 1
 
     @patch('django.core.management.call_command')
-    @patch('django.db.connection.cursor')
+    @patch('apps.organizations.views_saas.TenantViewSet._migrate_tenant_db')
+    @patch('apps.organizations.views_saas.TenantViewSet._provision_tenant_db')
     @patch('apps.organizations.serializers.TenantCreateSerializer.validate_subdomain')
-    def test_provision_tenant(self, mock_validate, mock_cursor, mock_call_command):
+    def test_provision_tenant(self, mock_validate, mock_provision, mock_migrate, mock_call_command):
         # Allow validation to pass simply returning the value
         mock_validate.side_effect = lambda x: x
         import uuid
-        # Mock DB creation
-        mock_cursor.return_value.__enter__.return_value = MagicMock()
         
+        # Mock DB creation return value (db_name)
         unique_sub = f"tenant_{uuid.uuid4().hex[:8]}"
+        mock_provision.return_value = f"tenant_{unique_sub}"
+        
         data = {
             'name': 'New Tenant',
             'subdomain': unique_sub,
@@ -49,14 +51,25 @@ class TestSaaSViews:
             'plan_id': self.plan.id
         }
         res = self.client.post('/api/saas/tenants/', data, format='json')
-        assert res.status_code == 201, f"Details: {res.data}"
-        assert res.data['name'] == 'New Tenant'
-        assert 'admin_info' in res.data
         
-        # Verify tenant created
+        # Assert response code first
+        if res.status_code != 201:
+            print(f"DEBUG: Response {res.status_code} - {res.data}")
+        assert res.status_code == 201
+        assert res.data['name'] == 'New Tenant'
+        assert res.data['subdomain'] == unique_sub
+        
+        # Verify Tenant created
         assert Tenant.objects.filter(subdomain=unique_sub).exists()
-        new_tenant = Tenant.objects.get(subdomain=unique_sub)
-        assert new_tenant.service_plan == self.plan
+        tenant = Tenant.objects.get(subdomain=unique_sub)
+        assert tenant.service_plan == self.plan
+        
+        # Verify admin user created
+        assert User.objects.filter(email='new@tenant.com').exists()
+        
+        # Verify DB mocks called
+        mock_provision.assert_called_once()
+        mock_migrate.assert_called_once_with(tenant, f"tenant_{unique_sub}")
 
     def test_update_tenant(self):
         res = self.client.patch(f'/api/saas/tenants/{self.tenant.id}/', {'is_active': False}, format='json')
