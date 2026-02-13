@@ -24,7 +24,7 @@ class Zone(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"{self.name} (AED {self.delivery_fee})"
+        return f"{self.name} (AED {self.delivery_fee:.2f})"
     
     class Meta:
         ordering = ['name']
@@ -101,7 +101,7 @@ class DeliveryStatus(models.Model):
         """
         if not self.payment_processed and self.payment_amount:
             # Create wallet transaction for payment
-            from main.models import WalletTransaction
+            from apps.main.models import WalletTransaction
             
             WalletTransaction.objects.create(
                 customer=self.subscription.customer,

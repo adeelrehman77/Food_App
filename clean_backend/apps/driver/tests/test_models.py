@@ -38,7 +38,8 @@ class TestDriverModels:
         assert str(self.route) == "Route 1 - Dubai Marina"
 
     def test_delivery_process_payment(self):
-        self.delivery_status.payment_amount = 50.00
+        from decimal import Decimal
+        self.delivery_status.payment_amount = Decimal('50.00')
         processed = self.delivery_status.process_payment()
         assert processed is True
         self.delivery_status.refresh_from_db()
