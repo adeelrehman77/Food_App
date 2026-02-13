@@ -15,13 +15,14 @@ from apps.driver.serializers.admin_serializers import (
     ZoneSerializer, RouteSerializer, DeliveryDriverSerializer,
     DeliveryAssignmentAdminSerializer, DeliveryScheduleSerializer,
 )
+from apps.driver.permissions import IsLogisticsAdmin
 
 
 class ZoneViewSet(viewsets.ModelViewSet):
     """CRUD for delivery zones."""
     queryset = Zone.objects.annotate(route_count=Count('routes')).order_by('name')
     serializer_class = ZoneSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsLogisticsAdmin]
     filterset_fields = ['is_active']
     search_fields = ['name']
     ordering = ['name']
@@ -38,7 +39,7 @@ class RouteViewSet(viewsets.ModelViewSet):
     """CRUD for delivery routes within zones."""
     queryset = Route.objects.select_related('zone').all()
     serializer_class = RouteSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsLogisticsAdmin]
     filterset_fields = ['zone', 'is_active']
     search_fields = ['name']
 
@@ -54,7 +55,7 @@ class DeliveryDriverViewSet(viewsets.ModelViewSet):
     """CRUD for delivery drivers with zone/route assignment support."""
     queryset = DeliveryDriver.objects.prefetch_related('zones', 'routes').all()
     serializer_class = DeliveryDriverSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsLogisticsAdmin]
     filterset_fields = ['is_active']
     search_fields = ['name', 'phone']
 
@@ -104,7 +105,7 @@ class DeliveryScheduleViewSet(viewsets.ModelViewSet):
     """CRUD for delivery time-slot schedules."""
     queryset = DeliverySchedule.objects.select_related('zone').all()
     serializer_class = DeliveryScheduleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsLogisticsAdmin]
     filterset_fields = ['zone', 'day_of_week', 'is_active']
 
 
@@ -114,6 +115,6 @@ class DeliveryAssignmentAdminViewSet(viewsets.ModelViewSet):
         'delivery_status', 'driver',
     ).all()
     serializer_class = DeliveryAssignmentAdminSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsLogisticsAdmin]
     filterset_fields = ['driver', 'delivery_status__date']
     ordering = ['-assigned_at']

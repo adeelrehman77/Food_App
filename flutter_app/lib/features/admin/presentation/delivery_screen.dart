@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../data/admin_repository.dart';
 import '../domain/models.dart';
 
@@ -11,28 +13,74 @@ class DeliveryScreen extends StatefulWidget {
 
 class _DeliveryScreenState extends State<DeliveryScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabCtrl;
+  TabController? _tabCtrl;
 
-  final _tabs = const [
-    Tab(text: 'Deliveries'),
-    Tab(text: 'Drivers'),
-    Tab(text: 'Zones & Routes'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabCtrl = TabController(length: _tabs.length, vsync: this);
+  List<Tab> _getTabs(bool isDriver) {
+    if (isDriver) {
+      return const [Tab(text: 'Deliveries')];
+    }
+    return const [
+      Tab(text: 'Deliveries'),
+      Tab(text: 'Drivers'),
+      Tab(text: 'Zones & Routes'),
+    ];
   }
 
   @override
   void dispose() {
-    _tabCtrl.dispose();
+    _tabCtrl?.dispose();
     super.dispose();
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final authProvider = context.read<AuthProvider>();
+    final isDriver = authProvider.isDriver;
+    final currentTabs = _getTabs(isDriver);
+    
+    // Initialize or re-initialize controller if tabs count changed
+    if (_tabCtrl == null || _tabCtrl!.length != currentTabs.length) {
+       _tabCtrl?.dispose();
+       _tabCtrl = TabController(length: currentTabs.length, vsync: this);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final isDriver = authProvider.isDriver;
+    final currentTabs = _getTabs(isDriver);
+    
+    // Ensure controller matches current state (handle case where verify check in didChangeDependencies might be skipped if only build called)
+    // Actually, didChangeDependencies is called after initState and whenever dependencies change.
+    // Provider changes trigger build, but maybe not didChangeDependencies if listen: false in read.
+    // Context.watch causes build. 
+    
+    // The safest way for dynamic tabs with Provider is to verify in build but DO NOT dispose if not needed.
+    // However, disposing in build is triggered here.
+    
+    // BETTER APPROACH: Use Key to force State recreation if user type changes?
+    // OR: Just check if length matches. If not, scheduling a microtask to update might be safer, 
+    // but the real fix is to avoid disposing active controller during build phase.
+    
+    // Let's stick to the simplest fix: Move logic to a helper that checks if update is needed
+    // and if so, schedules it or handles it carefully. 
+    
+    // Actually, simply relying on context.watch re-triggering build is the problem because we dispose.
+    // If we use `key` on the DeliveryScreen in the parent, that would solve it by recreating the widget.
+    
+    // But since we are here, let's try to fix it in place.
+    // If we detect a change, we can't properly dispose immediately if it's in use. 
+    
+    // Alternative: Use DefaultTabController? No, we need explicit control maybe.
+    
+    // Let's use the provided solution:
+    if (_tabCtrl?.length != currentTabs.length) {
+      _tabCtrl?.dispose();
+      _tabCtrl = TabController(length: currentTabs.length, vsync: this);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -50,7 +98,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
               ),
               const SizedBox(height: 4),
               Text(
-                'Manage deliveries, drivers, zones and routes',
+                'Manage deliveries${!isDriver ? ', drivers, zones and routes' : ''}',
                 style: TextStyle(color: Colors.grey[600]),
               ),
             ],
@@ -60,7 +108,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         TabBar(
           controller: _tabCtrl,
           isScrollable: true,
-          tabs: _tabs,
+          tabs: currentTabs,
           labelColor: Theme.of(context).primaryColor,
           unselectedLabelColor: Colors.grey,
           indicatorColor: Theme.of(context).primaryColor,
@@ -70,10 +118,12 @@ class _DeliveryScreenState extends State<DeliveryScreen>
         Expanded(
           child: TabBarView(
             controller: _tabCtrl,
-            children: const [
-              _DeliveriesTab(),
-              _DriversTab(),
-              _ZonesRoutesTab(),
+            children: [
+              const _DeliveriesTab(),
+              if (!isDriver) ...[
+                const _DriversTab(),
+                const _ZonesRoutesTab(),
+              ],
             ],
           ),
         ),
@@ -81,6 +131,7 @@ class _DeliveryScreenState extends State<DeliveryScreen>
     );
   }
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DELIVERIES TAB

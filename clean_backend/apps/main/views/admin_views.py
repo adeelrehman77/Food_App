@@ -42,7 +42,7 @@ def dashboard_summary(request):
     Aggregated dashboard summary for tenant admin overview.
     Returns key metrics: orders, customers, revenue, deliveries, etc.
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
     first_of_month = today.replace(day=1)
 
     # ── Orders ──

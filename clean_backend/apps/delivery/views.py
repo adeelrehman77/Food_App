@@ -9,6 +9,9 @@ from apps.delivery.models import Delivery
 from apps.delivery.serializers import DeliverySerializer
 
 
+from apps.driver.permissions import IsLogisticsAdmin
+
+
 def index(request):
     return render(request, 'delivery/index.html')
 
@@ -24,10 +27,19 @@ class DeliveryViewSet(viewsets.ModelViewSet):
     Allows listing, assigning drivers, and updating delivery status.
     """
     serializer_class = DeliverySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes determined by get_permissions
     filterset_fields = ['status', 'driver']
     ordering = ['-created_at']
     search_fields = ['order__id', 'driver__name', 'driver_user__username']
+
+    def get_permissions(self):
+        """
+        Restrict write/admin actions to Logistics Admins (staff who are NOT drivers).
+        Drivers can only list/retrieve their own deliveries and update status.
+        """
+        if self.action in ['create', 'destroy', 'update', 'partial_update', 'assign_driver']:
+            return [permissions.IsAuthenticated(), IsLogisticsAdmin()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
