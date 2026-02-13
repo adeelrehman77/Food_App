@@ -11,6 +11,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoggedIn = false;
   bool _isInitialized = false;
   String? _username;
+  List<String> _groups = [];
 
   AuthProvider({FlutterSecureStorage? storage})
       : _storage = storage ?? const FlutterSecureStorage();
@@ -18,6 +19,9 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _isLoggedIn;
   bool get isInitialized => _isInitialized;
   String? get username => _username;
+  List<String> get groups => _groups;
+
+  bool get isDriver => _groups.contains('Driver');
 
   /// Call once at app startup to restore persisted session.
   Future<void> initialize() async {
@@ -25,6 +29,10 @@ class AuthProvider extends ChangeNotifier {
     final loggedIn = await _storage.read(key: 'isLoggedIn');
     _isLoggedIn = token != null && loggedIn == 'true';
     _username = await _storage.read(key: 'username');
+    
+    final groupsStr = await _storage.read(key: 'userGroups');
+    _groups = groupsStr?.split(',') ?? [];
+    
     _isInitialized = true;
     notifyListeners();
   }
@@ -37,6 +45,11 @@ class AuthProvider extends ChangeNotifier {
     if (username != null) {
       await _storage.write(key: 'username', value: username);
     }
+    
+    // Refresh groups from storage as AuthService just wrote them
+    final groupsStr = await _storage.read(key: 'userGroups');
+    _groups = groupsStr?.split(',') ?? [];
+    
     notifyListeners();
   }
 
@@ -44,6 +57,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     _isLoggedIn = false;
     _username = null;
+    _groups = [];
     await _storage.deleteAll();
     notifyListeners();
   }

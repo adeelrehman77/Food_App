@@ -83,6 +83,41 @@ class DeliveryDriverSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         zones = validated_data.pop('zones', [])
         routes = validated_data.pop('routes', [])
+        # Create linked User account for new driver
+        email = validated_data.get('email')
+        phone = validated_data.get('phone')
+        name = validated_data.get('name', '')
+        
+        # Generate username from phone
+        username = phone.replace('+', '').replace(' ', '').replace('-', '')
+        if not email:
+            email = f"{username}@example.com"
+            
+        from django.contrib.auth.models import User, Group
+        password = 'temp_password_123' # TODO: Email this to driver or allow them to set it
+        
+        user, created = User.objects.get_or_create(username=username, defaults={
+            'email': email,
+            'first_name': name.split()[0],
+            'last_name': ' '.join(name.split()[1:]) if len(name.split()) > 1 else '',
+            'is_staff': True,
+            'is_active': True
+        })
+        if created:
+            user.set_password(password)
+            user.save()
+        else:
+            # Ensure existing user has staff access if being added as driver
+            if not user.is_staff:
+                user.is_staff = True
+                user.save()
+                
+        # Assign to Driver group
+        driver_group, _ = Group.objects.get_or_create(name='Driver')
+        user.groups.add(driver_group)
+        
+        validated_data['user'] = user
+
         driver = super().create(validated_data)
         if zones:
             driver.zones.set(zones)

@@ -23,12 +23,21 @@ class DeliveryViewSet(viewsets.ModelViewSet):
 
     Allows listing, assigning drivers, and updating delivery status.
     """
-    queryset = Delivery.objects.select_related('order', 'driver', 'driver_user').all()
     serializer_class = DeliverySerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['status', 'driver']
     ordering = ['-created_at']
     search_fields = ['order__id', 'driver__name', 'driver_user__username']
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Delivery.objects.select_related('order', 'driver', 'driver_user').all()
+        
+        # If user is a driver, only show their deliveries
+        if hasattr(user, 'driver_profile'):
+            return qs.filter(driver=user.driver_profile)
+            
+        return qs
 
     @action(detail=True, methods=['post'])
     def assign_driver(self, request, pk=None):

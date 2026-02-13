@@ -254,7 +254,14 @@ class _TenantLoginScreenState extends State<TenantLoginScreen> {
             validator: (value) =>
                 value == null || value.trim().isEmpty ? 'Required' : null,
           ),
-          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => context.push('/forgot-password'),
+              child: const Text('Forgot Password?'),
+            ),
+          ),
+          const SizedBox(height: 8),
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,

@@ -142,6 +142,14 @@ class DeliveryDriver(models.Model):
     """
     Model for delivery drivers.
     """
+    user = models.OneToOneField(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='driver_profile',
+        help_text="Link to the system user account for authentication"
+    )
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, unique=True)
     email = models.EmailField(blank=True, null=True)

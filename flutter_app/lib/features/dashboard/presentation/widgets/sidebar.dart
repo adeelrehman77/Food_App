@@ -40,83 +40,108 @@ class Sidebar extends StatelessWidget {
           const SizedBox(height: 30),
           // Navigation Items
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _SidebarItem(
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                  route: '/dashboard',
-                  isSelected: currentRoute == '/dashboard',
-                ),
-                _SidebarItem(
-                  icon: Icons.receipt_long_rounded,
-                  label: 'Orders',
-                  route: '/orders',
-                  isSelected: currentRoute == '/orders',
-                ),
-                _SidebarItem(
-                  icon: Icons.card_membership_rounded,
-                  label: 'Subscriptions',
-                  route: '/subscriptions',
-                  isSelected: currentRoute == '/subscriptions',
-                ),
-                _SidebarItem(
-                  icon: Icons.menu_book_rounded,
-                  label: 'Menu',
-                  route: '/menu',
-                  isSelected: currentRoute == '/menu',
-                ),
-                _SidebarItem(
-                  icon: Icons.inventory_2_rounded,
-                  label: 'Inventory',
-                  route: '/inventory',
-                  isSelected: currentRoute == '/inventory',
-                ),
-                _SidebarItem(
-                  icon: Icons.local_shipping_rounded,
-                  label: 'Delivery',
-                  route: '/delivery',
-                  isSelected: currentRoute == '/delivery',
-                ),
-                _SidebarItem(
-                  icon: Icons.people_rounded,
-                  label: 'Customers',
-                  route: '/customers',
-                  isSelected: currentRoute == '/customers',
-                ),
-                _SidebarItem(
-                  icon: Icons.account_balance_wallet_rounded,
-                  label: 'Finance',
-                  route: '/finance',
-                  isSelected: currentRoute == '/finance',
-                ),
-                _SidebarItem(
-                  icon: Icons.badge_rounded,
-                  label: 'Staff',
-                  route: '/staff',
-                  isSelected: currentRoute == '/staff',
-                ),
-              ],
+            child: Consumer<AuthProvider>(
+              builder: (context, auth, _) {
+                final isDriver = auth.isDriver;
+                
+                final items = [
+                  if (!isDriver)
+                    _SidebarItem(
+                      icon: Icons.dashboard_rounded,
+                      label: 'Dashboard',
+                      route: '/dashboard',
+                      isSelected: currentRoute == '/dashboard',
+                    ),
+                  if (!isDriver)
+                    _SidebarItem(
+                      icon: Icons.receipt_long_rounded,
+                      label: 'Orders',
+                      route: '/orders',
+                      isSelected: currentRoute == '/orders',
+                    ),
+                  if (!isDriver)
+                    _SidebarItem(
+                      icon: Icons.card_membership_rounded,
+                      label: 'Subscriptions',
+                      route: '/subscriptions',
+                      isSelected: currentRoute == '/subscriptions',
+                    ),
+                  if (!isDriver)
+                    _SidebarItem(
+                      icon: Icons.menu_book_rounded,
+                      label: 'Menu',
+                      route: '/menu',
+                      isSelected: currentRoute == '/menu',
+                    ),
+                  if (!isDriver)
+                    _SidebarItem(
+                      icon: Icons.inventory_2_rounded,
+                      label: 'Inventory',
+                      route: '/inventory',
+                      isSelected: currentRoute == '/inventory',
+                    ),
+                  _SidebarItem(
+                    icon: Icons.local_shipping_rounded,
+                    label: 'Delivery',
+                    route: '/delivery',
+                    isSelected: currentRoute == '/delivery',
+                  ),
+                  if (!isDriver)
+                    _SidebarItem(
+                      icon: Icons.people_rounded,
+                      label: 'Customers',
+                      route: '/customers',
+                      isSelected: currentRoute == '/customers',
+                    ),
+                  if (!isDriver)
+                    _SidebarItem(
+                      icon: Icons.account_balance_wallet_rounded,
+                      label: 'Finance',
+                      route: '/finance',
+                      isSelected: currentRoute == '/finance',
+                    ),
+                  if (!isDriver)
+                    _SidebarItem(
+                      icon: Icons.badge_rounded,
+                      label: 'Staff',
+                      route: '/staff',
+                      isSelected: currentRoute == '/staff',
+                    ),
+                ];
+
+                return ListView(
+                  padding: EdgeInsets.zero,
+                  children: items,
+                );
+              },
             ),
           ),
           // Platform Admin link (visible to all for now — backend enforces superuser)
-          const Divider(height: 1),
-          ListTile(
-            leading: Icon(Icons.admin_panel_settings_rounded,
-                color: Theme.of(context).primaryColor, size: 22),
-            title: Text(
-              'Platform Admin',
-              style: TextStyle(
-                color: Theme.of(context).primaryColor,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-            dense: true,
-            onTap: () => context.go('/saas'),
+          Consumer<AuthProvider>(
+            builder: (context, auth, _) {
+              if (auth.isDriver) return const SizedBox.shrink();
+              return Column(
+                children: [
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: Icon(Icons.admin_panel_settings_rounded,
+                        color: Theme.of(context).primaryColor, size: 22),
+                    title: Text(
+                      'Platform Admin',
+                      style: TextStyle(
+                        color: Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                    dense: true,
+                    onTap: () => context.go('/saas'),
+                  ),
+                ],
+              );
+            },
           ),
           // Logout button at the bottom
           const Divider(height: 1),

@@ -290,7 +290,7 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': 'auth',
     'JWT_AUTH_REFRESH_COOKIE': 'refresh-auth',
     'JWT_AUTH_HTTPONLY': True,
-    'USER_DETAILS_SERIALIZER': 'dj_rest_auth.serializers.UserDetailsSerializer',
+    'USER_DETAILS_SERIALIZER': 'apps.users.serializers.UserDetailsSerializer',
     'PASSWORD_RESET_USE_SITES_DOMAIN': True,
     'OLD_PASSWORD_FIELD_ENABLED': True,
 }

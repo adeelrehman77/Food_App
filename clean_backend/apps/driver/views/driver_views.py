@@ -14,45 +14,10 @@ class DriverDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         # Filter for the current user's driver profile and today's deliveries
         user = self.request.user
-        if not hasattr(user, 'deliverydriver') and not hasattr(user, 'driver_profile'): 
-             # Assuming a link exists, but based on models provided earlier:
-             # DeliveryDriver model didn't seem to have a OneToOne to User in the snippet provided in previous turns?
-             # Checking `apps/driver/models.py` again... `DeliveryAssignment` links to `DeliveryDriver`.
-             # If `DeliveryDriver` doesn't link to `User`, we might have a problem identifying the driver from `request.user`.
-             # Retrospective: The `DeliveryDriver` model has `phone` and `email` but no `user` OneToOneField in the content I saw earlier.
-             # However, typically in this architecture, there should be a link. 
-             # I will assume for now there might be a linkage I missed or I need to handle it.
-             # Actually, looking at `migrations/0001_initial.py` which had `Driver` linked to `User`, 
-             # but `DeliveryDriver` in `models.py` (which I read in turn 2) did NOT have a `user` field.
-             # This is a potential issue.
-             # For the sake of this task, I will assume the driver is authenticated via the same User system 
-             # and we might need to find the driver by email or phone, OR there is a missing link.
-             # Let's check if I can filter by `driver__email=user.email` or similar if no direct link.
-             # But best practice is `user` field. 
-             # FORCE FIX: I'll assume we filter based on some property or just return all for checking if I can't find the link.
-             # Wait, `UserProfile` or similar might help.
-             # Let's write the code to look for a `driver` attribute or filter by email.
-             
-             # Re-reading `DeliveryDriver` in `apps/driver/models.py` from Turn 2:
-             # class DeliveryDriver(models.Model):
-             #     name = models.CharField(max_length=100)
-             #     phone = models.CharField(max_length=20, unique=True)
-             #     email = models.EmailField(blank=True, null=True)
-             # ...
-             
-             # It does NOT have a user field. This is a design gap for a "logged in driver".
-             # However, `apps/driver/admin.py` (old one) referenced `user`.
-             # The user asked: "Generate... for a Driver to... List all deliveries assigned to them".
-             # I will implement it assuming there is a way to link. 
-             # I will filter by `driver__email=self.request.user.email` as a fallback if `driver` attr is missing.
-             pass
-        
-        queryset = DeliveryAssignment.objects.filter(
-            delivery_status__date=timezone.now().date()
-        ).select_related('delivery_status', 'delivery_status__subscription__customer')
+        if hasattr(user, 'driver_profile'):
+            return queryset.filter(driver=user.driver_profile)
 
-        # Try to filter by logged in driver
-        # Fallback: Check if the user object itself has an email that matches a driver
+        # Fallback for old records without user link (temporary)
         if hasattr(user, 'email') and user.email:
              return queryset.filter(driver__email=user.email)
         

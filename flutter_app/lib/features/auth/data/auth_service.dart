@@ -43,6 +43,14 @@ class AuthService {
         await _storage.write(key: 'refreshToken', value: data['refresh']);
         await _storage.write(key: 'isLoggedIn', value: 'true');
         await _storage.write(key: 'username', value: username);
+        
+        // Store groups if present
+        if (data['user'] != null && data['user']['groups'] != null) {
+          final groups = (data['user']['groups'] as List).cast<String>();
+          await _storage.write(key: 'userGroups', value: groups.join(','));
+        } else {
+          await _storage.delete(key: 'userGroups');
+        }
       } else if (response.statusCode == 400 || response.statusCode == 401) {
         final detail = response.data is Map
             ? (response.data['detail'] ?? response.data['non_field_errors']?.first ?? 'Invalid credentials')

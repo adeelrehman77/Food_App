@@ -15,6 +15,7 @@ import '../../features/admin/presentation/subscriptions_screen.dart';
 import '../../features/menu/presentation/menu_screen.dart';
 import '../../features/auth/presentation/tenant_login_screen.dart';
 import '../../features/auth/presentation/user_login_screen.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
 
 // SaaS Owner screens
 import '../../features/saas_admin/presentation/saas_login_screen.dart';
@@ -48,6 +49,9 @@ GoRouter buildRouter(AuthProvider authProvider) {
       // Already logged in but on a login page — redirect to dashboard
       // (don't redirect SaaS login to tenant dashboard)
       if (isLoggedIn && isOnLogin) {
+        if (authProvider.isDriver) {
+          return '/delivery';
+        }
         return '/dashboard';
       }
 
@@ -58,6 +62,10 @@ GoRouter buildRouter(AuthProvider authProvider) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const TenantLoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/user-login',
