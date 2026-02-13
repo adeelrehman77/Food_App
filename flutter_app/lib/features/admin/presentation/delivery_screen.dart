@@ -546,12 +546,27 @@ class _DeliveryDetailDialog extends StatelessWidget {
       }
     }
   }
+
+  void _showAssignDriverDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => _AssignDriverDialog(
+        deliveryId: delivery.id,
+        currentDriverId: delivery.driverId,
+        onSuccess: () {
+          Navigator.pop(context); // Close details dialog to refresh parent
+          onRefresh();
+        },
+      ),
+    );
+  }
 }
 
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
-  const _DetailRow({required this.label, required this.value});
+  final Widget? trailing;
+  const _DetailRow({required this.label, required this.value, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -569,6 +584,10 @@ class _DetailRow extends StatelessWidget {
           Expanded(
             child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
           ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing!,
+          ],
         ],
       ),
     );
@@ -2454,6 +2473,120 @@ class _ErrorView extends StatelessWidget {
           const SizedBox(height: 12),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Assign Driver Dialog
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _AssignDriverDialog extends StatefulWidget {
+  final int deliveryId;
+  final int? currentDriverId;
+  final VoidCallback onSuccess;
+  const _AssignDriverDialog({
+    required this.deliveryId,
+    this.currentDriverId,
+    required this.onSuccess,
+  });
+
+  @override
+  State<_AssignDriverDialog> createState() => _AssignDriverDialogState();
+}
+
+class _AssignDriverDialogState extends State<_AssignDriverDialog> {
+  final _repo = AdminRepository();
+  List<DeliveryDriver> _drivers = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDrivers();
+  }
+
+  Future<void> _loadDrivers() async {
+    try {
+      final drivers = await _repo.getDrivers();
+      if (mounted) {
+        setState(() {
+          _drivers = drivers.where((d) => d.isActive).toList();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    }
+  }
+
+  Future<void> _assign(int driverId) async {
+    try {
+      await _repo.assignDeliveryDriver(widget.deliveryId, driverId);
+      if (mounted) {
+        Navigator.pop(context); // Close assign dialog
+        widget.onSuccess();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Driver assigned successfully'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Text('Assign Driver', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Padding(padding: const EdgeInsets.all(16), child: Text(_error!, style: const TextStyle(color: Colors.red)))
+                      : _drivers.isEmpty
+                          ? const Center(child: Text('No active drivers found'))
+                          : ListView.builder(
+                              itemCount: _drivers.length,
+                              itemBuilder: (_, i) {
+                                final driver = _drivers[i];
+                                final isSelected = driver.id == widget.currentDriverId;
+                                return ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: Colors.teal.shade50,
+                                    child: const Icon(Icons.person, color: Colors.teal, size: 20),
+                                  ),
+                                  title: Text(driver.name),
+                                  subtitle: Text(driver.phone, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                                  trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                                  onTap: () => _assign(driver.id),
+                                );
+                              },
+                            ),
+            ),
+          ],
+        ),
       ),
     );
   }

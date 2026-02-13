@@ -1230,12 +1230,14 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
                                 const DropdownMenuItem(value: null, child: Text('Select address...', style: TextStyle(fontSize: 13))),
                                 ..._addresses.where((a) => a.zoneId != null).map((a) => DropdownMenuItem(
                                       value: a.id,
-                                      child: Text(
+                                    child: Text(
                                         a.zoneName != null 
                                             ? '${a.displayString} (Zone: ${a.zoneName})'
                                             : a.displayString,
                                         style: const TextStyle(fontSize: 13),
                                         overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                        softWrap: false,
                                       ),
                                     )),
                               ],
@@ -1262,12 +1264,14 @@ class _SubscriptionFormDialogState extends State<_SubscriptionFormDialog> {
                                 const DropdownMenuItem(value: null, child: Text('Select address...', style: TextStyle(fontSize: 13))),
                                 ..._addresses.where((a) => a.zoneId != null).map((a) => DropdownMenuItem(
                                       value: a.id,
-                                      child: Text(
+                                    child: Text(
                                         a.zoneName != null 
                                             ? '${a.displayString} (Zone: ${a.zoneName})'
                                             : a.displayString,
                                         style: const TextStyle(fontSize: 13),
                                         overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                        softWrap: false,
                                       ),
                                     )),
                               ],
