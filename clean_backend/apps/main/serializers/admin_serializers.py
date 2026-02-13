@@ -122,9 +122,9 @@ class CustomerProfileAdminSerializer(serializers.ModelSerializer):
         read_only_fields = ['wallet_balance', 'loyalty_points', 'created_at', 'updated_at', 'username']
 
     # Explicitly define these fields so they are writable
-    first_name = serializers.CharField(source='user.first_name', required=False)
-    last_name = serializers.CharField(source='user.last_name', required=False)
-    email = serializers.EmailField(source='user.email', required=False)
+    first_name = serializers.CharField(source='user.first_name', required=False, allow_blank=True)
+    last_name = serializers.CharField(source='user.last_name', required=False, allow_blank=True)
+    email = serializers.EmailField(source='user.email', required=False, allow_blank=True)
 
     def update(self, instance, validated_data):
         # Extract user data - DRF nests it because of source='user.field'

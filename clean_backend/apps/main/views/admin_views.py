@@ -445,7 +445,7 @@ class StaffUserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # Users are already tenant-scoped by the database router.
         # No need for cross-DB UserProfile filtering.
-        return User.objects.prefetch_related('groups').filter(is_active=True)
+        return User.objects.prefetch_related('groups').filter(is_active=True, is_staff=True)
 
     def get_serializer_class(self):
         if self.action == 'create':

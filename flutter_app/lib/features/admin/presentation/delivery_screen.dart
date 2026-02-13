@@ -471,6 +471,15 @@ class _DeliveryDetailDialog extends StatelessWidget {
                       value: delivery.driverName?.isNotEmpty == true
                           ? delivery.driverName!
                           : 'Unassigned',
+                      trailing: delivery.status != 'delivered' && delivery.status != 'failed'
+                          ? IconButton(
+                              icon: const Icon(Icons.edit, size: 16, color: Colors.blue),
+                              tooltip: 'Assign Driver',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _showAssignDriverDialog(context),
+                            )
+                          : null,
                     ),
                     if (delivery.customerName?.isNotEmpty == true)
                       _DetailRow(label: 'Customer', value: delivery.customerName!),
