@@ -665,3 +665,23 @@ if not ENCRYPTION_KEY:
             "ENCRYPTION_KEY environment variable is required in production. "
             f"Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
+
+# Python 3.14 compatibility: Django's BaseContext.__copy__ uses copy(super()), which
+# fails because super() has no __dict__ for attribute assignment. Monkey-patch so
+# admin and template rendering work (e.g. /admin/main/subscription/).
+import django.template.context as _template_context
+
+
+def _patched_base_context_copy(self):
+    duplicate = object.__new__(type(self))
+    duplicate.dicts = self.dicts[:]
+    if hasattr(self, 'autoescape'):
+        duplicate.autoescape = self.autoescape
+        duplicate.use_l10n = getattr(self, 'use_l10n', None)
+        duplicate.use_tz = getattr(self, 'use_tz', None)
+        duplicate.template_name = getattr(self, 'template_name', 'unknown')
+        duplicate.template = getattr(self, 'template', None)
+    return duplicate
+
+
+_template_context.BaseContext.__copy__ = _patched_base_context_copy

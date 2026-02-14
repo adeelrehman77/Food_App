@@ -22,12 +22,13 @@ class AppConfig {
   );
 
   /// Production configuration.
+  /// API is on a dedicated subdomain so web, Android, and iOS all use the same base URL.
   static const production = AppConfig(
-    apiBaseUrl: 'https://kitchen.funadventure.ae/api/v1/',
-    discoveryUrl: 'https://kitchen.funadventure.ae/api/discover/',
+    apiBaseUrl: 'https://api.kitchen.funadventure.ae/api/v1/',
+    discoveryUrl: 'https://api.kitchen.funadventure.ae/api/discover/',
     enableLogging: false,
   );
 
   /// The active configuration. Change this to switch environments.
-  static AppConfig current = development;
+  static AppConfig current = production;
 }
