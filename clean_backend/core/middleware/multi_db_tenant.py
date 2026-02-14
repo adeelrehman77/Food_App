@@ -59,7 +59,7 @@ class MultiDbTenantMiddleware:
             if db_alias not in settings.DATABASES:
                 db_config = copy.deepcopy(settings.DATABASES['default'])
                 db_config.update({
-                    'NAME': tenant.db_name,
+                    'NAME': tenant.db_name or f"kitchen_tenant_{tenant.subdomain}",
                     'USER': tenant.db_user or db_config.get('USER', ''),
                     'PASSWORD': tenant.db_password or db_config.get('PASSWORD', ''),
                     'HOST': tenant.db_host or db_config.get('HOST', 'localhost'),

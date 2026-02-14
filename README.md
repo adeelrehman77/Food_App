@@ -674,7 +674,7 @@ The stack is **suitable for production deployment** for the current scope (tenan
 
 ### Gaps to address before “full” production hardening (see PLAN.md Phase 9)
 
-- **Tests** — No automated test suite yet; add API and unit tests for critical paths (auth, orders, subscriptions, invoicing).
+- **Tests** — Comprehensive test suite exists (~78% coverage); includes API and unit tests for critical paths (auth, orders, subscriptions, invoicing). Run with `pytest`.
 - **Celery tasks** — Worker/beat are in Docker but no application tasks are defined; usage collection and scheduled jobs are planned, not implemented.
 - **Payments** — No Stripe/PayTabs (or other) integration; payments are recorded as cash/card/wallet only.
 - **Notifications** — Email/WhatsApp sending not wired; placeholders exist.
@@ -690,7 +690,7 @@ The stack is **suitable for production deployment** for the current scope (tenan
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/my-feature`
 3. Make changes and add tests
-4. Run the test suite: `python manage.py test`
+4. Run the test suite: `pytest`
 5. Commit with a descriptive message
 6. Push and open a Pull Request
 

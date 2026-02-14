@@ -284,13 +284,13 @@ python scripts/create_api_key.py <username> <key_name> <days_valid>
 
 ```bash
 # Run all tests
-python manage.py test
+pytest
 
 # Run specific app tests
-python manage.py test apps.main
+pytest apps/main/tests/
 
 # Run with coverage
-coverage run --source='.' manage.py test
+coverage run -m pytest
 coverage report
 ```
 

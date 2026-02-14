@@ -32,9 +32,14 @@ if not SECRET_KEY:
         raise ValueError("SECRET_KEY environment variable is required in production")
 
 # Host configuration
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else [
+    '.kitchen.funadventure.ae',
+    'kitchen.funadventure.ae',
+    'localhost',
+    '127.0.0.1'
+]
 if DEBUG:
-    ALLOWED_HOSTS = ['*']
+    ALLOWED_HOSTS += ['*']
 PORT = int(os.environ.get('PORT', 8000))
 
 # CSRF settings
@@ -373,9 +378,13 @@ if not DEBUG:  # In production
             "https://www.kitchen.funadventure.ae",
         ]
     )
+    
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^https://\w+\.kitchen\.funadventure\.ae$",
+    ]
 else:  # In development
     SECURE_SSL_REDIRECT = False
-    SECURE_PROXY_SSL_HEADER = None
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
     CSRF_COOKIE_HTTPONLY = False
@@ -393,6 +402,11 @@ else:  # In development
         "http://localhost:8000",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8000",
+        "https://kitchen.funadventure.ae",
+    ]
+
+    CORS_ALLOWED_ORIGIN_REGEXES = [
+        r"^https://\w+\.kitchen\.funadventure\.ae$",
     ]
 
 # Content Security Policy settings
@@ -491,7 +505,7 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'food_app'),
+            'NAME': os.environ.get('DB_NAME', 'kitchen_shared_master'),
             'USER': os.environ.get('DB_USER', 'postgres'),
             'PASSWORD': os.environ.get('DB_PASSWORD', ''),
             'HOST': os.environ.get('DB_HOST', 'localhost'),

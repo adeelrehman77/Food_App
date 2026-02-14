@@ -23,8 +23,8 @@ class AppConfig {
 
   /// Production configuration.
   static const production = AppConfig(
-    apiBaseUrl: 'https://api.kitchen.funadventure.ae/api/v1/',
-    discoveryUrl: 'https://api.kitchen.funadventure.ae/api/discover/',
+    apiBaseUrl: 'https://kitchen.funadventure.ae/api/v1/',
+    discoveryUrl: 'https://kitchen.funadventure.ae/api/discover/',
     enableLogging: false,
   );
 
