@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx_static # We will create a simple nginx dockerfile or just use image
+    volumes:
+      - ./web-build:/usr/share/nginx/html
+    ports:
+      - "80:80"
+    restart: unless-stopped
