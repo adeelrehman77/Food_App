@@ -143,28 +143,36 @@ class Command(BaseCommand):
         )
         Order.objects.using(db_alias).filter(id__in=ready_ids).update(status='ready')
 
-        # Create Delivery for each order that is now ready (so they appear in Delivery Management)
-        from apps.delivery.models import Delivery
-        from apps.main.utils.delivery_utils import assign_driver_to_order
-        created_deliveries = 0
-        for order_id in ready_ids:
-            # get_or_create needs the order instance; we only have id
-            order = Order.objects.using(db_alias).get(id=order_id)
-            # Auto-assign driver based on zone
-            assigned_driver = assign_driver_to_order(order)
-            delivery, created = Delivery.objects.using(db_alias).get_or_create(
-                order=order,
-                defaults={
-                    'status': 'pending',
-                    'driver': assigned_driver
-                }
-            )
-            # Update driver if not set and we have one
-            if not delivery.driver and assigned_driver:
-                delivery.driver = assigned_driver
-                delivery.save(update_fields=['driver'])
-            if created:
-                created_deliveries += 1
+        # Set the thread-local DB alias so that model instantiation and router checks work
+        from core.db.router import set_current_db_alias
+        previous_alias = settings.DATABASES.get('default', {}).get('NAME', 'default') # Just ensuring we can revert if needed, but 'default' is safe fallback
+        set_current_db_alias(db_alias)
+        
+        try:
+            # Create Delivery for each order that is now ready (so they appear in Delivery Management)
+            from apps.delivery.models import Delivery
+            from apps.main.utils.delivery_utils import assign_driver_to_order
+            created_deliveries = 0
+            for order_id in ready_ids:
+                # get_or_create needs the order instance; we only have id
+                order = Order.objects.using(db_alias).get(id=order_id)
+                # Auto-assign driver based on zone
+                assigned_driver = assign_driver_to_order(order)
+                delivery, created = Delivery.objects.using(db_alias).get_or_create(
+                    order=order,
+                    defaults={
+                        'status': 'pending',
+                        'driver': assigned_driver
+                    }
+                )
+                # Update driver if not set and we have one
+                if not delivery.driver and assigned_driver:
+                    delivery.driver = assigned_driver
+                    delivery.save(update_fields=['driver'])
+                if created:
+                    created_deliveries += 1
+        finally:
+            set_current_db_alias('default')
 
         self.stdout.write(
             self.style.SUCCESS(

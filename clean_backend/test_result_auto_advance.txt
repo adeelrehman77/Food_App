@@ -1,0 +1,75 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.2, pytest-8.3.4, pluggy-1.5.0
+rootdir: /Users/adeelrehman/Food_App/clean_backend
+configfile: pytest.ini
+plugins: cov-6.0.0
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+________ ERROR collecting apps/main/tests/test_auto_advance_command.py _________
+ImportError while importing test module '/Users/adeelrehman/Food_App/clean_backend/apps/main/tests/test_auto_advance_command.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+apps/main/tests/test_auto_advance_command.py:9: in <module>
+    from apps.users.models import Tenant
+E   ModuleNotFoundError: No module named 'apps'
+=============================== warnings summary ===============================
+../../../../Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/_pytest/config/__init__.py:1441
+  /Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/_pytest/config/__init__.py:1441: PytestConfigWarning: Unknown config option: DJANGO_SETTINGS_MODULE
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform darwin, python 3.13.2-final-0 ----------
+Name                                           Stmts   Miss  Cover   Missing
+----------------------------------------------------------------------------
+apps/main/__init__.py                              0      0   100%
+apps/main/tests/__init__.py                        0      0   100%
+apps/main/tests/test_auto_advance_command.py      51     43    16%   10-154
+config/__init__.py                                 0      0   100%
+config/asgi.py                                     7      7     0%   10-19
+config/settings/__init__.py                        0      0   100%
+config/settings/base.py                          200    200     0%   1-650
+config/settings/development.py                    25     25     0%   1-63
+config/settings/production.py                     45     45     0%   1-85
+config/settings/test.py                           22     22     0%   1-64
+config/url_patterns/__init__.py                    0      0   100%
+config/url_patterns/base.py                       14     14     0%   1-57
+config/urls.py                                    13     13     0%   1-64
+config/wsgi.py                                     4      4     0%   10-16
+core/__init__.py                                   0      0   100%
+core/middleware/__init__.py                        3      3     0%   2-19
+core/middleware/multi_db_tenant.py                38     38     0%   1-87
+core/middleware/performance.py                   164    164     0%   1-316
+core/middleware/security.py                      137    137     0%   1-297
+core/middleware/tenant.py                         28     28     0%   1-52
+core/monitoring/__init__.py                       16     16     0%   2-32
+core/permissions/__init__.py                       2      2     0%   2-3
+core/permissions/custom.py                        74     74     0%   1-215
+core/permissions/plan_limits.py                   48     48     0%   11-99
+core/tests/__init__.py                             0      0   100%
+core/tests/test_middleware.py                     31     31     0%   1-35
+core/tests/test_validators.py                     56     56     0%   1-76
+core/utils/__init__.py                             0      0   100%
+core/utils/validators.py                         124    124     0%   1-215
+create_tenant_user.py                             38     38     0%   1-57
+fix_drivers.py                                    58     58     0%   1-100
+fix_tenant.py                                     41     41     0%   5-56
+manage.py                                         11     11     0%   3-22
+scripts/__init__.py                                0      0   100%
+scripts/create_api_key.py                         47     47     0%   14-87
+scripts/fix_migrations.py                         15     15     0%   1-20
+scripts/inspect_db.py                             15     15     0%   1-17
+scripts/provision_tenant.py                       49     49     0%   1-98
+scripts/reset_local_schema.py                     29     29     0%   1-54
+scripts/setup_database.py                         45     45     0%   11-120
+----------------------------------------------------------------------------
+TOTAL                                           1450   1442     1%
+
+=========================== short test summary info ============================
+ERROR apps/main/tests/test_auto_advance_command.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+========================= 1 warning, 1 error in 0.56s ==========================
